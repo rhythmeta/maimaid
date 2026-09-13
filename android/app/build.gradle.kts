@@ -59,6 +59,9 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            enableV3Signing = true
+        }
         if (releaseSigningConfigured) {
             create("release") {
                 storeFile = file(releaseKeystorePath.get())
@@ -66,6 +69,7 @@ android {
                 keyAlias = releaseKeyAlias.get()
                 keyPassword = releaseKeyPassword.get()
                 storeType = "PKCS12"
+                enableV3Signing = true
             }
         }
     }
