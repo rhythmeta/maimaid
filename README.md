@@ -112,6 +112,16 @@ BACKEND_AUTH_URL = https://auth.example.com
 - charaDiana、[Keritial](https://krtl.net)：图像标注支持
 - charaDiana：资金支持
 
+## Donation
+
+Your support is the greatest driving force behind our continued development and maintenance; we welcome donations of any amount.
+
+ERC20: `0x1360a13425f5982dfe09a9f3b7046db80080c88d`
+
+or just scan this QRCode:
+
+<img width="400" alt="IMG_1378" src="https://github.com/user-attachments/assets/0d3e657b-6d2a-48e5-8652-3d0ee7107723" />
+
 ## 数据与版权
 
 应用整合后端静态曲库，以及 Diving Fish、LXNS 等社区服务的数据。`maimai` 及其游戏素材和商标归 SEGA 所有；maimaid 是独立的社区工具，与 SEGA 无官方关联。
