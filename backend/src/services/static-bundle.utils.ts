@@ -258,10 +258,40 @@ export const versionForCatalogReleaseDate = (
 	return matched?.version ?? (fallback || null);
 };
 
+const declaredVersion = (value: unknown): string | null => {
+	const version = typeof value === "string" ? value.trim() : "";
+	return version || null;
+};
+
+const versionForCatalogSheet = (sheet: Record<string, unknown>, versions: CatalogVersionRecord[]): string | null => {
+	const version = declaredVersion(sheet.version);
+	const difficulty = typeof sheet.difficulty === "string" ? sheet.difficulty.trim().toLocaleLowerCase() : "";
+	if (difficulty !== "remaster") {
+		return version ?? versionForCatalogReleaseDate(sheet.releaseDate, null, versions);
+	}
+	return versionForCatalogReleaseDate(sheet.releaseDate, version, versions);
+};
+
+const earliestCatalogVersion = (sheets: Record<string, unknown>[], versions: CatalogVersionRecord[]): string | null => {
+	const candidates = sheets
+		.map((sheet) => declaredVersion(sheet.version))
+		.filter((version): version is string => version !== null);
+	if (candidates.length === 0) {
+		return null;
+	}
+
+	const order = new Map(versions.map((version, index) => [version.version.toLocaleLowerCase(), index]));
+	return candidates.reduce((earliest, candidate) => {
+		const earliestOrder = order.get(earliest.toLocaleLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+		const candidateOrder = order.get(candidate.toLocaleLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+		return candidateOrder < earliestOrder ? candidate : earliest;
+	});
+};
+
 /**
  * Normalizes dxdata's chart release metadata into the catalog contract.
- * dxdata keeps the original song version in `sheet.version` and the actual
- * chart addition in `sheet.releaseDate`; plate groups need the latter.
+ * Main difficulties use `sheet.version` as their release generation. An
+ * appended Re:MASTER uses `sheet.releaseDate` to determine its addition.
  */
 export const normalizeDxDataCatalog = (payload: unknown): Record<string, unknown> => {
 	const root = toRecord(payload);
@@ -288,7 +318,7 @@ export const normalizeDxDataCatalog = (payload: unknown): Record<string, unknown
 			if (!sheet) {
 				return rawSheet;
 			}
-			const version = versionForCatalogReleaseDate(sheet.releaseDate, sheet.version, versions);
+			const version = versionForCatalogSheet(sheet, versions);
 			const existingLevelValue = Number(sheet.levelValue);
 			const levelValue =
 				Number.isFinite(existingLevelValue) && existingLevelValue > 0
@@ -311,6 +341,10 @@ export const normalizeDxDataCatalog = (payload: unknown): Record<string, unknown
 			(sheet) => typeof sheet.type !== "string" || !sheet.type.toLocaleLowerCase().includes("utage"),
 		);
 		const songCharts = standardSongCharts.length > 0 ? standardSongCharts : allSongCharts;
+		const mainSongCharts = songCharts.filter(
+			(sheet) => typeof sheet.difficulty !== "string" || sheet.difficulty.toLocaleLowerCase() !== "remaster",
+		);
+		const versionCharts = mainSongCharts.length > 0 ? mainSongCharts : songCharts;
 		const firstReleasedChart = songCharts
 			.map((sheet) => ({
 				releaseDate: sheet.releaseDate,
@@ -323,11 +357,9 @@ export const normalizeDxDataCatalog = (payload: unknown): Record<string, unknown
 			)
 			.sort((left, right) => left.millis - right.millis)[0];
 		const firstReleaseDate = firstReleasedChart?.releaseDate;
-		const version = versionForCatalogReleaseDate(
-			song.releaseDate || firstReleaseDate,
-			song.version || firstReleasedChart?.version,
-			versions,
-		);
+		const version =
+			earliestCatalogVersion(versionCharts, versions) ??
+			versionForCatalogReleaseDate(song.releaseDate || firstReleaseDate, song.version || firstReleasedChart?.version, versions);
 
 		const imageName = typeof song.imageName === "string" ? song.imageName.trim() : "";
 		return {
