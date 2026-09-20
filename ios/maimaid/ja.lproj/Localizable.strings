@@ -467,10 +467,10 @@
 "scoreQuery.empty" = "まだスコアがありません";
 "scoreQuery.results" = "件";
 "scoreQuery.songNotFound" = "曲が見つかりません";
-"scoreQuery.export.title" = "定数テーブルのエクスポート";
+"scoreQuery.export.title" = "定数表";
 "scoreQuery.export.subtitle" = "スコアオーバーレイの有無にかかわらず、整数定数内のすべてのチャートをエクスポートします。";
 "scoreQuery.export.charts" = "チャート";
-"scoreQuery.export.level" = "整数定数";
+"scoreQuery.export.level" = "基準レベル";
 "scoreQuery.export.sections" = "セクション";
 "scoreQuery.export.mode.title" = "書き出す内容";
 "scoreQuery.export.mode.constants" = "定数";
@@ -478,14 +478,15 @@
 "scoreQuery.export.player" = "プレイヤー";
 "scoreQuery.export.regularOnly" = "通常のチャートのみ";
 "scoreQuery.export.empty" = "利用可能な譜面がありません";
-"scoreQuery.export.empty.description" = "楽曲データをダウンロードすると定数表を書き出せます。";
+"scoreQuery.export.empty.description" = "楽曲データをダウンロードすると定数表を表示できます。";
 "scoreQuery.export.exporting" = "画像を生成中...";
 "scoreQuery.export.button" = "画像のエクスポート";
+"scoreQuery.export.chartCount" = "%dチャート";
 "scoreQuery.export.imageTitle.constants" = "%@ 定数テーブル";
 "scoreQuery.export.imageTitle.scores" = "%@ スコアを含む定数テーブル";
 "scoreQuery.export.imageSummary" = "%d セクション · %d 通常のチャート";
 "scoreQuery.export.watermark" = "maimaidで生成";
-"home.constantTableExport.title" = "定数表を書き出す";
+"home.constantTableExport.title" = "定数表";
 "home.constantTableExport.subtitle" = "定数表の画像を作成して共有";
 
 // MARK: - Cloud Sync

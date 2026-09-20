@@ -52,6 +52,7 @@ import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
+import org.rhythmeta.maimaid.ui.catalog.CatalogFilterDialog
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Button
@@ -73,6 +74,10 @@ internal fun ConstantTableScreen(
     container: AppContainer,
     contentTopPadding: Dp,
     listState: LazyListState,
+    categories: List<String>,
+    versions: List<String>,
+    showFilterDialog: Boolean,
+    onDismissFilter: () -> Unit,
     onOpenSong: (String) -> Unit,
 ) {
     val viewModel = viewModel<ConstantTableViewModel>(factory = ConstantTableViewModel.Factory(container))
@@ -177,6 +182,15 @@ internal fun ConstantTableScreen(
             trackPadding = PaddingValues(top = contentTopPadding + 12.dp, bottom = 32.dp),
         )
     }
+    CatalogFilterDialog(
+        show = showFilterDialog,
+        settings = state.filterSettings,
+        categories = categories,
+        versions = versions,
+        includeDifficultyAndType = false,
+        onSettingsChange = viewModel::setFilterSettings,
+        onDismiss = onDismissFilter,
+    )
 }
 
 @Composable

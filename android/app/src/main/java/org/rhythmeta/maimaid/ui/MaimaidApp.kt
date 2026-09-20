@@ -216,6 +216,7 @@ fun MaimaidApp(
     var catalogSearchFocusRequestToken by rememberSaveable { mutableIntStateOf(0) }
     var restoreCatalogSearchFocus by rememberSaveable { mutableStateOf(false) }
     var showCatalogFilter by rememberSaveable { mutableStateOf(false) }
+    var showConstantTableFilter by rememberSaveable { mutableStateOf(false) }
     var showHomeProfileEditor by rememberSaveable { mutableStateOf(false) }
     var profileCreateRequested by rememberSaveable { mutableStateOf(false) }
     var bestTableExportRequested by rememberSaveable { mutableStateOf(false) }
@@ -291,7 +292,9 @@ fun MaimaidApp(
             private var upwardDistance = 0f
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
 
                 when {
                     available.y > 0f -> {
@@ -321,7 +324,7 @@ fun MaimaidApp(
                         }
                     }
                 }
-                return Offset.Zero
+                return super.onPreScroll(available, source)
             }
         }
     }
@@ -334,7 +337,9 @@ fun MaimaidApp(
             private var upwardDistance = 0f
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
 
                 when {
                     available.y > 0f -> {
@@ -362,7 +367,7 @@ fun MaimaidApp(
                         }
                     }
                 }
-                return Offset.Zero
+                return super.onPreScroll(available, source)
             }
         }
     }
@@ -375,7 +380,9 @@ fun MaimaidApp(
             private var upwardDistance = 0f
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
 
                 when {
                     available.y > 0f -> {
@@ -403,7 +410,7 @@ fun MaimaidApp(
                         }
                     }
                 }
-                return Offset.Zero
+                return super.onPreScroll(available, source)
             }
         }
     }
@@ -418,7 +425,9 @@ fun MaimaidApp(
             private var upwardDistance = 0f
 
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
 
                 when {
                     available.y > 0f -> {
@@ -448,7 +457,7 @@ fun MaimaidApp(
                         }
                     }
                 }
-                return Offset.Zero
+                return super.onPreScroll(available, source)
             }
         }
     }
@@ -1551,6 +1560,13 @@ fun MaimaidApp(
                     actions = {
                         if (sourceDetail == AppDetail.BestTable) {
                             detailActions(AppDetail.BestTable)
+                        } else if (sourceDetail == AppDetail.ConstantTable) {
+                            IconButton(onClick = { showConstantTableFilter = true }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.FilterList,
+                                    contentDescription = stringResource(R.string.catalog_filter_title),
+                                )
+                            }
                         }
                         scoreQueryViewModel?.let { queryViewModel ->
                             val queryState = scoreQueryState ?: return@let
@@ -1611,6 +1627,7 @@ fun MaimaidApp(
                         danSelectedPage = danSelectedPage,
                         scoreQueryViewModel = scoreQueryViewModel,
                         showScoreQueryFilter = showScoreQueryFilter,
+                        showConstantTableFilter = showConstantTableFilter,
                         profileCreateRequested = false,
                         bestTableExportRequested = sourceDetail == AppDetail.BestTable &&
                             bestTableExportRequested,
@@ -1621,6 +1638,7 @@ fun MaimaidApp(
                         onRandomSongFilterRequestHandled = {},
                         onRandomSongFilterActiveChanged = {},
                         onDismissScoreQueryFilter = { showScoreQueryFilter = false },
+                        onDismissConstantTableFilter = { showConstantTableFilter = false },
                         onOpenSong = openSongFromDetail,
                         onOpenDanCategory = { _, _ -> },
                         onOpenCommunityAliases = {},
@@ -1986,8 +2004,8 @@ fun MaimaidApp(
 													)
 												}
 
-												AppDetail.StaticData, AppDetail.OtogameLogin
-													-> {
+								AppDetail.StaticData, AppDetail.OtogameLogin
+									-> {
 													val detailTitle = detailTitle(activeDetail)
 													SmallTopAppBar(
 														title = detailTitle,
@@ -2003,10 +2021,35 @@ fun MaimaidApp(
 														navigationIcon = detailNavigationIcon,
 														actions = { detailActions(activeDetail) },
 														defaultWindowInsetsPadding = true,
-													)
-												}
+								)
+								}
 
-												AppDetail.BestTable, AppDetail.Recommendations, AppDetail.ScoreQuery, AppDetail.ConstantTable, AppDetail.PlateProgress, AppDetail.Dan, AppDetail.DanDetail, AppDetail.CommunityAliases, AppDetail.Collections, AppDetail.CollectionDetail, AppDetail.DivingFishImport, AppDetail.LxnsImport, AppDetail.OtogameImport, AppDetail.Appearance,
+								AppDetail.ConstantTable -> {
+									SmallTopAppBar(
+										title = detailTitle(AppDetail.ConstantTable),
+										modifier = Modifier.drawPlainBackdrop(
+											backdrop = detailBackdrop,
+											shape = { TopBarBottomShape },
+											effects = { if (enableBlur) blur(24.dp.toPx()) },
+											onDrawSurface = {
+												drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
+											},
+										).clip(TopBarBottomShape),
+										color = Color.Transparent,
+										navigationIcon = detailNavigationIcon,
+										actions = {
+											IconButton(onClick = { showConstantTableFilter = true }) {
+												Icon(
+													imageVector = Icons.Rounded.FilterList,
+													contentDescription = stringResource(R.string.catalog_filter_title),
+												)
+											}
+										},
+									defaultWindowInsetsPadding = true,
+									)
+								}
+
+								AppDetail.BestTable, AppDetail.Recommendations, AppDetail.ScoreQuery, AppDetail.PlateProgress, AppDetail.Dan, AppDetail.DanDetail, AppDetail.CommunityAliases, AppDetail.Collections, AppDetail.CollectionDetail, AppDetail.DivingFishImport, AppDetail.LxnsImport, AppDetail.OtogameImport, AppDetail.Appearance,
 												AppDetail.LetterGame
 													-> {
 													val detailTitle = when (activeDetail) {
@@ -2036,21 +2079,32 @@ fun MaimaidApp(
 														).clip(TopBarBottomShape),
 														color = Color.Transparent,
 														navigationIcon = detailNavigationIcon,
-														actions = {
-															if (activeDetail == AppDetail.ScoreQuery && scoreQueryState != null) {
-																ScoreQueryTopBarActions(
-																	displayMode = scoreQueryState.displayMode,
-																	sortMode = scoreQueryState.sortMode,
-																	sortAscending = scoreQueryState.sortAscending,
-																	filterActive = !scoreQueryState.filterSettings.isEmpty,
-																	onDisplayModeChange = scoreQueryViewModel::setDisplayMode,
-																	onSortModeChange = scoreQueryViewModel::setSortMode,
-																	onSortAscendingChange = scoreQueryViewModel::setSortAscending,
-																	onShowFilter = { showScoreQueryFilter = true },
-																)
-															} else {
-																detailActions(activeDetail)
-															}
+						actions = {
+							when (activeDetail) {
+									AppDetail.ConstantTable -> {
+										IconButton(onClick = { showConstantTableFilter = true }) {
+											Icon(
+												imageVector = Icons.Rounded.FilterList,
+												contentDescription = stringResource(R.string.catalog_filter_title),
+											)
+										}
+									}
+									AppDetail.ScoreQuery if scoreQueryState != null -> {
+										ScoreQueryTopBarActions(
+											displayMode = scoreQueryState.displayMode,
+											sortMode = scoreQueryState.sortMode,
+											sortAscending = scoreQueryState.sortAscending,
+											filterActive = !scoreQueryState.filterSettings.isEmpty,
+											onDisplayModeChange = scoreQueryViewModel::setDisplayMode,
+											onSortModeChange = scoreQueryViewModel::setSortMode,
+											onSortAscendingChange = scoreQueryViewModel::setSortAscending,
+											onShowFilter = { showScoreQueryFilter = true },
+										)
+									}
+									else -> {
+										detailActions(activeDetail)
+									}
+							}
 														},
 														scrollBehavior = detailScrollBehavior,
 														defaultWindowInsetsPadding = true,
@@ -2147,6 +2201,7 @@ fun MaimaidApp(
                             danSelectedPage = danSelectedPage,
                             scoreQueryViewModel = scoreQueryViewModel,
                             showScoreQueryFilter = showScoreQueryFilter,
+                            showConstantTableFilter = showConstantTableFilter,
                             profileCreateRequested = profileCreateRequested,
                             bestTableExportRequested = bestTableExportRequested,
                             randomSongFilterRequested = randomSongFilterRequested,
@@ -2156,6 +2211,7 @@ fun MaimaidApp(
                             onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
                             onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
                             onDismissScoreQueryFilter = { showScoreQueryFilter = false },
+                            onDismissConstantTableFilter = { showConstantTableFilter = false },
                             onOpenSong = openSongFromDetail,
                             onOpenDanCategory = { categoryId, categoryTitle ->
                                 selectedDanCategoryId = categoryId

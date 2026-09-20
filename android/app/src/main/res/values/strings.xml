@@ -45,7 +45,7 @@
 	<string name="home_recommendations_subtitle">Constant analysis</string>
 	<string name="home_score_query">Score Query</string>
 	<string name="home_score_query_subtitle">Browse all scores</string>
-	<string name="home_constant_table">Export Constant Table</string>
+	<string name="home_constant_table">Constant Table</string>
 	<string name="home_constant_table_subtitle">Create and share constant chart images</string>
 	<string name="home_plate">Plate Progress</string>
 	<string name="home_plate_subtitle">Version plate progress</string>
@@ -254,7 +254,7 @@
 	<string name="detail_random_song">Random song</string>
 	<string name="detail_recommendations">Rating Recommendations</string>
 	<string name="detail_score_query">Score query</string>
-	<string name="detail_constant_table">Constants</string>
+	<string name="detail_constant_table">Constant Table</string>
 	<string name="detail_plate_progress">Plate progress</string>
 	<string name="detail_dan">Dan course</string>
 	<string name="detail_community_aliases">Community aliases</string>

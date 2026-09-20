@@ -59,6 +59,7 @@ internal fun CatalogFilterDialog(
     settings: CatalogFilterSettings,
     categories: List<String>,
     versions: List<String>,
+    includeDifficultyAndType: Boolean = true,
     onSettingsChange: (CatalogFilterSettings) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -141,7 +142,7 @@ internal fun CatalogFilterDialog(
                 }
             }
 
-            item {
+            if (includeDifficultyAndType) item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CatalogFilterSection(title = stringResource(R.string.catalog_filter_difficulty)) {
                         FlowRow(
@@ -248,7 +249,7 @@ internal fun CatalogFilterDialog(
                 }
             }
 
-            item {
+            if (includeDifficultyAndType) item {
                 CatalogFilterSection(title = stringResource(R.string.catalog_filter_type)) {
                     CatalogFilterChipGroup(
                         values = ChartTypes,

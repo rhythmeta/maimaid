@@ -7,6 +7,7 @@ struct FilterView: View {
 
     let allCategories: [String]
     let allVersions: [String]
+    var showsDifficultyAndType: Bool = true
     let allDifficulties = ["Basic", "Advanced", "Expert", "Master", "Re: Master"]
     let allTypes = ["dx", "std", "utage"]
 
@@ -53,55 +54,57 @@ struct FilterView: View {
                         }
                     }
 
-                    // Difficulty & Range Section (Grouped)
-                    VStack(alignment: .leading, spacing: 8) {
-                        filterSection(title: "filter.difficulty") {
-                            VStack(alignment: .leading, spacing: 16) {
-                                FlowLayout(spacing: 10) {
-                                    ForEach(allDifficulties, id: \.self) { diff in
-                                        FilterChip(
-                                            title: diff,
-                                            isSelected: settings.selectedDifficulties.contains(internalName(for: diff)),
-                                            color: ThemeUtils.colorForDifficulty(
-                                                internalName(for: diff), nil, colorScheme)
-                                        ) {
-                                            toggleSet(&settings.selectedDifficulties, internalName(for: diff))
+                    if showsDifficultyAndType {
+                        // Difficulty & Range Section (Grouped)
+                        VStack(alignment: .leading, spacing: 8) {
+                            filterSection(title: "filter.difficulty") {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    FlowLayout(spacing: 10) {
+                                        ForEach(allDifficulties, id: \.self) { diff in
+                                            FilterChip(
+                                                title: diff,
+                                                isSelected: settings.selectedDifficulties.contains(internalName(for: diff)),
+                                                color: ThemeUtils.colorForDifficulty(
+                                                    internalName(for: diff), nil, colorScheme)
+                                            ) {
+                                                toggleSet(&settings.selectedDifficulties, internalName(for: diff))
+                                            }
                                         }
                                     }
-                                }
 
-                                Divider()
+                                    Divider()
 
-                                HStack {
-                                    Text("filter.levelRange")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    let minimumLevel = settings.minLevel.formatted(
-                                        .number.precision(.fractionLength(1))
+                                    HStack {
+                                        Text("filter.levelRange")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        let minimumLevel = settings.minLevel.formatted(
+                                            .number.precision(.fractionLength(1))
+                                        )
+                                        let maximumLevel = settings.maxLevel.formatted(
+                                            .number.precision(.fractionLength(1))
+                                        )
+                                        Text("\(minimumLevel) - \(maximumLevel)")
+                                            .font(.system(.subheadline, design: .monospaced, weight: .bold))
+                                        .foregroundStyle(
+                                            settings.selectedDifficulties.isEmpty
+                                                ? AnyShapeStyle(.secondary) : AnyShapeStyle(.blue))
+                                    }
+
+                                    RangeSlider(
+                                        minValue: $settings.minLevel, maxValue: $settings.maxLevel, range: 1.0...15.0,
+                                        step: 0.1, isActive: !settings.selectedDifficulties.isEmpty
                                     )
-                                    let maximumLevel = settings.maxLevel.formatted(
-                                        .number.precision(.fractionLength(1))
-                                    )
-                                    Text("\(minimumLevel) - \(maximumLevel)")
-                                        .font(.system(.subheadline, design: .monospaced, weight: .bold))
-                                    .foregroundStyle(
-                                        settings.selectedDifficulties.isEmpty
-                                            ? AnyShapeStyle(.secondary) : AnyShapeStyle(.blue))
+                                        .padding(.horizontal, 8)
                                 }
-
-                                RangeSlider(
-                                    minValue: $settings.minLevel, maxValue: $settings.maxLevel, range: 1.0...15.0,
-                                    step: 0.1, isActive: !settings.selectedDifficulties.isEmpty
-                                )
-                                    .padding(.horizontal, 8)
                             }
-                        }
 
-                        Text("filter.levelRange.hint")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                            Text("filter.levelRange.hint")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                        }
                     }
 
                     // Categories
@@ -136,20 +139,22 @@ struct FilterView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    // Types
-                    filterSection(title: "filter.type") {
-                        HStack(spacing: 10) {
-                            ForEach(allTypes, id: \.self) { type in
-                                FilterChip(
-                                    title: type.uppercased(),
-                                    isSelected: settings.selectedTypes.contains(type),
-                                    color: type == "dx" ? .orange : .blue
-                                ) {
-                                    toggleSet(&settings.selectedTypes, type)
+                    if showsDifficultyAndType {
+                        // Types
+                        filterSection(title: "filter.type") {
+                            HStack(spacing: 10) {
+                                ForEach(allTypes, id: \.self) { type in
+                                    FilterChip(
+                                        title: type.uppercased(),
+                                        isSelected: settings.selectedTypes.contains(type),
+                                        color: type == "dx" ? .orange : .blue
+                                    ) {
+                                        toggleSet(&settings.selectedTypes, type)
+                                    }
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding(20)

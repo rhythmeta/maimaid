@@ -2,6 +2,8 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+// Export loading, filtering, preview state, and image generation share one lifecycle.
+// swiftlint:disable:next type_body_length
 struct ConstantTableExportView: View {
     enum Mode: String, CaseIterable {
         case constantsOnly
@@ -10,11 +12,15 @@ struct ConstantTableExportView: View {
 
     struct Entry: Identifiable, Sendable {
         let id: String
+        let songIdentifier: String
         let songTitle: String
         let imageName: String
         let difficulty: String
         let type: String
         let level: Double
+        let category: String
+        let version: String?
+        let isFavorite: Bool
         let rank: String?
         let fc: String?
         let fs: String?
@@ -44,8 +50,12 @@ struct ConstantTableExportView: View {
     @Query(filter: #Predicate<UserProfile> { $0.isActive == true }) private var activeProfiles: [UserProfile]
 
     @State private var allEntries: [Entry] = []
+    @State private var displayedSections: [ExportSection] = []
+    @State private var songMap: [String: Song] = [:]
     @State private var selectedBaseLevel = 14
     @State private var includesScores = false
+    @State private var filterSettings = FilterSettings()
+    @State private var showFilterSheet = false
     @State private var isLoading = true
     @State private var isExporting = false
     @State private var sharePayload: SharePayload?
@@ -61,70 +71,84 @@ struct ConstantTableExportView: View {
             .sorted(by: >)
     }
 
-    private var exportEntries: [Entry] {
-        allEntries
-            .filter { exportBucketBaseLevel(for: $0.level) == selectedBaseLevel }
-            .sorted(by: exportEntryComparator)
+    private var displayedEntryCount: Int {
+        displayedSections.reduce(0) { $0 + $1.entries.count }
     }
 
-    private var exportSections: [ExportSection] {
-        let grouped = Dictionary(grouping: exportEntries) { constantKey(for: $0.level) }
+    private var allCategories: [String] {
+        Array(Set(songs.map(\.category))).sorted {
+            ThemeUtils.categorySortOrder($0) < ThemeUtils.categorySortOrder($1)
+        }
+    }
 
-        return grouped
-            .map { levelKey, entries in
-                ExportSection(levelLabel: levelKey, entries: entries.sorted(by: exportEntryComparator))
-            }
-            .sorted { lhs, rhs in
-                (Double(lhs.levelLabel) ?? 0) > (Double(rhs.levelLabel) ?? 0)
-            }
+    private var allVersions: [String] {
+        Array(Set(songs.compactMap(\.version))).sorted {
+            ThemeUtils.versionSortOrder($0) < ThemeUtils.versionSortOrder($1)
+        }
     }
 
     var body: some View {
-        Form {
-            if isLoading {
-                Section {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                }
-            } else if availableBaseLevels.isEmpty {
-                ContentUnavailableView(
-                    "scoreQuery.export.empty",
-                    systemImage: "music.note.list",
-                    description: Text("scoreQuery.export.empty.description")
-                )
-            } else {
-                Section {
-                    Picker("scoreQuery.export.level", selection: $selectedBaseLevel) {
-                        ForEach(availableBaseLevels, id: \.self) { value in
-                            Text(exportBaseLevelLabel(for: value)).tag(value)
+        ScrollView {
+            LazyVStack(alignment: .leading) {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                } else if availableBaseLevels.isEmpty {
+                    ContentUnavailableView(
+                        "scoreQuery.export.empty",
+                        systemImage: "music.note.list",
+                        description: Text("scoreQuery.export.empty.description")
+                    )
+                } else {
+                    VStack {
+                        HStack {
+                            Label("scoreQuery.export.level", systemImage: "chart.bar.fill")
+
+                            Spacer()
+
+                            Picker("scoreQuery.export.level", selection: $selectedBaseLevel) {
+                                ForEach(availableBaseLevels, id: \.self) { value in
+                                    Text(exportBaseLevelLabel(for: value)).tag(value)
+                                }
+                            }
+                            .labelsHidden()
+                        }
+
+                        Divider()
+
+                        Toggle(isOn: $includesScores) {
+                            Label(
+                                "scoreQuery.export.mode.scores",
+                                systemImage: includesScores ? "person.text.rectangle.fill" : "person.text.rectangle"
+                            )
                         }
                     }
+                    .padding()
+                    .background(
+                        Color(uiColor: .secondarySystemGroupedBackground),
+                        in: .rect(cornerRadius: 16)
+                    )
 
-                    Toggle(isOn: $includesScores) {
-                        Label(
-                            "scoreQuery.export.mode.scores",
-                            systemImage: includesScores ? "person.text.rectangle.fill" : "person.text.rectangle"
-                        )
-                    }
-                }
+                    HStack {
+                        Label("scoreQuery.export.regularOnly", systemImage: "music.note")
 
-                Section {
-                    LabeledContent {
+                        Spacer()
+
                         Text(
-                            "\(exportEntries.count.formatted()) \(String(localized: "scoreQuery.export.charts")) · "
-                            + "\(exportSections.count.formatted()) \(String(localized: "scoreQuery.export.sections"))"
+                            "\(displayedEntryCount.formatted()) \(String(localized: "scoreQuery.export.charts")) · "
+                                + "\(displayedSections.count.formatted()) "
+                                + String(localized: "scoreQuery.export.sections")
                         )
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
-                    } label: {
-                        Label("scoreQuery.export.regularOnly", systemImage: "music.note")
                     }
-                }
+                    .padding()
+                    .background(
+                        Color(uiColor: .secondarySystemGroupedBackground),
+                        in: .rect(cornerRadius: 16)
+                    )
 
-                Section {
                     Button {
                         exportConstantTable()
                     } label: {
@@ -142,17 +166,53 @@ struct ConstantTableExportView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(exportEntries.isEmpty || isExporting)
-                    .listRowBackground(Color.clear)
+                    .disabled(displayedSections.isEmpty || isExporting)
+
+                    ConstantTablePreviewView(
+                        sections: displayedSections,
+                        includesScores: includesScores,
+                        songMap: songMap
+                    )
                 }
             }
+            .padding()
         }
+        .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("scoreQuery.export.title")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showFilterSheet = true
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .foregroundStyle(filterSettings.hasConstantTableFilters ? .blue : .primary)
+                }
+                .accessibilityLabel("filter.title")
+            }
+        }
+        .sheet(isPresented: $showFilterSheet) {
+            FilterView(
+                settings: $filterSettings,
+                allCategories: allCategories,
+                allVersions: allVersions,
+                showsDifficultyAndType: false
+            )
+        }
         .sheet(item: $sharePayload) { payload in
             ShareSheetView(items: [payload.image])
         }
         .task(id: activeProfile?.server) {
             await loadData()
+        }
+        .onChange(of: filterSettings) { _, _ in
+            if let firstLevel = availableBaseLevels.first,
+               !availableBaseLevels.contains(selectedBaseLevel) {
+                selectedBaseLevel = firstLevel
+            }
+            rebuildDisplayedSections()
+        }
+        .onChange(of: selectedBaseLevel) { _, _ in
+            rebuildDisplayedSections()
         }
         .onReceive(NotificationCenter.default.publisher(for: .maimaiScoresDidChange)) { notification in
             if let changedProfileID = notification.object as? UUID,
@@ -167,6 +227,7 @@ struct ConstantTableExportView: View {
         isLoading = true
         let scoreMap = ScoreService.shared.scoreMap(context: modelContext)
         var entries: [Entry] = []
+        var songsByIdentifier: [String: Song] = [:]
 
         for (index, song) in songs.enumerated() {
             if index.isMultiple(of: 32) {
@@ -175,6 +236,7 @@ struct ConstantTableExportView: View {
             if song.category.localizedStandardContains("utage") || song.category.contains("宴") {
                 continue
             }
+            songsByIdentifier[song.songIdentifier] = song
 
             for sheet in song.sheets {
                 if sheet.type.localizedStandardContains("utage") {
@@ -189,11 +251,15 @@ struct ConstantTableExportView: View {
                 entries.append(
                     Entry(
                         id: "\(sheet.songIdentifier)_\(sheet.type)_\(sheet.difficulty)",
+                        songIdentifier: song.songIdentifier,
                         songTitle: song.title,
                         imageName: song.imageName,
                         difficulty: sheet.difficulty,
                         type: sheet.type,
                         level: level,
+                        category: song.category,
+                        version: song.version,
+                        isFavorite: song.isFavorite,
                         rank: score.map { RatingUtils.calculateRank(achievement: $0.rate) },
                         fc: score?.fc,
                         fs: score?.fs
@@ -203,10 +269,35 @@ struct ConstantTableExportView: View {
         }
 
         allEntries = entries
+        songMap = songsByIdentifier
         if let firstLevel = availableBaseLevels.first, !availableBaseLevels.contains(selectedBaseLevel) {
             selectedBaseLevel = firstLevel
         }
+        rebuildDisplayedSections()
         isLoading = false
+    }
+
+    private func rebuildDisplayedSections() {
+        let filteredEntries = allEntries
+            .filter { entry in
+                if filterSettings.showFavoritesOnly && !entry.isFavorite { return false }
+                if !filterSettings.selectedCategories.isEmpty,
+                   !filterSettings.selectedCategories.contains(entry.category) { return false }
+                if !filterSettings.selectedVersions.isEmpty,
+                   entry.version.map({ !filterSettings.selectedVersions.contains($0) }) ?? true { return false }
+                return true
+            }
+            .filter { exportBucketBaseLevel(for: $0.level) == selectedBaseLevel }
+            .sorted(by: exportEntryComparator)
+        let grouped = Dictionary(grouping: filteredEntries) { constantKey(for: $0.level) }
+
+        displayedSections = grouped
+            .map { levelKey, entries in
+                ExportSection(levelLabel: levelKey, entries: entries)
+            }
+            .sorted { lhs, rhs in
+                (Double(lhs.levelLabel) ?? 0) > (Double(rhs.levelLabel) ?? 0)
+            }
     }
 
     private func scoreForSheet(_ sheet: Sheet, in map: [String: Score]) -> Score? {
@@ -273,14 +364,14 @@ struct ConstantTableExportView: View {
     }
 
     private func exportConstantTable() {
-        guard !exportSections.isEmpty else { return }
+        guard !displayedSections.isEmpty else { return }
         isExporting = true
 
         Task { @MainActor in
             await Task.yield()
             let image = ConstantTableExportImageView.renderImage(
                 baseLevel: selectedBaseLevel,
-                sections: exportSections,
+                sections: displayedSections,
                 mode: mode,
                 userName: activeProfile?.name,
                 colorScheme: colorScheme

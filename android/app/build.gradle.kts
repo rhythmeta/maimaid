@@ -46,7 +46,7 @@ android {
 
     defaultConfig {
         applicationId = "org.rhythmeta.maimaid"
-        minSdk = 28
+        minSdk = 29
         targetSdk = 37
         versionCode = maimaidBuildNumber.get()
 		    versionName = "1.2.7"

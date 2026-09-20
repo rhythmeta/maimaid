@@ -45,7 +45,7 @@
 	<string name="home_recommendations_subtitle">定数拟合分析</string>
 	<string name="home_score_query">成绩查询</string>
 	<string name="home_score_query_subtitle">浏览全部成绩</string>
-	<string name="home_constant_table">导出定数图</string>
+	<string name="home_constant_table">定数表</string>
 	<string name="home_constant_table_subtitle">生成并分享定数表图片</string>
 	<string name="home_plate">牌子进度</string>
 	<string name="home_plate_subtitle">查看各版本牌子获取进度</string>

@@ -467,10 +467,10 @@
 "scoreQuery.empty" = "暫無成績";
 "scoreQuery.results" = "筆結果";
 "scoreQuery.songNotFound" = "未找到歌曲";
-"scoreQuery.export.title" = "匯出定數圖";
+"scoreQuery.export.title" = "定數表";
 "scoreQuery.export.subtitle" = "按整數定數匯出全部細分定數歌曲，可選是否附帶成績。";
 "scoreQuery.export.charts" = "譜面";
-"scoreQuery.export.level" = "整數定數";
+"scoreQuery.export.level" = "基礎等級";
 "scoreQuery.export.sections" = "細分定數";
 "scoreQuery.export.mode.title" = "匯出內容";
 "scoreQuery.export.mode.constants" = "僅定數";
@@ -478,14 +478,15 @@
 "scoreQuery.export.player" = "玩家";
 "scoreQuery.export.regularOnly" = "僅包含常規譜面";
 "scoreQuery.export.empty" = "暫無可用譜面";
-"scoreQuery.export.empty.description" = "下載歌曲資料後即可匯出定數圖。";
+"scoreQuery.export.empty.description" = "下載歌曲資料後即可查看定數表。";
 "scoreQuery.export.exporting" = "正在生成圖片...";
 "scoreQuery.export.button" = "匯出圖片";
+"scoreQuery.export.chartCount" = "%d張譜面";
 "scoreQuery.export.imageTitle.constants" = "%@ 定數表";
 "scoreQuery.export.imageTitle.scores" = "%@ 定數與成績表";
 "scoreQuery.export.imageSummary" = "%d 個細分定數 · %d 張常規譜面";
 "scoreQuery.export.watermark" = "由 maimaid 產生";
-"home.constantTableExport.title" = "匯出定數圖";
+"home.constantTableExport.title" = "定數表";
 "home.constantTableExport.subtitle" = "生成並分享定數表圖片";
 
 // MARK: - Cloud Sync

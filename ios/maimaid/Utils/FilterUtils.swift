@@ -13,6 +13,10 @@ struct FilterSettings: Equatable, Sendable {
     // Initialized from UserDefaults, persisted in FilterView
     var hideDeletedSongs: Bool = UserDefaults.app.hideDeletedSongs
     var showOnlyPlayableSongs: Bool = UserDefaults.app.showOnlyPlayableSongs
+
+    var hasConstantTableFilters: Bool {
+        showFavoritesOnly || !selectedCategories.isEmpty || !selectedVersions.isEmpty
+    }
 }
 
 @MainActor

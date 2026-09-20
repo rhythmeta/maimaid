@@ -16,6 +16,9 @@ data class ConstantTableEntry(
     val rank: String?,
     val fc: String?,
     val fs: String?,
+    val category: String? = null,
+    val version: String? = null,
+    val isFavorite: Boolean = false,
 )
 
 data class ConstantTableSection(
@@ -72,6 +75,9 @@ object ConstantTableCalculator {
                 rank = score?.let { ScoreRules.calculateRank(it.achievement) },
                 fc = score?.fc,
                 fs = score?.fs,
+                category = song.category,
+                version = song.version,
+                isFavorite = song.isFavorite,
             )
         }.sortedWith(entryComparator)
         return ConstantTableResponse(entries, userName?.trim()?.takeIf(String::isNotEmpty))

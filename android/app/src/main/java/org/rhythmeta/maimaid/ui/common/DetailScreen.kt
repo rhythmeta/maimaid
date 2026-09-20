@@ -41,6 +41,7 @@ import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.StaticManifest
 import org.rhythmeta.maimaid.core.data.CatalogSyncStatus
+import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.CatalogDownloadProgressContent
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
@@ -101,6 +102,7 @@ internal fun DetailScreen(
     danSelectedPage: Int,
     scoreQueryViewModel: ScoreQueryViewModel?,
     showScoreQueryFilter: Boolean,
+    showConstantTableFilter: Boolean = false,
     profileCreateRequested: Boolean,
     bestTableExportRequested: Boolean,
     randomSongFilterRequested: Boolean,
@@ -110,6 +112,7 @@ internal fun DetailScreen(
     onRandomSongFilterRequestHandled: () -> Unit,
     onRandomSongFilterActiveChanged: (Boolean) -> Unit,
     onDismissScoreQueryFilter: () -> Unit,
+    onDismissConstantTableFilter: () -> Unit = {},
     onOpenSong: (String) -> Unit,
     onOpenDanCategory: (String, String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
@@ -147,6 +150,18 @@ internal fun DetailScreen(
     onEnablePredictiveBackChange: (Boolean) -> Unit = {},
     onPageScaleChange: (Float) -> Unit = {},
 ) {
+    val constantTableVersions = remember(state.songs, state.gameVersions) {
+        val versionMetadata = state.gameVersions.associateBy(GameVersionEntity::name)
+        state.songs
+            .mapNotNull { it.version }
+            .distinct()
+            .sortedWith(
+                compareByDescending<String> { versionMetadata[it]?.releaseDate.orEmpty() }
+                    .thenByDescending { versionMetadata[it]?.sortOrder ?: Int.MIN_VALUE }
+                    .thenByDescending(String::lowercase),
+            )
+    }
+
     when (detail) {
         AppDetail.Song -> SongDetailScreen(
             song = state.songs.firstOrNull { it.songIdentifier == selectedSongId },
@@ -262,6 +277,10 @@ internal fun DetailScreen(
             container = container,
             contentTopPadding = songContentTopPadding,
             listState = constantTableListState,
+            categories = state.songs.map { it.category }.distinct(),
+            versions = constantTableVersions,
+            showFilterDialog = showConstantTableFilter,
+            onDismissFilter = onDismissConstantTableFilter,
             onOpenSong = onOpenSong,
         )
         AppDetail.PlateProgress -> PlateProgressScreen(

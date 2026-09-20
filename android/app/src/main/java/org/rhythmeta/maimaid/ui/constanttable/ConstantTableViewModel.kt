@@ -12,12 +12,14 @@ import kotlinx.coroutines.flow.stateIn
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.ConstantTableResponse
 import org.rhythmeta.maimaid.core.data.ConstantTableSection
+import org.rhythmeta.maimaid.ui.catalog.CatalogFilterSettings
 
 data class ConstantTableUiState(
     val isLoading: Boolean = true,
     val response: ConstantTableResponse = ConstantTableResponse(),
     val selectedBaseLevel: Int? = null,
     val includeScores: Boolean = false,
+    val filterSettings: CatalogFilterSettings = CatalogFilterSettings(),
     val sections: List<ConstantTableSection> = emptyList(),
 ) {
     val chartCount: Int get() = sections.sumOf { it.entries.size }
@@ -28,6 +30,7 @@ class ConstantTableViewModel(
 ) : ViewModel() {
     private val selectedBaseLevel = MutableStateFlow<Int?>(null)
     private val includeScores = MutableStateFlow(false)
+    private val filterSettings = MutableStateFlow(CatalogFilterSettings())
 
     val state = combine(
         container.constantTableRepository.observeConstantTable()
@@ -35,21 +38,30 @@ class ConstantTableViewModel(
             .onStart { emit(null) },
         selectedBaseLevel,
         includeScores,
-    ) { response, requestedBaseLevel, scoresIncluded ->
+        filterSettings,
+    ) { response, requestedBaseLevel, scoresIncluded, filters ->
         if (response == null) {
-            ConstantTableUiState(includeScores = scoresIncluded)
+            ConstantTableUiState(includeScores = scoresIncluded, filterSettings = filters)
         } else {
-            val levels = response.availableBaseLevels
+            val filteredResponse = response.copy(
+                entries = response.entries.filter { entry ->
+                    (filters.showFavoritesOnly.not() || entry.isFavorite) &&
+                        (filters.selectedCategories.isEmpty() || entry.category in filters.selectedCategories) &&
+                        (filters.selectedVersions.isEmpty() || entry.version in filters.selectedVersions)
+                },
+            )
+            val levels = filteredResponse.availableBaseLevels
             val resolvedBaseLevel = requestedBaseLevel
                 ?.takeIf(levels::contains)
                 ?: 14.takeIf(levels::contains)
                 ?: levels.firstOrNull()
             ConstantTableUiState(
                 isLoading = false,
-                response = response,
                 selectedBaseLevel = resolvedBaseLevel,
                 includeScores = scoresIncluded,
-                sections = resolvedBaseLevel?.let(response::sections).orEmpty(),
+                filterSettings = filters,
+                response = filteredResponse,
+                sections = resolvedBaseLevel?.let(filteredResponse::sections).orEmpty(),
             )
         }
     }.stateIn(
@@ -64,6 +76,10 @@ class ConstantTableViewModel(
 
     fun setIncludeScores(include: Boolean) {
         includeScores.value = include
+    }
+
+    fun setFilterSettings(settings: CatalogFilterSettings) {
+        filterSettings.value = settings
     }
 
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {

@@ -45,7 +45,7 @@
 	<string name="home_recommendations_subtitle">定数分析</string>
 	<string name="home_score_query">スコア検索</string>
 	<string name="home_score_query_subtitle">すべてのスコアを閲覧</string>
-	<string name="home_constant_table">定数表を書き出す</string>
+	<string name="home_constant_table">定数表</string>
 	<string name="home_constant_table_subtitle">定数表の画像を作成して共有</string>
 	<string name="home_plate">プレートの進捗状況</string>
 	<string name="home_plate_subtitle">バージョンプレートの進捗状況</string>
