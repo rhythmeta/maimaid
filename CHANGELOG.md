@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.7.1
+
+### 中文
+
+#### 新增
+
+- 定数表页面支持筛选
+- 补全 iOS 侧定数表页面的预览
+
+### English
+
+#### Added
+
+- Constant Table Page now support filter
+- Complete the preview for the iOS-side Constant Table Page
+
 ## 1.2.7
 
 ### 中文
