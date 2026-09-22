@@ -10,14 +10,60 @@ import org.rhythmeta.maimaid.core.database.SongEntity
 
 class Best50CalculatorTest {
     @Test
+    fun `remaster added in previous version stays old when base charts are older`() {
+        val base = sheet().copy(
+            sheetKey = "song-dx-master",
+            difficulty = "master",
+            version = "Splash+",
+        )
+        val remaster = sheet().copy(
+            sheetKey = "song-dx-remaster",
+            difficulty = "remaster",
+            version = "CiRCLE",
+        )
+        val result = calculateBest50(
+            rows = listOf(row(), row().copy(sheetKey = "song-dx-remaster", difficulty = "remaster", sheetVersion = "CiRCLE")),
+            versions = listOf(
+                GameVersionEntity("Splash+", "Splash+", null, 0),
+                GameVersionEntity("CiRCLE", "CiRCLE", null, 1),
+                GameVersionEntity("CiRCLE+", "CiRCLE+", null, 2),
+            ),
+            songs = listOf(song().copy(version = "Splash+")),
+            sheets = listOf(base, remaster),
+            server = "jp",
+            b35Count = 35,
+            b15Count = 15,
+            versionOverride = "CiRCLE+",
+        )
+
+        assertEquals(setOf("song-dx-remaster", "song-dx-master"), result.b35.map { it.sheetKey }.toSet())
+        assertTrue(result.b15.isEmpty())
+    }
+
+    @Test
     fun `uses the active server constant and availability`() {
         val jp = calculate(server = "jp", sheet = sheet())
         val cn = calculate(server = "cn", sheet = sheet())
-        val unavailableCn = calculate(server = "cn", sheet = sheet().copy(regionCn = false))
+        val unavailableCn = calculate(
+            server = "cn",
+            sheet = sheet().copy(regionCn = false),
+            versionOverride = null,
+        )
 
         assertEquals(13.9, jp.b15.single().level, 0.0001)
         assertEquals(13.8, cn.b15.single().level, 0.0001)
         assertTrue(unavailableCn.isEmpty)
+    }
+
+    @Test
+    fun `manual version selection treats cn charts as playable and uses normal version rules`() {
+        val result = calculate(
+            server = "cn",
+            sheet = sheet().copy(regionCn = false),
+        )
+
+        assertEquals(1, result.b15.size)
+        assertTrue(result.b35.isEmpty())
     }
 
     @Test
@@ -67,6 +113,7 @@ class Best50CalculatorTest {
         sheet: SheetEntity,
         constantMode: Best50ConstantMode = Best50ConstantMode.Server,
         chartFit: StaticBundleResponse.ChartFitPayload = StaticBundleResponse.ChartFitPayload(),
+        versionOverride: String? = "CiRCLE",
     ): Best50State = calculateBest50(
         rows = listOf(row()),
         versions = listOf(GameVersionEntity("CiRCLE", "CiRCLE", null, 0)),
@@ -75,7 +122,7 @@ class Best50CalculatorTest {
         server = server,
         b35Count = 35,
         b15Count = 15,
-        versionOverride = "CiRCLE",
+        versionOverride = versionOverride,
         constantMode = constantMode,
         chartFit = chartFit,
     )

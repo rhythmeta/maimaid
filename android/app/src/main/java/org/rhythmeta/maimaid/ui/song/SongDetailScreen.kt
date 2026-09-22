@@ -5,10 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.os.Build
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -232,13 +229,18 @@ private fun buildDisplayAliases(
 
 private fun normalizedAliasKey(alias: String): String = alias.trim().lowercase()
 
+@Suppress("UsePropertyAccessSyntax")
+private fun setClipboardPrimaryClip(clipboard: ClipboardManager, clip: ClipData) {
+    clipboard.setPrimaryClip(clip)
+}
+
 private fun copyToClipboard(
     context: Context,
     label: String,
     value: String,
 ): Boolean {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return false
-    clipboard.setPrimaryClip(ClipData.newPlainText(label, value))
+    setClipboardPrimaryClip(clipboard, ClipData.newPlainText(label, value))
     return true
 }
 
@@ -593,24 +595,11 @@ private fun SongHeader(
     val aliasCopyLabel = stringResource(R.string.song_alias_copy_label)
     var jacketMenuExpanded by remember { mutableStateOf(false) }
     var actionSourceFile by remember(cachedCover, song.imageName) { mutableStateOf(cachedCover) }
-    var pendingLegacyDownload by remember { mutableStateOf<File?>(null) }
-    val jacketSavedMessage = stringResource(R.string.song_jacket_saved)
+	  val jacketSavedMessage = stringResource(R.string.song_jacket_saved)
     val jacketActionFailedMessage = stringResource(R.string.song_jacket_action_failed)
     val shareChooserTitle = stringResource(R.string.song_jacket_share_chooser)
     val jacketActionsLabel = stringResource(R.string.song_jacket_actions)
-    val legacyDownloadLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("image/*"),
-    ) { uri ->
-        val source = pendingLegacyDownload
-        pendingLegacyDownload = null
-        if (uri != null && source != null) {
-            coroutineScope.launch {
-                val saved = saveJacketToUri(context, source, uri)
-                onMessage(if (saved) jacketSavedMessage else jacketActionFailedMessage)
-            }
-        }
-    }
-    val jacketModel = remember(cachedCover, song.imageName) {
+	val jacketModel = remember(cachedCover, song.imageName) {
         ImageRequest.Builder(context)
             .data(cachedCover ?: StaticAssetUrls.coverUrl(song.imageName))
             .allowHardware(false)
@@ -686,16 +675,11 @@ private fun SongHeader(
                 onDownload = {
                     jacketMenuExpanded = false
                     val source = actionSourceFile ?: return@JacketActionMenu
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        coroutineScope.launch {
-                            val saved = saveJacketToDownloads(context, source, song.title)
-                            onMessage(if (saved) jacketSavedMessage else jacketActionFailedMessage)
-                        }
-                    } else {
-                        pendingLegacyDownload = source
-                        legacyDownloadLauncher.launch(jacketDisplayName(song.title, source))
-                    }
-                },
+									coroutineScope.launch {
+											val saved = saveJacketToDownloads(context, source, song.title)
+											onMessage(if (saved) jacketSavedMessage else jacketActionFailedMessage)
+									}
+								},
                 onCopy = {
                     jacketMenuExpanded = false
                     val source = actionSourceFile ?: return@JacketActionMenu
@@ -703,7 +687,8 @@ private fun SongHeader(
                         val sharedJacket = prepareSharedJacket(context, source, song.title)
                         val clipboard = context.getSystemService(ClipboardManager::class.java)
                         if (sharedJacket != null && clipboard != null) {
-                            clipboard.setPrimaryClip(
+                            setClipboardPrimaryClip(
+                                clipboard,
                                 ClipData.newUri(context.contentResolver, song.title, sharedJacket.uri),
                             )
                             onCopied()
@@ -867,7 +852,6 @@ private fun JacketActionMenu(
     WindowListPopup(
         show = expanded,
         alignment = PopupPositionProvider.Align.End,
-        enableWindowDim = false,
         onDismissRequest = onDismiss,
     ) {
         ListPopupColumn {

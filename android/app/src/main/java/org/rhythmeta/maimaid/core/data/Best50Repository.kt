@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.combine
 import org.rhythmeta.maimaid.core.database.Best50Row
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.MaimaidDatabase
+import org.rhythmeta.maimaid.core.database.SheetEntity
 
 data class Best50State(
     val total: Int = 0,
@@ -75,22 +76,40 @@ internal fun calculateBest50(
     val latest = versionOverride?.takeIf { candidate ->
         versionNames.any { it.equals(candidate, ignoreCase = true) }
     } ?: RatingUtils.latestVersionForServer(songs, sheets, versions, server)
+    val hasVersionOverride = versionOverride != null
+    // A concrete version selection is an explicit historical snapshot. Treat
+    // every chart as playable and use the shared JP/INTL version-window rules.
+    val categoryServer = if (hasVersionOverride && server.equals("cn", ignoreCase = true)) "jp" else server
     val afterCircle = RatingUtils.isAfterCircle(latest, versionNames)
     val sheetsByKey = sheets.filterNot { it.isRemoved }.associateBy { it.sheetKey }
+    val sheetsBySong = sheetsByKey.values.groupBy(SheetEntity::songIdentifier)
     val b35 = mutableListOf<RatingUtils.Entry>()
     val b15 = mutableListOf<RatingUtils.Entry>()
     rows.forEach { row ->
         if (row.category.contains("utage", ignoreCase = true) || row.type.contains("utage", ignoreCase = true)) return@forEach
         val sheet = sheetsByKey[row.sheetKey] ?: return@forEach
-        if (!ServerChartPolicy.isPlayable(sheet, server)) return@forEach
+        if (!hasVersionOverride && !ServerChartPolicy.isPlayable(sheet, server)) return@forEach
         val metadata = ServerChartPolicy.metadata(sheet, server)
         val isNew = RatingUtils.category(
             metadata.version ?: row.songVersion,
             latest,
-            server,
+            categoryServer,
             true,
             versionNames,
         ) ?: return@forEach
+        val remasterUsesOldBucket = isNew &&
+            sheet.difficulty.equals("remaster", ignoreCase = true) &&
+            sheetsBySong[sheet.songIdentifier].orEmpty().any { baseSheet ->
+                !baseSheet.difficulty.equals("remaster", ignoreCase = true) &&
+                    RatingUtils.category(
+                        ServerChartPolicy.metadata(baseSheet, server).version
+                            ?: songs.firstOrNull { it.songIdentifier == sheet.songIdentifier }?.version,
+                        latest,
+                        categoryServer,
+                        hasVersionOverride || ServerChartPolicy.isPlayable(baseSheet, server),
+                        versionNames,
+                    ) == false
+            }
         val level = Best50ConstantResolver.resolve(
             sheet = sheet,
             serverConstant = metadata.ratingLevel,
@@ -100,7 +119,7 @@ internal fun calculateBest50(
         ) ?: return@forEach
         val rating = RatingUtils.calculate(level, row.achievement, row.fc, afterCircle)
         if (rating <= 0) return@forEach
-        (if (isNew) b15 else b35).add(
+        (if (isNew && !remasterUsesOldBucket) b15 else b35).add(
             RatingUtils.Entry(
                 sheetKey = row.sheetKey,
                 songIdentifier = row.songIdentifier,
@@ -116,7 +135,7 @@ internal fun calculateBest50(
                 maxDxScore = row.maxDxScore,
                 fc = row.fc,
                 fs = row.fs,
-                isNew = isNew,
+                isNew = isNew && !remasterUsesOldBucket,
             ),
         )
     }

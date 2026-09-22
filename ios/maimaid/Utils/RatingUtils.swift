@@ -352,11 +352,11 @@ enum RatingUtils {
                 // Skip utage sheets
                 if sheetData.type.lowercased().contains("utage") { continue }
 
-                let category = determineSongCategory(
-                    songVersion: sheetData.version ?? songData.version,
+                let category = determineSheetCategory(
+                    sheet: sheetData,
+                    song: songData,
                     latestServerVersion: latestVersion,
-                    server: input.server,
-                    isRegionActive: sheetData.isPlayable
+                    server: input.server
                 )
 
                 guard category != .excluded else { continue }
@@ -411,6 +411,41 @@ enum RatingUtils {
         let total = b15Entries.reduce(0) { $0 + $1.rating } + b35Entries.reduce(0) { $0 + $1.rating }
 
         return (total: total, b35: Array(b35Entries), b15: Array(b15Entries))
+    }
+
+    /// Re:MASTER charts follow a special rule: when the song's BASIC through
+    /// MASTER charts are from an older version, its Re:MASTER is an old-song
+    /// (B35) candidate even if the Re:MASTER itself was added recently.
+    private static func determineSheetCategory(
+        sheet: SheetCalculationData,
+        song: SongCalculationData,
+        latestServerVersion: String?,
+        server: GameServer?
+    ) -> SongCategory {
+        let category = determineSongCategory(
+            songVersion: sheet.version ?? song.version,
+            latestServerVersion: latestServerVersion,
+            server: server,
+            isRegionActive: sheet.isPlayable
+        )
+
+        guard category == .b15,
+              sheet.difficulty.caseInsensitiveCompare("remaster") == .orderedSame else {
+            return category
+        }
+
+        let baseCategories = song.sheets
+            .filter { $0.difficulty.caseInsensitiveCompare("remaster") != .orderedSame }
+            .map {
+                determineSongCategory(
+                    songVersion: $0.version ?? song.version,
+                    latestServerVersion: latestServerVersion,
+                    server: server,
+                    isRegionActive: $0.isPlayable
+                )
+            }
+
+        return baseCategories.contains(.b35) ? .b35 : category
     }
 }
 
