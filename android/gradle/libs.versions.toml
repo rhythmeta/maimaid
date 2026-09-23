@@ -1,6 +1,6 @@
 [versions]
 # latest canary Android Studio Preview is not support AGP 9.4.0 release, which is 搞。
-agp = "9.4.0"
+agp = "9.4.1"
 coreKtx = "1.19.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
