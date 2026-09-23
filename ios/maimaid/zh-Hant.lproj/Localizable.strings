@@ -81,6 +81,10 @@
 "settings.appearance.light" = "淺色";
 "settings.appearance.dark" = "深色";
 "settings.about.header" = "關於";
+"settings.about.backendStatus" = "後端狀態";
+"settings.about.backendStatus.checking" = "檢查中…";
+"settings.about.backendStatus.available" = "可用";
+"settings.about.backendStatus.unavailable" = "不可用";
 "settings.about.version" = "版本";
 "settings.appearance.showBoundingBox" = "顯示識別框";
 

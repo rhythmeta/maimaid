@@ -3,6 +3,11 @@ import SwiftData
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    private enum BackendStatus {
+        case checking
+        case available
+        case unavailable
+    }
     @Environment(\.modelContext) private var modelContext
     @Query private var configs: [SyncConfig]
     @Query(filter: #Predicate<UserProfile> { $0.isActive == true }) private var activeProfiles: [UserProfile]
@@ -24,6 +29,7 @@ struct SettingsView: View {
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var showAlert = false
+    @State private var backendStatus: BackendStatus = .checking
 
     private var appVersionText: String {
         AppInfo.versionDisplayString
@@ -132,16 +138,68 @@ struct SettingsView: View {
                 // About Section
                 Section("settings.about.header") {
                     settingsRow(
+                        icon: "server.rack", iconColor: backendStatusIconColor,
+                        title: "settings.about.backendStatus",
+                        value: backendStatusText
+                    )
+                    settingsRow(
                         icon: "info.circle.fill", iconColor: .gray, title: "settings.about.version",
                         value: appVersionText)
                 }
             }
             .navigationTitle("settings.title")
+            .task {
+                await checkBackendHealth()
+            }
             .alert(alertTitle, isPresented: $showAlert) {
                 Button("common.ok", role: .cancel) {}
             } message: {
                 Text(alertMessage)
             }
+        }
+    }
+
+    private var backendStatusText: String {
+        switch backendStatus {
+        case .checking:
+            return String(localized: "settings.about.backendStatus.checking")
+        case .available:
+            return String(localized: "settings.about.backendStatus.available")
+        case .unavailable:
+            return String(localized: "settings.about.backendStatus.unavailable")
+        }
+    }
+
+    private var backendStatusIconColor: Color {
+        switch backendStatus {
+        case .checking: return .gray
+        case .available: return .green
+        case .unavailable: return .red
+        }
+    }
+
+    private func checkBackendHealth() async {
+        guard let url = BackendConfig.endpoint("health") else {
+            backendStatus = .unavailable
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("app", forHTTPHeaderField: "X-Maimaid-Client")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                backendStatus = .unavailable
+                return
+            }
+            backendStatus = .available
+        } catch {
+            backendStatus = .unavailable
         }
     }
 

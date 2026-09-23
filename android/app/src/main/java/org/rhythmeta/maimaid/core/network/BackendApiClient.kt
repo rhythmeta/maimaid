@@ -40,6 +40,10 @@ class BackendApiClient(
         )
     }
 
+    suspend fun isHealthy(): Boolean = runCatching {
+        request(path = "health", accessToken = null)
+    }.isSuccess
+
     suspend fun requestAbsolute(
         url: String,
         method: String = "GET",

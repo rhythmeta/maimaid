@@ -233,6 +233,10 @@
 	<string name="settings_scanner_boxes">認識範囲を表示</string>
 	<string name="settings_scanner_boxes_description">スキャン結果に文字認識範囲を表示</string>
 	<string name="settings_about">情報</string>
+	<string name="settings_backend_status">バックエンドの状態</string>
+	<string name="settings_backend_status_checking">確認中…</string>
+	<string name="settings_backend_status_available">利用可能</string>
+	<string name="settings_backend_status_unavailable">利用不可</string>
 	<string name="settings_version_label">バージョン</string>
 	<string name="settings_version">バージョン %1$s</string>
 	<string name="settings_send_logs">ログを送信</string>

@@ -81,6 +81,10 @@
 "settings.appearance.light" = "Light";
 "settings.appearance.dark" = "Dark";
 "settings.about.header" = "About";
+"settings.about.backendStatus" = "Backend status";
+"settings.about.backendStatus.checking" = "Checking…";
+"settings.about.backendStatus.available" = "Available";
+"settings.about.backendStatus.unavailable" = "Unavailable";
 "settings.about.version" = "Version";
 "settings.appearance.showBoundingBox" = "Show bounding box";
 

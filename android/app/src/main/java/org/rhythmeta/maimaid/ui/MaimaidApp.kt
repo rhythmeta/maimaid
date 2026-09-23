@@ -744,6 +744,7 @@ fun MaimaidApp(
                 onOpenSong = openSong,
             )
             RootDestination.Settings -> SettingsScreen(
+                backendApiClient = container.backendApiClient,
                 contentTopPadding = contentTopPadding,
                 showScannerBoundingBoxes = showScannerBoundingBoxes,
                 onShowScannerBoundingBoxesChange = viewModel::setShowScannerBoundingBoxes,

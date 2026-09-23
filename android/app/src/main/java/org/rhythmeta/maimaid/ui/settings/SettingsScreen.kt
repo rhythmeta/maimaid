@@ -20,6 +20,11 @@ import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.SetMeal
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -27,6 +32,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.rhythmeta.maimaid.BuildConfig
 import org.rhythmeta.maimaid.R
+import org.rhythmeta.maimaid.core.network.BackendApiClient
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -39,6 +45,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SettingsScreen(
+    backendApiClient: BackendApiClient,
     contentTopPadding: Dp,
     showScannerBoundingBoxes: Boolean,
     onShowScannerBoundingBoxesChange: (Boolean) -> Unit,
@@ -49,6 +56,10 @@ fun SettingsScreen(
     onOpenDetail: (AppDetail) -> Unit,
     onSendLogs: () -> Unit,
 ) {
+    var backendAvailable by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(backendApiClient) {
+        backendAvailable = backendApiClient.isHealthy()
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -133,7 +144,8 @@ fun SettingsScreen(
         }
         item {
             SettingsSection(title = stringResource(R.string.settings_about)) {
-							SettingsRow(
+					SettingsHealthRow(available = backendAvailable)
+					SettingsRow(
 								icon = Icons.Rounded.BugReport,
 								title = stringResource(R.string.settings_send_logs),
 								summary = stringResource(R.string.settings_send_logs_description),
@@ -146,6 +158,22 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SettingsHealthRow(available: Boolean?) {
+    val (status, color) = when (available) {
+        null -> stringResource(R.string.settings_backend_status_checking) to MiuixTheme.colorScheme.onSurfaceVariantActions
+        true -> stringResource(R.string.settings_backend_status_available) to androidx.compose.ui.graphics.Color(0xFF2E7D32)
+        false -> stringResource(R.string.settings_backend_status_unavailable) to androidx.compose.ui.graphics.Color(0xFFC62828)
+    }
+    BasicComponent(
+        title = stringResource(R.string.settings_backend_status),
+        startAction = { SettingsPreferenceIcon(Icons.Rounded.Cloud) },
+        endActions = {
+            Text(text = status, style = MiuixTheme.textStyles.body2, color = color)
+        },
+    )
 }
 
 @Composable

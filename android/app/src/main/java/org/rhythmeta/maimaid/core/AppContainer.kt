@@ -79,7 +79,7 @@ class AppContainer(context: Context) {
     val profileAvatarStore = ProfileAvatarStore(applicationContext)
     val profileCredentialStore = ProfileCredentialStore(applicationContext)
     private val chartFitStore = ChartFitStore(applicationContext, json)
-    private val backendApiClient = BackendApiClient(BuildConfig.BACKEND_URL, json)
+    val backendApiClient = BackendApiClient(BuildConfig.BACKEND_URL, json)
     val backendSessionManager = BackendSessionManager(
         authBaseUrl = BuildConfig.BACKEND_AUTH_URL,
         apiClient = backendApiClient,

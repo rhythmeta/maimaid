@@ -240,6 +240,10 @@
 	<string name="settings_scanner_boxes">Scanner bounding boxes</string>
 	<string name="settings_scanner_boxes_description">Show detected text regions in scanner results</string>
 	<string name="settings_about">About</string>
+	<string name="settings_backend_status">Backend status</string>
+	<string name="settings_backend_status_checking">Checking…</string>
+	<string name="settings_backend_status_available">Available</string>
+	<string name="settings_backend_status_unavailable">Unavailable</string>
 	<string name="settings_version_label">Version</string>
 	<string name="settings_version">Version %1$s</string>
 	<string name="settings_send_logs">Send logs</string>

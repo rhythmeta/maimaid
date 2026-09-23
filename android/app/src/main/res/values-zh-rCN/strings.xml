@@ -233,6 +233,10 @@
 	<string name="settings_scanner_boxes">显示扫描识别框</string>
 	<string name="settings_scanner_boxes_description">在扫描结果中显示文字识别区域</string>
 	<string name="settings_about">关于</string>
+	<string name="settings_backend_status">后端状态</string>
+	<string name="settings_backend_status_checking">检查中…</string>
+	<string name="settings_backend_status_available">可用</string>
+	<string name="settings_backend_status_unavailable">不可用</string>
 	<string name="settings_version_label">版本</string>
 	<string name="settings_version">版本 %1$s</string>
 	<string name="settings_send_logs">发送日志</string>

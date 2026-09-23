@@ -81,6 +81,10 @@
 "settings.appearance.light" = "ライト";
 "settings.appearance.dark" = "ダーク";
 "settings.about.header" = "情報";
+"settings.about.backendStatus" = "バックエンドの状態";
+"settings.about.backendStatus.checking" = "確認中…";
+"settings.about.backendStatus.available" = "利用可能";
+"settings.about.backendStatus.unavailable" = "利用不可";
 "settings.about.version" = "バージョン";
 "settings.appearance.showBoundingBox" = "境界ボックスを表示";
 
