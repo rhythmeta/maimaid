@@ -1,7 +1,9 @@
 package org.rhythmeta.maimaid.core.data
 
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.util.UUID
 
 internal object OtogameImportPolicy {
     const val PLAYLOG_PAGE_LIMIT = 4
@@ -64,7 +66,14 @@ internal object OtogameImportPolicy {
         else -> null
     }
 
-    fun stableRecordId(profileId: String, playlog: OtogamePlaylog): String {
+    fun stableRecordId(profileId: String, playlog: OtogamePlaylog): String =
+        recordId(profileId.lowercase(), playlog)
+
+    // The migration preserves hashes made with the profile UUID's original case.
+    fun isPreviouslyImported(profileId: String, playlog: OtogamePlaylog, existingIds: Set<String>): Boolean =
+        stableRecordId(profileId, playlog) in existingIds || recordId(profileId, playlog) in existingIds
+
+    private fun recordId(profileId: String, playlog: OtogamePlaylog): String {
         val identity = listOf(
             profileId,
             "otogame",
@@ -75,8 +84,12 @@ internal object OtogameImportPolicy {
             playlog.achievement.toString(),
             playlog.deluxeScore.toString(),
         ).joinToString("|")
-        return MessageDigest.getInstance("SHA-256")
+        val digest = MessageDigest.getInstance("SHA-256")
             .digest(identity.toByteArray(StandardCharsets.UTF_8))
-            .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        // Match iOS OtogameImportPolicy and the portable backup UUID contract.
+        digest[6] = ((digest[6].toInt() and 0x0f) or 0x50).toByte()
+        digest[8] = ((digest[8].toInt() and 0x3f) or 0x80).toByte()
+        val bytes = ByteBuffer.wrap(digest)
+        return UUID(bytes.long, bytes.long).toString()
     }
 }
