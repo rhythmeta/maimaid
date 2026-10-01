@@ -46,7 +46,7 @@ object SongCollectionCodec {
         return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(compress(message.toByteArray()))
     }
 
-    fun webUrl(collection: SongCollectionExport): String = WEB_BASE_URL + encode(collection)
+    fun webUrl(collection: SongCollectionExport): String = "maimaid://collection/" + encode(collection)
 
 	fun decode(value: String): SongCollectionExport {
         val token = extractToken(value) ?: throw IllegalArgumentException("Invalid collection sharing link")

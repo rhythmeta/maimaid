@@ -21,6 +21,71 @@ private val Context.appPreferencesDataStore by preferencesDataStore(name = "app_
 class AppPreferencesRepository(
     private val context: Context,
 ) {
+
+    private val backupSettingKinds = mapOf(
+        "color_mode" to "int",
+        "key_color" to "int",
+        "color_style" to "string",
+        "color_spec" to "string",
+        "enable_blur" to "bool",
+        "enable_floating_bottom_bar" to "bool",
+        "enable_floating_bottom_bar_blur" to "bool",
+        "enable_predictive_back" to "bool",
+        "page_scale" to "int",
+        "theme_mode" to "string",
+        "theme_color_source" to "string",
+        "theme_custom_color_argb" to "int",
+        "show_scanner_bounding_boxes" to "bool",
+        "third_party_score_sync_enabled" to "bool",
+        "catalog_sort_option" to "string",
+        "catalog_sort_ascending" to "bool",
+        "catalog_grid_columns" to "int",
+        "catalog_hide_unavailable_songs" to "bool",
+        "catalog_show_playable_songs_only" to "bool",
+        "score_query_display_mode" to "string",
+        "score_query_grid_columns" to "int",
+        "score_query_sort_mode" to "string",
+        "score_query_sort_ascending" to "bool",
+        "best50_constant_mode" to "string"
+    )
+
+    suspend fun exportBackupSettings(): List<org.rhythmeta.backup.proto.BackupProtocol.Setting> =
+        context.appPreferencesDataStore.data.first().asMap().mapNotNull { (key, value) ->
+            val kind = backupSettingKinds[key.name] ?: return@mapNotNull null
+            org.rhythmeta.backup.proto.BackupProtocol.Setting.newBuilder()
+                .setKey("android.maimaid.${key.name}").setKind(kind).apply {
+                    when (kind) {
+                        "int" -> integerValue = (value as Int).toLong()
+                        "string" -> stringValue = value as String
+                        "bool" -> boolValue = value as Boolean
+                    }
+                }.build()
+        }
+
+    suspend fun restoreBackupSettings(settings: List<org.rhythmeta.backup.proto.BackupProtocol.Setting>) {
+        val own = settings.filter { it.key.startsWith("android.maimaid.") }
+        own.forEach { value ->
+            val name = value.key.removePrefix("android.maimaid.")
+            require(backupSettingKinds[name] == value.kind) { "Unsupported personal setting." }
+            if (value.kind == "int") require(value.integerValue in Int.MIN_VALUE..Int.MAX_VALUE)
+        }
+        context.appPreferencesDataStore.edit { values ->
+            for ((name, kind) in backupSettingKinds) when (kind) {
+                "int" -> values.remove(intPreferencesKey(name))
+                "string" -> values.remove(stringPreferencesKey(name))
+                "bool" -> values.remove(booleanPreferencesKey(name))
+            }
+            for (value in own) {
+                val name = value.key.removePrefix("android.maimaid.")
+                when (value.kind) {
+                    "int" -> values[intPreferencesKey(name)] = value.integerValue.toInt()
+                    "string" -> values[stringPreferencesKey(name)] = value.stringValue
+                    "bool" -> values[booleanPreferencesKey(name)] = value.boolValue
+                }
+            }
+        }
+    }
+
     val themeSettings: Flow<AppThemeSettings> = context.appPreferencesDataStore.data.map { preferences ->
         val colorMode = ColorMode.fromValue(preferences[ColorModeKey] ?: ColorMode.SYSTEM.value)
         val paletteStyle = preferences[ColorStyleKey]

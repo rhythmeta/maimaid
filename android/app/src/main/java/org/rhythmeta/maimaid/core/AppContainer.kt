@@ -85,6 +85,14 @@ class AppContainer(context: Context) {
         apiClient = backendApiClient,
         tokenStore = BackendTokenStore(applicationContext, json),
     )
+    val cloudBackupService = org.rhythmeta.maimaid.core.backup.CloudBackupService(
+        applicationContext, database, appPreferencesRepository, profileAvatarStore, backendSessionManager,
+    )
+    init {
+        // Finish or roll back interrupted replacement before exposing repositories to UI.
+        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { cloudBackupService.recover() }
+    }
+
     val backendImportService = BackendImportService(
         sessionManager = backendSessionManager,
         json = json,

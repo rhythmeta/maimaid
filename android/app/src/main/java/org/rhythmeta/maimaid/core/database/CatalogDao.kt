@@ -70,6 +70,9 @@ interface CatalogDao {
     @Query("UPDATE sheets SET isRemoved = 1")
     suspend fun markAllSheetsRemoved()
 
+    @Query("DELETE FROM song_aliases WHERE songIdentifier = :songIdentifier AND alias = :alias")
+    suspend fun deleteAlias(songIdentifier: String, alias: String)
+
     @Query("DELETE FROM song_aliases")
     suspend fun deleteAliases()
 

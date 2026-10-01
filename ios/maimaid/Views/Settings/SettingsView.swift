@@ -67,22 +67,6 @@ struct SettingsView: View {
 
                 // Data Import Section
                 Section(header: Text("settings.sync.header"), footer: Text("settings.sync.footer")) {
-                    NavigationLink {
-                        DivingFishImportView()
-                    } label: {
-                        settingsRowLabel(icon: "fish.fill", iconColor: .blue, title: "settings.data.importDivingFish")
-                    }
-
-                    NavigationLink(destination: LxnsImportView()) {
-                        HStack {
-                            settingsRowLabel(icon: "snowflake", iconColor: .cyan, title: "settings.data.importLxns")
-                            Spacer()
-                            if hasLxnsBoundAccount {
-                                Text("settings.data.bound").font(.caption).foregroundStyle(.green)
-                            }
-                        }
-                    }
-
                     if activeProfile?.server == GameServer.jp.rawValue {
                         NavigationLink {
                             OtogameImportView()

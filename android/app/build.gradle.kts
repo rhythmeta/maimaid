@@ -8,7 +8,7 @@ plugins {
 val maimaidBackendUrl = providers.gradleProperty("MAIMAID_BACKEND_URL")
     .orElse("https://api.rhythmeta.org")
 val maimaidBackendAuthUrl = providers.gradleProperty("MAIMAID_BACKEND_AUTH_URL")
-    .orElse("https://maimaid.rhythmeta.org")
+    .orElse("https://dash.rhythmeta.org")
 val maimaidStaticAssetsUrl = providers.gradleProperty("MAIMAID_STATIC_ASSETS_URL")
     .orElse("https://maimaid-assets.rhythmeta.org")
 val maimaidModelAssetsUrl = providers.gradleProperty("MAIMAID_MODEL_ASSETS_URL")

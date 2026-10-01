@@ -40,18 +40,14 @@ jobs:
             static-images-${{ runner.os }}-${{ github.repository }}-
 
       - name: Generate static assets
-        working-directory: backend
+        working-directory: static-builder
         env:
-          MAIMAID_API_URL: ${{ secrets.MAIMAID_API_URL }}
-          MAIMAID_INTERNAL_JOB_TOKEN: ${{ secrets.MAIMAID_INTERNAL_JOB_TOKEN }}
           MAIMAID_STATIC_ASSETS_URL: ${{ secrets.MAIMAID_STATIC_ASSETS_URL }}
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           set -euo pipefail
-          : "${MAIMAID_API_URL:?Missing GitHub Secret MAIMAID_API_URL}"
-          : "${MAIMAID_INTERNAL_JOB_TOKEN:?Missing GitHub Secret MAIMAID_INTERNAL_JOB_TOKEN}"
           : "${MAIMAID_STATIC_ASSETS_URL:?Missing GitHub Secret MAIMAID_STATIC_ASSETS_URL}"
-          pnpm run static-bundle:build
+          pnpm run build
 
       - name: Save static image cache
         uses: actions/cache/save@v4
@@ -62,7 +58,7 @@ jobs:
           key: static-images-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}
 
       - name: Deploy static assets Worker
-        working-directory: backend
+        working-directory: static-builder
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

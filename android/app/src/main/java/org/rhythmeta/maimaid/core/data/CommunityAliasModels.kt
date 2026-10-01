@@ -85,6 +85,7 @@ data class CommunityAliasVoteResult(
 @Serializable
 data class CommunityAliasApprovedSyncRow(
     val candidateId: String,
+    val status: String = "approved",
     val songIdentifier: String,
     val aliasText: String,
     val updatedAt: String = "",

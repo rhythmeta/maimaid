@@ -4,43 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-maimaid is a maimai DX player ecosystem app. It's a monorepo with four main components: a native iOS app, a native Android app, a Hono backend server, and a Next.js web dashboard. The iOS app is the primary product — it handles score tracking, song catalog browsing, B50 calculation, image recognition-based score entry, and cloud sync. The Android app is the port of that same feature set.
+maimaid is a maimai DX player ecosystem app. This repository contains native iOS/Android clients and independent static catalog publication. The iOS app is the primary product — it handles score tracking, song catalog browsing, B50 calculation, image recognition-based score entry, and cloud sync. The Android app is the port of that same feature set.
 
 ## Monorepo Structure
 
 - **`ios/maimaid/`** — iOS app (SwiftUI + SwiftData), the core product
 - **`android/`** — Android app (Kotlin + Jetpack Compose + Room), standalone Gradle build
-- **`backend/`** — Hono API server (TypeScript, Prisma, PostgreSQL)
-- **`dashboard/`** — Admin/user dashboard (Next.js 16, shadcn/ui, Tailwind CSS v4)
+- **`static-builder/`** — Public upstream catalog builder
+- **`static-worker/`** — Cloudflare static assets deployment
+- **`shared/`** — Portable protobuf schemas and fixtures
 
-Orchestrated with **Nx** and **pnpm workspaces** (`pnpm@10.33.0`). The pnpm workspace covers `dashboard` and `backend`. The `android/` tree is a self-contained Gradle build and is not part of the pnpm workspace or Nx graph.
+Orchestrated with **Nx** and **pnpm workspaces** (`pnpm@10.33.0`). The pnpm workspace covers `static-builder`. The `android/` tree is a self-contained Gradle build and is not part of the pnpm workspace or Nx graph.
 
 ## Common Commands
 
-### Root-level (from repo root)
+### Root-level
 
 ```bash
-pnpm install                    # Install all JS dependencies
-pnpm run dev:server             # Start backend in watch mode (tsx watch)
-pnpm run build:server           # Compile backend TypeScript
-pnpm run test:server            # Run backend tests (vitest)
-pnpm run migrate:server         # Deploy Prisma migrations
-pnpm run dev:web                # Start Next.js dashboard dev server
-pnpm run build:web              # Build dashboard (static export)
-pnpm run typecheck:web          # TypeScript check for dashboard
-pnpm run build:ios              # Build iOS via Nx (requires Xcode CLI tools)
-```
-
-### Backend-specific (from `backend/`)
-
-```bash
-pnpm run dev                    # tsx watch src/server.ts
-pnpm run test                   # vitest run (test files: test/**/*.spec.ts)
-pnpm run test:watch             # vitest in watch mode
-pnpm run prisma:migrate:dev     # Create new migration
-pnpm run prisma:studio          # Open Prisma Studio
-pnpm run podman:up              # Start local stack (Postgres + MinIO + backend)
-pnpm run podman:down            # Stop local stack
+pnpm install --frozen-lockfile
+pnpm test:static
+pnpm typecheck:static
+pnpm build:static
+pnpm run build:ios
 ```
 
 ### iOS
@@ -65,13 +50,13 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 
 - **Target**: iOS 26.0+, Swift 6.2+, strict concurrency
 - **Data layer**: SwiftData with models: `Song`, `Sheet`, `Score`, `PlayRecord`, `SyncConfig`, `MaimaiIcon`, `UserProfile`, `CommunityAliasCache`
-- **Entry point**: `maimaidApp.swift` — sets up `ModelContainer`, handles background tasks (`BGAppRefreshTask` for static data sync and cloud backup), and manages app lifecycle sync
+- **Entry point**: `maimaidApp.swift` — sets up `ModelContainer`, recovers interrupted restores before opening the UI, and manages account/alias lifecycle checks
 - **Views/**: Page-oriented SwiftUI features, aligned with Android's `ui` packages:
   `Home/`, `Catalog/`, `Best/`, `Song/`, `Collections/`, `Score/`, `ScoreQuery/`,
   `Recommendation/`, `ConstantTable/`, `Dan/`, `Plate/`, `Random/`, `Scanner/`,
   `Community/`, `LetterGame/`, `Settings/`, and `Onboarding/`. Shared UI stays in
   `Components/`; app-level tab routing stays in `Navigation/`.
-- **Services/**: Backend API client (`BackendAPIClient`), session management (`BackendSessionManager`), cloud sync (`BackendCloudSyncService`), incremental sync, score sync, data import from Diving Fish / LXNS, image recognition (`MLScoreProcessor`, `MLChooseProcessor`, `MLDistinguishProcessor`), community aliases
+- **Services/**: Backend API client (`BackendAPIClient`), session management (`BackendSessionManager`), manual snapshots (`CloudBackupService`), local score uploads, data import from Diving Fish / LXNS, image recognition (`MLScoreProcessor`, `MLChooseProcessor`, `MLDistinguishProcessor`), community aliases
 - **Localization**: `Localizable.strings` in `en`, `ja`, `zh-Hans`, `zh-Hant`. When adding user-facing strings, translate into all four languages.
 
 ### Android App (`android/`)
@@ -87,40 +72,13 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 - **Config**: `BACKEND_URL` and `BACKEND_AUTH_URL` are read as Gradle properties from `android/gradle.properties` and exposed through `BuildConfig`. Release signing reads the PKCS#12 keystore path, store password, alias, and key password from `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`; local release builds remain unsigned when these variables are absent.
 - **Tests**: JVM unit tests in `app/src/test/` (JUnit4 + Truth + coroutines-test). Instrumented tests in `app/src/androidTest/`, including `ScannerSampleRegressionTest`, which reads the HEIC samples and `detail.json` in `android/mairesult/` — that directory is wired in as an androidTest asset source, so it is test fixture data, not scratch files.
 
-### Backend (`backend/`)
+### Shared Rhythmeta services
 
-- **Framework**: Hono on Node.js (port 8787)
-- **DI**: tsyringe with token-based injection (`src/di/container.ts`, `src/di/tokens.ts`)
-- **ORM**: Prisma 7 with PostgreSQL (includes `pg_cron` extension)
-- **Storage**: S3-compatible (MinIO for local dev)
-- **Auth**: JWT access/refresh tokens (`jose`), MFA via TOTP (`otpauth`) and WebAuthn/passkeys (`@simplewebauthn/server`), backup codes
-- **Validation**: Zod v4 for request validation and env parsing (`src/env.ts`)
-- **Routes**: Versioned under `/v1/` — auth, profiles, catalog, scores, import, community, admin, sync, static. Internal jobs at `/internal/jobs/`
-- **Key services**: AuthService, ImportService (Diving Fish / LXNS), CatalogService, ScoreService, SyncService, StaticBundleService, CommunityAliasService, MfaService, StorageService
-- **Tests**: Vitest, test files in `test/**/*.spec.ts`
+The backend and dashboard were extracted with history into `rhythmeta/rhythmeta-backend` and `rhythmeta/rhythmeta-dashboard`. Hono runs on Workers + D1 with public R2 snapshots; the Next.js dashboard runs on Workers Static Assets at `dash.rhythmeta.org`.
 
-### Web Dashboard (`dashboard/`)
+Authentication uses `/auth/v1` with PKCE S256. Game resources use `/maimaid/v1` or `/chunithmd/v1`. Legacy `/v1/*` is retired. Existing credentials and community aliases were migrated; cloud profiles, scores, imports, public collections and multiplayer were discarded.
 
-- **Framework**: Next.js 16 with static export (`output: "export"`)
-- **UI**: shadcn/ui + Radix UI + Tailwind CSS v4
-- **Deployment**: Cloudflare Pages (`wrangler pages deploy`)
-- **Auth**: WebAuthn passkey support (`@simplewebauthn/browser`)
-- **Pages**: Auth, Scores, Imports, Aliases, Settings, Admin (Users, Static data)
-- **Env**: requires `NEXT_PUBLIC_BACKEND_URL`
-
-### Data Flow
-
-The iOS app can operate fully offline with local SwiftData. When the backend is configured:
-1. User authenticates via the backend (JWT-based, with optional MFA)
-2. Scores/profiles sync incrementally between the app and backend
-3. Data can be imported server-side from Diving Fish / LXNS APIs
-4. Static data (song catalog, icons, aliases) is bundled and served by the backend
-5. Cloud backup/restore through the sync service
-6. Community song alias submissions go through a voting cycle on the backend
-
-### Podman Local Dev Stack
-
-`backend/docker-compose.yml` provides: PostgreSQL 18.3 + pg_cron (port 54329), MinIO (API 9000, console 9001), and the backend service (port 8787). Copy `.env.docker.example` to `.env.docker` before starting.
+Native apps remain local-first. Manual protobuf+gzip snapshots contain personal data and settings, exclude credentials/catalog assets, and preserve the latest three per game/account. Replacement restore uses a durable rollback journal. Static catalogs are built and published by each game's own repository directly from public upstreams.
 
 ## iOS Coding Guidelines
 

@@ -363,15 +363,7 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
 
-            NavigationLink(destination: LetterGameView()) {
-                functionCard(
-                    icon: "character.cursor.ibeam",
-                    title: "letterGame.title",
-                    subtitle: "letterGame.subtitle",
-                    gradient: [Color.blue, Color.teal]
-                )
-            }
-            .buttonStyle(.plain)
+
         }
     }
     // MARK: - Rating Badge

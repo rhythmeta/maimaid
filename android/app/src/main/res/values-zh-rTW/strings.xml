@@ -820,4 +820,10 @@
     <string name="letter_game_leave_room_confirm_summary">你將退出目前對局並放棄房間座位。</string>
     <string name="letter_game_cancel">取消</string>
 	  <string name="letter_game_join_game">加入房間</string>
+    <string name="cloud_snapshots_refresh">重新整理備份</string>
+    <string name="cloud_snapshot_hint">手動建立備份，保留最近三份。持有下載連結的人可讀取備份，請勿分享。</string>
+    <string name="cloud_snapshots_empty">尚無雲端備份。</string>
+    <string name="cloud_snapshot_profiles">%1$d 個檔案</string>
+    <string name="cloud_restore_replace_hint">這會取代本機此遊戲的所有個人資料。還原前會儲存本機回復副本。</string>
+    <string name="cloud_snapshot_cancel">取消</string>
 </resources>

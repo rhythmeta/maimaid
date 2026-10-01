@@ -40,7 +40,7 @@ jobs:
         env:
           ARCHIVE_PATH: ${{ runner.temp }}/maimaid.xcarchive
           MAIMAID_API_URL: ${{ secrets.MAIMAID_API_URL }}
-          MAIMAID_AUTH_URL: https://maimaid.rhythmeta.org
+          MAIMAID_AUTH_URL: https://dash.rhythmeta.org
         run: |
           set -euo pipefail
           mkdir -p build

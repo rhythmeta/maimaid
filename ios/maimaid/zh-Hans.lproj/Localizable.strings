@@ -869,3 +869,11 @@
 "letterGame.joinRejected" = "你的加入房间请求已被拒绝。";
 "letterGame.dissolved" = "房间已解散。";
 "letterGame.ambiguousGuess" = "该答案匹配多首歌曲，请输入更明确的歌名。";
+
+// Rhythmeta cloud backups
+"settings.cloud.snapshots.refresh" = "刷新备份列表";
+"settings.cloud.snapshot.hint" = "手动创建备份，保留最近三份。持有下载链接的人可读取备份，请勿分享。";
+"settings.cloud.snapshots.empty" = "暂无云备份。";
+"settings.cloud.snapshot.profiles %lld" = "%lld 个档案";
+"settings.cloud.restore.replaceHint" = "这将替换本机该游戏的全部个人数据。恢复前会保存本地回滚副本。";
+"settings.cloud.snapshots.title" = "云备份";

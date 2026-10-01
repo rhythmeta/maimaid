@@ -873,3 +873,11 @@
 "letterGame.joinRejected" = "ルームへの参加リクエストが拒否されました。";
 "letterGame.dissolved" = "ルームが解散しました。";
 "letterGame.ambiguousGuess" = "複数の曲に一致しました。曲名をもう少し詳しく入力してください。";
+
+// Rhythmeta cloud backups
+"settings.cloud.snapshots.refresh" = "バックアップを更新";
+"settings.cloud.snapshot.hint" = "手動で作成した最新3件を保存します。ダウンロードリンクを知る人は内容を読めるため、共有しないでください。";
+"settings.cloud.snapshots.empty" = "バックアップはありません。";
+"settings.cloud.snapshot.profiles %lld" = "%lld プロフィール";
+"settings.cloud.restore.replaceHint" = "この端末のゲームの個人データをすべて置き換えます。復元前にローカルのロールバック用コピーを保存します。";
+"settings.cloud.snapshots.title" = "クラウドバックアップ";

@@ -1,5 +1,5 @@
 {
-	"$schema": "../backend/node_modules/wrangler/config-schema.json",
+	"$schema": "../static-builder/node_modules/wrangler/config-schema.json",
 	"name": "maimaid-assets",
 	"compatibility_date": "2026-08-21",
 	"workers_dev": false,

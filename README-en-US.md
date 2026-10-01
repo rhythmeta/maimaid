@@ -1,116 +1,34 @@
 # maimaid
 
-maimaid is a score and song-library toolkit for the maimai DX player community. It includes iOS and Android clients, an optional backend API, and a Web Dashboard. The clients use a local-first data model and support catalog browsing, score management, progression tracking, image recognition, and cloud synchronization.
+A local-first maimai DX toolkit for iOS and Android: song catalogs, profiles, scores, B50, progress, OCR, Diving Fish/LXNS imports and manual cloud backups.
 
-## Features
+## Repositories
 
-- Multiple player profiles for JP, INTL, and CN servers
-- Song search, filters, favorites, song details, and community aliases
-- Scores and play records, B35/B15 (B50), and Rating queries
-- Rating recommendations, plate progress, Dan courses, random song selection, and constant-table export
-- Score and song recognition from the camera or photo library: Core ML on iOS, ONNX Runtime and PaddleOCR on Android
-- Diving Fish / LXNS score import, score synchronization, cloud backup, and restore
+This repository contains `ios/`, `android/`, `shared/` (portable protocols) and `static-builder/` + `static-worker/` (independent catalog publication).
 
-## Repository Layout
-
-| Path         | Contents                                                                |
-| ------------ | ----------------------------------------------------------------------- |
-| `ios/`       | SwiftUI iOS client and Core ML models                                   |
-| `android/`   | Kotlin + Jetpack Compose Android client                                 |
-| `backend/`   | Hono + Prisma API, PostgreSQL database, and static-data synchronization |
-| `dashboard/` | Next.js Web Dashboard                                                   |
-| `scripts/`   | Song catalog and Utage chart-statistics build scripts                   |
-
-## Tech Stack
-
-- iOS: SwiftUI, SwiftData, Core ML, Vision
-- Android: Kotlin, Jetpack Compose, MIUIX, Room, DataStore, ONNX Runtime
-- Backend: Hono, Prisma, PostgreSQL, and S3-compatible object storage
-- Dashboard: Next.js, TypeScript, shadcn/ui, and Tailwind CSS
+Shared accounts and cloud services now live in [rhythmeta-backend](https://github.com/rhythmeta/rhythmeta-backend) (Cloudflare Workers + D1 + R2). The account website lives in [rhythmeta-dashboard](https://github.com/rhythmeta/rhythmeta-dashboard) and is available at [dash.rhythmeta.org](https://dash.rhythmeta.org).
 
 ## Development
 
-### Requirements
+Use pnpm 10, Xcode for iOS 26+, and JDK 17/Android SDK 37 for Android.
 
-- Node.js and pnpm 10 (`pnpm@10.33.0` is declared at the repository root)
-- iOS: Xcode and Xcode Command Line Tools
-- Android: JDK 17 and Android SDK 37
-- Podman for the local backend container stack
-
-### Install Dependencies
-
-```bash
-pnpm install
-```
-
-### Root Commands
-
-```bash
-pnpm run dev:web          # Start the Dashboard
-pnpm run dev:server      # Start the backend development server
-pnpm run build:web       # Build the Dashboard
-pnpm run typecheck:web   # Type-check the Dashboard
-pnpm run build:server    # Compile the backend
-pnpm run test:server     # Run backend tests
-pnpm run build:json      # Build root-level static JSON data
-pnpm run list:ios        # List iOS schemes
-pnpm run build:ios       # Build the iOS Simulator target
-```
-
-### Android
-
-```bash
+```sh
+pnpm install --frozen-lockfile
+pnpm test:static
+pnpm typecheck:static
+pnpm build:static
 cd android
-./gradlew :app:testDebugUnitTest
-./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Android defaults to `https://api.rhythmeta.org` and `https://maimaid.rhythmeta.org`. Override them with Gradle properties for a local build:
+The static workflow builds directly from public upstream data and deploys the static Worker. Backend availability is no longer required. Set the workflow's `MAIMAID_STATIC_ASSETS_URL`, `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` secrets.
 
-```bash
-./gradlew :app:assembleDebug \
-  -PMAIMAID_BACKEND_URL=http://10.0.2.2:8787 \
-  -PMAIMAID_BACKEND_AUTH_URL=http://10.0.2.2:3000
-```
+Clients use `https://api.rhythmeta.org` and `https://dash.rhythmeta.org`. Android supports `-PMAIMAID_BACKEND_URL=...` and `-PMAIMAID_BACKEND_AUTH_URL=...`; iOS supports `BACKEND_URL` and `BACKEND_AUTH_URL` in the ignored `ios/Config/Secrets.xcconfig`.
 
-### Local Backend
+## Accounts and backups
 
-```bash
-cp backend/.env.docker.example backend/.env.docker
-cd backend
-pnpm run podman:up
-```
+Existing accounts remain valid; log in again after migration. Manual backups contain personal profiles, scores/history, collections, favorites and settings as protobuf + gzip in R2. Each game retains three snapshots. Restore replaces all local personal data and saves a recovery copy first. Catalog assets and credentials are excluded. Old per-row cloud sync, cloud imports, public collection storage and multiplayer have been retired. Local imports, score uploads and collection snapshot links remain available.
 
-After startup, the service is available at `http://localhost:8787/health`, `http://localhost:8787/docs`, and `http://localhost:8787/openapi.json`. See [`backend/README.md`](backend/README.md) for environment variables, migrations, and deployment.
+## Data and copyright
 
-### Dashboard Configuration
-
-Set these values in `dashboard/.env.local`:
-
-```dotenv
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8787
-NEXT_PUBLIC_LXNS_CLIENT_ID=your-public-client-id
-```
-
-Run `pnpm --filter dashboard check:env` to check the backend URL. The LXNS client ID is required for LXNS imports. See [`dashboard/README.md`](dashboard/README.md) for Dashboard builds and Cloudflare Pages deployment.
-
-### iOS Configuration
-
-Create the Git-ignored file `ios/Config/Secrets.xcconfig` with the backend endpoints:
-
-```xcconfig
-BACKEND_URL = https://api.example.com
-BACKEND_AUTH_URL = https://auth.example.com
-```
-
-## Acknowledgements
-
-- Diving Fish and LXNS Coffee House: score, catalog, and community data services
-- arcade-songs: song-data reference
-- Antigravity, Codex, and Claude Code: development collaboration
-- Ultralytics Platform: model-training support
-- charaDiana and Keritial: image-annotation support
-
-## Data and Copyright
-
-The application combines the backend static catalog with data from community services such as Diving Fish and LXNS. `maimai`, its game assets, and its trademarks belong to SEGA; maimaid is an independent community tool with no official affiliation with SEGA.
+Thanks to Diving Fish, LXNS Coffee House and arcade-songs for community data. maimai and its assets/trademarks belong to SEGA. This project is independent and is not affiliated with SEGA.
