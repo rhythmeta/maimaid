@@ -6,7 +6,7 @@ A local-first maimai DX toolkit for iOS and Android: song catalogs, profiles, sc
 
 This repository contains `ios/`, `android/`, `shared/` (portable protocols) and `static-builder/` + `static-worker/` (independent catalog publication).
 
-Shared accounts and cloud services now live in [rhythmeta-backend](https://github.com/rhythmeta/rhythmeta-backend) (Cloudflare Workers + D1 + R2). The account website lives in [rhythmeta-dashboard](https://github.com/rhythmeta/rhythmeta-dashboard) and is available at [dash.rhythmeta.org](https://dash.rhythmeta.org).
+Shared accounts and cloud services now live in [rhythmeta-backend](https://github.com/rhythmeta/gekichumai-backend) (Cloudflare Workers + D1 + R2). The account website lives in [rhythmeta-dashboard](https://github.com/rhythmeta/gekichumai-dashboard) and is available at [dash.rhythmeta.org](https://dash.rhythmeta.org).
 
 ## Development
 

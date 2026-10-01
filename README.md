@@ -6,7 +6,7 @@
 
 本仓库包含 `ios/`、`android/`、`shared/`（跨端协议），以及独立构建和发布曲库的 `static-builder/`、`static-worker/`。
 
-统一账号与云服务已拆到 [rhythmeta-backend](https://github.com/rhythmeta/rhythmeta-backend)，运行于 Cloudflare Workers + D1 + R2。账号网站拆到 [rhythmeta-dashboard](https://github.com/rhythmeta/rhythmeta-dashboard)，入口为 [dash.rhythmeta.org](https://dash.rhythmeta.org)。
+统一账号与云服务已拆到 [rhythmeta-backend](https://github.com/rhythmeta/gekichumai-backend)，运行于 Cloudflare Workers + D1 + R2。账号网站拆到 [rhythmeta-dashboard](https://github.com/rhythmeta/gekichumai-dashboard)，入口为 [dash.rhythmeta.org](https://dash.rhythmeta.org)。
 
 ## 开发
 
