@@ -74,7 +74,7 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 
 ### Shared Rhythmeta services
 
-The backend and dashboard were extracted with history into `rhythmeta/rhythmeta-backend` and `rhythmeta/rhythmeta-dashboard`. Hono runs on Workers + D1 with public R2 snapshots; the Next.js dashboard runs on Workers Static Assets at `dash.rhythmeta.org`.
+The backend and dashboard were extracted with history into `rhythmeta/gekichumai-backend` and `rhythmeta/gekichumai-dashboard`. Hono runs on Workers + D1 with public R2 snapshots; the Next.js dashboard runs on Workers Static Assets at `dash.rhythmeta.org`.
 
 Authentication uses `/auth/v1` with PKCE S256. Game resources use `/maimaid/v1` or `/chunithmd/v1`. Legacy `/v1/*` is retired. Existing credentials and community aliases were migrated; cloud profiles, scores, imports, public collections and multiplayer were discarded.
 
