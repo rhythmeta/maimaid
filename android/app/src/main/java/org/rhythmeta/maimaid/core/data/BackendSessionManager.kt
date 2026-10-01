@@ -39,6 +39,7 @@ data class BackendAuthRedirect(
     val result: String?,
     val code: String?,
     val sessionCode: String?,
+    val state: String? = null,
 ) {
     companion object {
         fun parse(rawUrl: String): BackendAuthRedirect? {
@@ -50,6 +51,7 @@ data class BackendAuthRedirect(
                 result = values["result"]?.lowercase(),
                 code = values["code"]?.lowercase(),
                 sessionCode = values["sessionCode"],
+                state = values["state"],
             )
         }
 
@@ -84,6 +86,8 @@ class BackendSessionManager(
     fun webAuthUrl(mode: BackendWebAuthMode): String? {
         val base = authBaseUrl.trim().trimEnd('/')
         if (base.isEmpty()) return null
+        val pending = PendingAppLogin.create()
+        tokenStore.savePendingLogin(pending)
         val separator = if ('?' in base) '&' else '?'
         return buildString {
             append(base)
@@ -92,7 +96,10 @@ class BackendSessionManager(
             append(mode.queryValue)
             append("&redirect_uri=")
             append(URLEncoder.encode(AUTH_REDIRECT_URL, Charsets.UTF_8.name()))
-            append("&client=app")
+            append("&client_id=maimaid&code_challenge_method=S256&code_challenge=")
+            append(pending.challenge)
+            append("&state=")
+            append(pending.state)
         }
     }
 
@@ -103,7 +110,7 @@ class BackendSessionManager(
         }
         mutableState.value = mutableState.value.copy(isChecking = true)
         try {
-            val payload = authorizedRequest("v1/auth/me")
+            val payload = authorizedRequest("auth/v1/me")
             val user = apiJson.decodeFromJsonElement(BackendAuthUser.serializer(), payload)
             applyTokens(requireNotNull(tokens).copy(user = user))
         } catch (error: BackendApiException) {
@@ -119,12 +126,23 @@ class BackendSessionManager(
         val redirect = rawUrl?.let(BackendAuthRedirect::parse) ?: return
         if (redirect.type == "session") {
             val sessionCode = redirect.sessionCode
+            val pending = tokenStore.pendingLogin()
+            if (pending == null || !pending.accepts(redirect.state)) {
+                mutableState.value = mutableState.value.copy(notice = BackendSessionNotice.AuthLinkFailed)
+                return
+            }
+            tokenStore.clearPendingLogin()
             if (redirect.result == "success" && sessionCode != null && sessionCode.length >= 20) {
                 runCatching {
                     val payload = apiClient.request(
-                        path = "v1/auth/session:exchange",
+                        path = "auth/v1/session:exchange",
                         method = "POST",
-                        body = buildJsonObject { put("sessionCode", sessionCode) },
+                        body = buildJsonObject {
+                            put("sessionCode", sessionCode)
+                            put("clientId", "maimaid")
+                            put("redirectUri", AUTH_REDIRECT_URL)
+                            put("codeVerifier", pending.verifier)
+                        },
                     )
                     apiJson.decodeFromJsonElement(BackendTokenBundle.serializer(), payload)
                 }.onSuccess { bundle ->
@@ -156,7 +174,7 @@ class BackendSessionManager(
         if (refreshToken != null) {
             runCatching {
                 apiClient.request(
-                    path = "v1/auth/logout",
+                    path = "auth/v1/logout",
                     method = "POST",
                     body = buildJsonObject { put("refreshToken", refreshToken) },
                 )
@@ -185,7 +203,7 @@ class BackendSessionManager(
         if (current.refreshToken != staleRefreshToken) return@withLock true
         return@withLock try {
             val payload = apiClient.request(
-                path = "v1/auth/refresh",
+                path = "auth/v1/refresh",
                 method = "POST",
                 body = buildJsonObject { put("refreshToken", current.refreshToken) },
             )

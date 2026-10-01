@@ -25,9 +25,6 @@ class ScoreSyncService(
 ) {
     suspend fun syncAfterScoreSave(sheetKey: String, score: ScoreEntity) = coroutineScope {
         launch {
-            runCatching { backendSyncCoordinator.pushScoreUpdate(sheetKey, score) }
-        }
-        launch {
             runCatching { syncThirdParties(sheetKey, score) }
         }
     }

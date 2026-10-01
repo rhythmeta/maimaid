@@ -42,7 +42,7 @@ class BackendTokenStore(
     private val json: Json,
 ) {
     private val preferences = context.applicationContext.getSharedPreferences(
-        "backend_session",
+        "rhythmeta_session",
         Context.MODE_PRIVATE,
     )
 
@@ -59,6 +59,18 @@ class BackendTokenStore(
     fun clear() {
         preferences.edit { remove(TOKEN_KEY) }
     }
+
+    fun savePendingLogin(value: PendingAppLogin) {
+        val payload = encrypt(json.encodeToString(PendingAppLogin.serializer(), value))
+        check(payload != null) { "Cannot securely store the login request." }
+        check(preferences.edit().putString("pending_login", payload).commit())
+    }
+
+    fun pendingLogin(): PendingAppLogin? = decrypt(preferences.getString("pending_login", null))?.let {
+        runCatching { json.decodeFromString<PendingAppLogin>(it) }.getOrNull()
+    }
+
+    fun clearPendingLogin() { preferences.edit { remove("pending_login") } }
 
     private fun encrypt(value: String): String? = runCatching {
         val cipher = Cipher.getInstance(TRANSFORMATION)

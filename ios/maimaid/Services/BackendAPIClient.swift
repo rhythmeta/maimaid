@@ -54,7 +54,12 @@ enum BackendAPIClient {
 
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let value = try decoder.singleValueContainer().decode(String.self)
+            if let date = try? Date(value, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .colon)) { return date }
+            if let date = try? Date(value, strategy: .iso8601) { return date }
+            throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "Invalid ISO 8601 date")
+        }
         return decoder
     }()
 
@@ -72,6 +77,9 @@ enum BackendAPIClient {
         body: Request?,
         authentication: BackendAuthenticationMode = .required
     ) async throws -> Response {
+        guard !path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasPrefix("v1/") else {
+            throw BackendAPIError(statusCode: 410, code: "service_retired", message: "This cloud feature has retired. Use Rhythmeta backups instead.")
+        }
         guard let url = BackendConfig.endpoint(path) else {
             throw BackendAPIError.unconfigured
         }
@@ -81,7 +89,7 @@ enum BackendAPIClient {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-        request.setValue("app", forHTTPHeaderField: "X-Maimaid-Client")
+        request.setValue("app", forHTTPHeaderField: "X-Rhythmeta-Client")
         if let token = initialToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         } else if authentication == .required {
@@ -114,6 +122,9 @@ enum BackendAPIClient {
         body: Request?,
         authentication: BackendAuthenticationMode = .required
     ) async throws -> Data {
+        guard !path.trimmingCharacters(in: CharacterSet(charactersIn: "/")).hasPrefix("v1/") else {
+            throw BackendAPIError(statusCode: 410, code: "service_retired", message: "This cloud feature has retired. Use Rhythmeta backups instead.")
+        }
         guard let url = BackendConfig.endpoint(path) else {
             throw BackendAPIError.unconfigured
         }
@@ -122,7 +133,7 @@ enum BackendAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("app", forHTTPHeaderField: "X-Maimaid-Client")
+        request.setValue("app", forHTTPHeaderField: "X-Rhythmeta-Client")
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         } else if authentication == .required {

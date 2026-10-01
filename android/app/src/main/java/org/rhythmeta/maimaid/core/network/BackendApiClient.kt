@@ -29,6 +29,9 @@ class BackendApiClient(
         body: JsonElement? = null,
         accessToken: String? = null,
     ): JsonElement {
+        if (path.trimStart('/').startsWith("v1/")) {
+            throw BackendApiException(410, "service_retired", "This cloud feature has retired. Use Rhythmeta backups instead.")
+        }
         if (normalizedBaseUrl.isEmpty()) {
             throw BackendApiException(null, "unconfigured", "Cloud service is not configured.")
         }
@@ -58,7 +61,7 @@ class BackendApiClient(
             connection.readTimeout = READ_TIMEOUT_MILLIS
             connection.setRequestProperty("Accept", "application/json")
             connection.setRequestProperty("Accept-Encoding", "gzip")
-            connection.setRequestProperty("X-Maimaid-Client", "app")
+            connection.setRequestProperty("X-Rhythmeta-Client", "app")
             accessToken?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
             if (body != null) {
                 connection.doOutput = true

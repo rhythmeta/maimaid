@@ -873,3 +873,11 @@
 "letterGame.joinRejected" = "你的加入房間請求已被拒絕。";
 "letterGame.dissolved" = "房間已解散。";
 "letterGame.ambiguousGuess" = "該答案符合多首歌曲，請輸入更明確的歌名。";
+
+// Rhythmeta cloud backups
+"settings.cloud.snapshots.refresh" = "重新整理備份";
+"settings.cloud.snapshot.hint" = "手動建立備份，保留最近三份。持有下載連結的人可讀取備份，請勿分享。";
+"settings.cloud.snapshots.empty" = "尚無雲端備份。";
+"settings.cloud.snapshot.profiles %lld" = "%lld 個檔案";
+"settings.cloud.restore.replaceHint" = "這會取代本機此遊戲的所有個人資料。還原前會儲存本機回復副本。";
+"settings.cloud.snapshots.title" = "雲端備份";

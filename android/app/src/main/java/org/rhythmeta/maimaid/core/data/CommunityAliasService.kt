@@ -43,7 +43,7 @@ class CommunityAliasService(
     suspend fun fetchVotingBoard(limit: Int = 150): List<CommunityAliasVotingBoardItem> {
         if (!isConfigured || !isAuthenticated) return emptyList()
         val payload = sessionManager.authorizedRequest(
-            "v1/community/candidates:votingBoard?limit=${limit.coerceIn(1, 200)}&offset=0",
+            "maimaid/v1/community/candidates:votingBoard?limit=${limit.coerceIn(1, 200)}&offset=0",
         )
         return json.decodeFromJsonElement(
             CommunityAliasRowsResponse.serializer(CommunityAliasVotingBoardItem.serializer()),
@@ -90,7 +90,7 @@ class CommunityAliasService(
     suspend fun fetchDailySubmissionCount(date: LocalDate = LocalDate.now()): Int {
         if (!isConfigured || !isAuthenticated) return 0
         val payload = sessionManager.authorizedRequest(
-            "v1/community/candidates:dailyCount?localDate=$date",
+            "maimaid/v1/community/candidates:dailyCount?localDate=$date",
         )
         return json.decodeFromJsonElement(CommunityAliasDailyCountResponse.serializer(), payload)
             .count
@@ -119,7 +119,7 @@ class CommunityAliasService(
             .totalSeconds / 60
         return try {
             val payload = sessionManager.authorizedRequest(
-                path = "v1/community/candidates",
+                path = "maimaid/v1/community/candidates",
                 method = "POST",
                 body = buildJsonObject {
                     put("songIdentifier", songIdentifier)
@@ -151,7 +151,7 @@ class CommunityAliasService(
 					URLEncoder.encode(candidateId, Charsets.UTF_8.name())
 				}
         val payload = sessionManager.authorizedRequest(
-            path = "v1/community/candidates/$encodedId:vote",
+            path = "maimaid/v1/community/candidates/$encodedId:vote",
             method = "POST",
             body = buildJsonObject { put("vote", if (support) 1 else -1) },
         )
@@ -167,7 +167,7 @@ class CommunityAliasService(
             "&songIdentifier=${URLEncoder.encode(it, Charsets.UTF_8.name())}"
         }.orEmpty()
         val payload = sessionManager.authorizedRequest(
-            "v1/community/candidates:my?limit=${limit.coerceIn(1, 200)}$songQuery",
+            "maimaid/v1/community/candidates:my?limit=${limit.coerceIn(1, 200)}$songQuery",
         )
         return json.decodeFromJsonElement(
             CommunityAliasRowsResponse.serializer(CommunityAliasMyCandidate.serializer()),
@@ -195,23 +195,25 @@ class CommunityAliasService(
             return@withLock
         }
         val rows = runCatching {
-            val payload = apiClient.request("v1/community/aliases:sync?limit=2000")
+            val payload = apiClient.request("maimaid/v1/community/aliases:sync")
             json.decodeFromJsonElement(
                 CommunityAliasRowsResponse.serializer(CommunityAliasApprovedSyncRow.serializer()),
                 payload,
             ).rows
         }.getOrElse { return@withLock }
-        mutableApprovedAliases.value = rows
+        rows.filter { it.status != "approved" }.forEach { catalogDao.deleteAlias(it.songIdentifier, it.aliasText) }
+        val approved = rows.filter { it.status == "approved" }
+        mutableApprovedAliases.value = approved
             .groupBy(CommunityAliasApprovedSyncRow::songIdentifier)
             .mapValues { (_, values) ->
                 values
                     .map(CommunityAliasApprovedSyncRow::aliasText)
                     .distinctBy(String::lowercase)
             }
-        if (rows.isNotEmpty()) {
+        if (approved.isNotEmpty()) {
             val knownSongIdentifiers = catalogDao.songIdentifiers().toSet()
             catalogDao.upsertAliases(
-                rows
+                approved
                     .filter { row -> row.songIdentifier in knownSongIdentifiers }
                     .map { row -> SongAliasEntity(row.songIdentifier, row.aliasText) },
             )

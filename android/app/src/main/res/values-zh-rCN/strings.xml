@@ -821,4 +821,10 @@
     <string name="letter_game_leave_room_confirm_summary">你将退出当前对局并放弃房间座位。</string>
     <string name="letter_game_cancel">取消</string>
 	  <string name="letter_game_join_game">加入房间</string>
+    <string name="cloud_snapshots_refresh">刷新备份列表</string>
+    <string name="cloud_snapshot_hint">手动创建备份，保留最近三份。持有下载链接的人可读取备份，请勿分享。</string>
+    <string name="cloud_snapshots_empty">暂无云备份。</string>
+    <string name="cloud_snapshot_profiles">%1$d 个档案</string>
+    <string name="cloud_restore_replace_hint">这将替换本机该游戏的全部个人数据。恢复前会保存本地回滚副本。</string>
+    <string name="cloud_snapshot_cancel">取消</string>
 </resources>

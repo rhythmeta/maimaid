@@ -44,8 +44,15 @@ for (const [index, entry] of source.entries.entries()) {
 	}
 
 	const utageDifficulties = entry.difficulties.filter((difficulty) => isRecord(difficulty) && difficulty.name === "Utage");
-	if (utageDifficulties.length !== 1) {
-		throw new Error(`Utage chart ${id} must have exactly one Utage difficulty`);
+	if (utageDifficulties.length === 0) {
+		throw new Error(`Utage chart ${id} has no Utage difficulty`);
+	}
+	if (utageDifficulties.length > 1) {
+		// The scalar note-count format cannot represent separate cooperative parts.
+		// Keep the catalog chart, but omit this optional enrichment rather than
+		// assigning one player's note count to every player.
+		console.warn(`Skipping note-count enrichment for multipart Utage chart ${id}`);
+		continue;
 	}
 
 	const notes = utageDifficulties[0].notes;

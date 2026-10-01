@@ -101,35 +101,11 @@ enum UserProfileMutationService {
     }
 
     static func synchronizeProfileUpdate(profileId: UUID, context: ModelContext) async {
-        guard BackendSessionManager.shared.isAuthenticated else { return }
-        do {
-            try await BackendSyncOperationGate.shared.withLock {
-                try await BackendIncrementalSyncService.pushPendingProfileUpdateUnlocked(
-                    profileId: profileId,
-                    context: context
-                )
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            return
-        }
+        // Profile edits remain local until the next manual backup.
     }
 
     static func synchronizeProfileDeletion(profileId: UUID, context: ModelContext) async {
-        guard BackendSessionManager.shared.isAuthenticated else { return }
-        do {
-            try await BackendSyncOperationGate.shared.withLock {
-                try await BackendIncrementalSyncService.deleteProfileUnlocked(
-                    profileId: profileId,
-                    context: context
-                )
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            return
-        }
+        // Profile edits remain local until the next manual backup.
     }
 
     private static func enforceSingleActiveProfile(in profiles: [UserProfile]) {

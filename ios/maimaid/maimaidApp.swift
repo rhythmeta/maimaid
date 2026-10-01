@@ -15,7 +15,7 @@ struct MaimaidApp: App {
 
     private let sharedModelContainer: ModelContainer = {
         do {
-            return try ModelContainer(
+            let container = try ModelContainer(
                 for: Song.self,
                 Sheet.self,
                 Score.self,
@@ -27,6 +27,8 @@ struct MaimaidApp: App {
                 SongCollection.self,
                 SongCollectionItem.self
             )
+            try CloudSnapshotStore.recover(context: container.mainContext)
+            return container
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -35,8 +37,18 @@ struct MaimaidApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView()
+                .disabled(CloudBackupService.shared.isBusy)
+                .overlay {
+                    if CloudBackupService.shared.isBusy {
+                        ZStack {
+                            Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+                            ProgressView()
+                        }
+                    }
+                }
                 .environment(collectionImportCoordinator)
                 .onOpenURL { url in
+                    guard !CloudBackupService.shared.isBusy else { return }
                     if CollectionSharingService.isCollectionLink(url) {
                         Task {
                             collectionImportCoordinator.prepareImport(from: url.absoluteString)
@@ -54,20 +66,6 @@ struct MaimaidApp: App {
                 guard BackendSessionManager.shared.isConfigured else { return }
 
                 await BackendSessionManager.shared.checkSession()
-                guard BackendSessionManager.shared.isAuthenticated,
-                      let userId = BackendSessionManager.shared.currentUser?.id else {
-                    return
-                }
-
-                let context = sharedModelContainer.mainContext
-                let conflictState = AccountDataResolutionCoordinator.shared.detectConflictAfterAuth(
-                    context: context,
-                    currentUserId: userId
-                )
-                if !conflictState.requiresResolution {
-                    try? await BackendIncrementalSyncService.pullUpdates(context: context, force: false)
-                }
-
                 await MaimaiDataFetcher.shared.syncApprovedCommunityAliasesIfNeeded(
                     container: sharedModelContainer
                 )

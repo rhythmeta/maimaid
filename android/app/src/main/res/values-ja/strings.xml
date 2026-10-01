@@ -823,4 +823,10 @@
     <string name="letter_game_leave_room_confirm_summary">現在の対局を退出し、ルームの席を離れます。</string>
     <string name="letter_game_cancel">キャンセル</string>
 	  <string name="letter_game_join_game" >ルームに参加する</string>
+    <string name="cloud_snapshots_refresh">バックアップを更新</string>
+    <string name="cloud_snapshot_hint">手動で作成した最新3件を保存します。ダウンロードリンクを知る人は内容を読めるため、共有しないでください。</string>
+    <string name="cloud_snapshots_empty">バックアップはありません。</string>
+    <string name="cloud_snapshot_profiles">%1$d プロフィール</string>
+    <string name="cloud_restore_replace_hint">この端末のゲームの個人データをすべて置き換えます。復元前にローカルのロールバック用コピーを保存します。</string>
+    <string name="cloud_snapshot_cancel">キャンセル</string>
 </resources>

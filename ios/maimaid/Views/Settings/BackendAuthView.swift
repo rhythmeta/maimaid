@@ -4,608 +4,137 @@ import SwiftUI
 import UIKit
 
 @MainActor
-private final class WebAuthPresentationProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        let windowScenes = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-        let activeWindowScene = windowScenes.first(where: { $0.activationState == .foregroundActive })
-            ?? windowScenes.first
+private final class WebAuthPresentationProvider: NSObject,
+  ASWebAuthenticationPresentationContextProviding {
+  func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+    let windowScenes = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+    let activeWindowScene =
+      windowScenes.first(where: { $0.activationState == .foregroundActive })
+      ?? windowScenes.first
 
-        guard let activeWindowScene else {
-            preconditionFailure("A connected window scene is required for web authentication")
-        }
-
-        return activeWindowScene.windows.first(where: \.isKeyWindow)
-            ?? ASPresentationAnchor(windowScene: activeWindowScene)
+    guard let activeWindowScene else {
+      preconditionFailure("A connected window scene is required for web authentication")
     }
+
+    return activeWindowScene.windows.first(where: \.isKeyWindow)
+      ?? ASPresentationAnchor(windowScene: activeWindowScene)
+  }
 }
 
-// Authentication, conflict recovery, and account lifecycle state are coordinated by this screen.
-// swiftlint:disable:next type_body_length
 struct BackendAuthView: View {
-    @Environment(\.modelContext) private var modelContext
+  @Environment(\.modelContext) private var modelContext
+  @State private var sessionManager = BackendSessionManager.shared
+  @State private var backups = CloudBackupService.shared
+  @State private var webAuthenticationSession: ASWebAuthenticationSession?
+  @State private var isOpeningWebAuth = false
+  @State private var message: String?
+  @State private var selectedBackup: CloudBackup?
+  private let presentationProvider = WebAuthPresentationProvider()
 
-    @State private var sessionManager = BackendSessionManager.shared
-    @State private var webAuthenticationSession: ASWebAuthenticationSession?
-
-    @State private var isOpeningWebAuth = false
-    @State private var isSigningOut = false
-    @State private var isSyncing = false
-    @State private var isResolvingAccountConflict = false
-    @State private var showingLogoutOptions = false
-    @State private var showingRestoreProfileOptions = false
-    @State private var conflictState: AccountConflictState?
-    @State private var localProfilesAbsentFromCloud: [CloudRestoreLocalProfile] = []
-
-    @State private var toastMessage: String?
-    @State private var isErrorToast = false
-    @State private var resolutionError: DisplayableError?
-
-    private struct DisplayableError: Identifiable {
-        let id = UUID()
-        let message: String
+  var body: some View {
+    List {
+      Section("Rhythmeta") {
+        if let user = sessionManager.currentUser {
+          LabeledContent("settings.cloud.handle", value: user.handle)
+          LabeledContent("settings.cloud.email", value: user.email)
+          Button("settings.cloud.logout", role: .destructive) {
+            Task { await sessionManager.logout() }
+          }
+        } else {
+          Button("settings.cloud.login") { startWebAuth("login") }
+          Button("settings.cloud.register") { startWebAuth("register") }
+          Button("settings.cloud.forgotPassword") { startWebAuth("forgot") }
+        }
+      }
+      if sessionManager.isAuthenticated {
+        Section {
+          Button("settings.cloud.backup", systemImage: "icloud.and.arrow.up") {
+            Task { await perform { try await backups.backup(context: modelContext) } }
+          }
+          Button("settings.cloud.snapshots.refresh", systemImage: "arrow.clockwise") {
+            Task { await perform { try await backups.reload() } }
+          }
+          if backups.isBusy { ProgressView() }
+        } footer: {
+          Text("settings.cloud.snapshot.hint")
+        }
+        Section("settings.cloud.snapshots.title") {
+          if backups.backups.isEmpty {
+            Text("settings.cloud.snapshots.empty").foregroundStyle(.secondary)
+          }
+          ForEach(backups.backups) { backup in
+            Button {
+              selectedBackup = backup
+            } label: {
+              VStack(alignment: .leading) {
+                Text(backup.committedAt)
+                Text(backup.deviceName).foregroundStyle(.secondary)
+                Text("settings.cloud.snapshot.profiles \(backup.profileCount)").font(.caption)
+              }
+            }
+          }
+        }
+      }
+      if let message { Section { Text(message).textSelection(.enabled) } }
     }
-
-    private let webAuthPresentationContextProvider = WebAuthPresentationProvider()
-
-    private enum WebAuthMode: String {
-        case login
-        case register
-        case forgot
+    .navigationTitle("Rhythmeta")
+    .disabled(backups.isBusy || isOpeningWebAuth)
+    .task { await sessionManager.checkSession() }
+    .task(id: sessionManager.currentUser?.id) {
+      if sessionManager.isAuthenticated { await perform { try await backups.reload() } }
     }
-
-    private var isBusy: Bool {
-        isOpeningWebAuth || isSigningOut || isSyncing || isResolvingAccountConflict
-    }
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            List {
-                if !sessionManager.isConfigured {
-                    configurationContent
-                } else if sessionManager.isAuthenticated, let user = sessionManager.currentUser {
-                    authenticatedContent(user: user)
-                } else {
-                    webAuthenticationContent
-                }
-            }
-            .listStyle(.insetGrouped)
-            .scrollDismissesKeyboard(.interactively)
-
-            if let message = toastMessage {
-                toastView(message: message)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(1)
-            }
-        }
-        .navigationTitle("settings.cloud.title")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await sessionManager.checkSession()
-            await evaluateAccountConflictIfNeeded()
-        }
-        .onAppear {
-            consumePendingAuthMessageIfNeeded()
-        }
-        .onChange(of: sessionManager.pendingMessage) { _, _ in
-            consumePendingAuthMessageIfNeeded()
-        }
-        .onChange(of: sessionManager.isAuthenticated) { _, _ in
-            Task {
-                await evaluateAccountConflictIfNeeded()
-            }
-        }
-        .sheet(item: $conflictState) { state in
-            SyncConflictResolutionSheet(
-                context: .account(state),
-                isApplying: isResolvingAccountConflict
-            ) { action in
-                Task {
-                    await applyAccountResolutionAction(action)
-                }
-            }
-            .interactiveDismissDisabled(true)
-            .alert(item: $resolutionError) { error in
-                Alert(
-                    title: Text("common.error"),
-                    message: Text(error.message)
-                )
-            }
-        }
-    }
-
-    private var configurationContent: some View {
-        Group {
-            Section {
-                accountSummaryCard(
-                    icon: "exclamationmark.icloud.fill",
-                    iconTint: .orange,
-                    title: String(localized: "settings.cloud.config.title"),
-                    subtitle: String(localized: "settings.cloud.config.subtitle")
-                )
-            }
-            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listSectionSeparator(.hidden)
-
-            Section("settings.cloud.config.section") {
-                VStack(alignment: .leading) {
-                    Text("settings.cloud.config.step.copy")
-                    Text("settings.cloud.config.step.fill")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    private func authenticatedContent(user: BackendAuthUser) -> some View {
-        Group {
-            Section {
-                accountSummaryCard(icon: "person.crop.circle.badge.checkmark", iconTint: .blue) {
-                    HandleText(user: user)
-                } subtitle: {
-                    Text(verbatim: user.email)
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listSectionSeparator(.hidden)
-
-            Section("settings.cloud.account.section") {
-                LabeledContent("settings.cloud.account.handle") {
-                    HandleText(user: user)
-                }
-                LabeledContent("settings.cloud.account.email", value: user.email)
-                LabeledContent("settings.cloud.account.status") {
-                    Text("settings.cloud.status.loggedIn")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section("settings.cloud.section.sync") {
-                actionRow(
-                    title: "settings.cloud.backup",
-                    icon: "icloud.and.arrow.up.fill",
-                    tint: .blue
-                ) {
-                    Task { await performBackup() }
-                }
-
-                actionRow(
-                    title: "settings.cloud.restore",
-                    icon: "icloud.and.arrow.down.fill",
-                    tint: .green
-                ) {
-                    Task { await prepareRestore() }
-                }
-                .confirmationDialog(
-                    "settings.cloud.restore.localProfiles.title",
-                    isPresented: $showingRestoreProfileOptions
-                ) {
-                    Button("settings.cloud.restore.localProfiles.keep") {
-                        Task { await performRestore(removeLocalProfilesAbsentFromCloud: false) }
-                    }
-                    Button("settings.cloud.restore.localProfiles.remove", role: .destructive) {
-                        Task { await performRestore(removeLocalProfilesAbsentFromCloud: true) }
-                    }
-                    Button("userProfile.cancel", role: .cancel) {}
-                } message: {
-                    Text("settings.cloud.restore.localProfiles.message")
-                }
-
-                if isSyncing {
-                    HStack {
-                        ProgressView()
-                        Text("settings.cloud.syncing")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Section {
-                Button("settings.cloud.logout", role: .destructive) {
-                    showingLogoutOptions = true
-                }
-                .confirmationDialog(
-                    "settings.cloud.logout.options.title",
-                    isPresented: $showingLogoutOptions
-                ) {
-                    Button("settings.cloud.logout.option.keepLocal") {
-                        Task {
-                            await performLogout(clearLocalData: false)
-                        }
-                    }
-                    Button("settings.cloud.logout.option.clearLocal", role: .destructive) {
-                        Task {
-                            await performLogout(clearLocalData: true)
-                        }
-                    }
-                    Button("settings.cloud.logout.option.cancel", role: .cancel) {}
-                } message: {
-                    Text("settings.cloud.logout.options.message")
-                }
-                .disabled(isBusy)
-            }
-        }
-    }
-
-    private var webAuthenticationContent: some View {
-        Group {
-            Section {
-                accountSummaryCard(
-                    icon: "person.badge.key.fill",
-                    iconTint: .blue,
-                    title: String(localized: "settings.cloud.login.title"),
-                    subtitle: String(localized: "settings.cloud.login.subtitle")
-                )
-            }
-            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listSectionSeparator(.hidden)
-
-            Section {
-                actionRow(
-                    title: "settings.cloud.login.button",
-                    icon: "person.crop.circle.badge.checkmark",
-                    tint: .blue
-                ) {
-                    startWebAuth(.login)
-                }
-
-                actionRow(
-                    title: "settings.cloud.signup.button",
-                    icon: "person.badge.plus.fill",
-                    tint: .green
-                ) {
-                    startWebAuth(.register)
-                }
-
-                actionRow(
-                    title: "settings.cloud.forgotPassword",
-                    icon: "key.fill",
-                    tint: .orange
-                ) {
-                    startWebAuth(.forgot)
-                }
-            } footer: {
-                Text("settings.cloud.signup.subtitle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func accountSummaryCard<Title: View, Subtitle: View>(
-        icon: String,
-        iconTint: Color,
-        @ViewBuilder title: () -> Title,
-        @ViewBuilder subtitle: () -> Subtitle
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 14) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(iconTint.gradient)
-                    .frame(width: 72, height: 72)
-                    .overlay {
-                        Image(systemName: icon)
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    title()
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                    subtitle()
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            Divider()
-
-            Label("settings.cloud.privacy.hint", systemImage: "lock.shield.fill")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding(20)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: 28))
-    }
-
-    private func accountSummaryCard(icon: String, iconTint: Color, title: String, subtitle: String) -> some View {
-        accountSummaryCard(icon: icon, iconTint: iconTint) {
-            Text(verbatim: title)
-        } subtitle: {
-            Text(verbatim: subtitle)
-        }
-    }
-
-    private func actionRow(
-        title: String,
-        icon: String,
-        tint: Color,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack {
-                settingsIcon(icon: icon, tint: tint)
-                Text(LocalizedStringKey(title))
-                    .foregroundStyle(.primary)
-                Spacer()
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(isBusy)
-        .opacity(isBusy ? 0.6 : 1)
-    }
-
-    private func settingsIcon(icon: String, tint: Color) -> some View {
-        Image(systemName: icon)
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 28, height: 28)
-            .background(tint, in: .rect(cornerRadius: 8))
-    }
-
-    private func toastView(message: String) -> some View {
-        HStack {
-            Image(systemName: isErrorToast ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(isErrorToast ? .red : .green)
-
-            Text(LocalizedStringKey(message))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.black.opacity(0.82), in: Capsule())
-    }
-
-    @MainActor
-    private func showToast(message: String, error: Bool = false) {
-        isErrorToast = error
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            toastMessage = message
-        }
-
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            guard toastMessage == message else { return }
-            withAnimation {
-                toastMessage = nil
-            }
-        }
-    }
-
-    private func consumePendingAuthMessageIfNeeded() {
-        guard let pending = sessionManager.pendingMessage else {
-            return
-        }
-
-        if pending == "settings.cloud.message.loginSuccess", sessionManager.isAuthenticated {
-            Task {
-                await evaluateAccountConflictIfNeeded()
-            }
-        }
-
-        let isError = sessionManager.pendingMessageIsError
+    .onChange(of: sessionManager.pendingMessage) { _, value in
+      if let value {
+        message = String(localized: String.LocalizationValue(value))
         sessionManager.clearPendingMessage()
-        showToast(message: pending, error: isError)
+      }
     }
-
-    @MainActor
-    private func evaluateAccountConflictIfNeeded() async {
-        guard sessionManager.isAuthenticated, let userId = sessionManager.currentUser?.id else {
-            conflictState = nil
-            return
-        }
-
-        let state = AccountDataResolutionCoordinator.shared.detectConflictAfterAuth(
-            context: modelContext,
-            currentUserId: userId
-        )
-        if state.requiresResolution {
-            conflictState = state
-            return
-        }
-
-        conflictState = nil
-    }
-
-    @MainActor
-    private func applyAccountResolutionAction(_ action: SyncConflictResolutionSheetAction) async {
-        let option: AccountResolutionOption
-        switch action {
-        case .merge:
-            option = .mergeLocalAndCloud
-        case .keepLocal:
-            option = .overwriteCloudWithLocal
-        case .useRemote:
-            option = .overwriteLocalWithCloud
-        }
-        await applyAccountResolution(option)
-    }
-
-    @MainActor
-    private func applyAccountResolution(_ option: AccountResolutionOption) async {
-        guard !isResolvingAccountConflict else { return }
-        isResolvingAccountConflict = true
-        defer { isResolvingAccountConflict = false }
-
-        do {
-            try await AccountDataResolutionCoordinator.shared.applyResolution(option, context: modelContext)
-            conflictState = nil
-            showToast(message: "settings.cloud.resolution.success")
-        } catch {
-            resolutionError = DisplayableError(message: error.localizedDescription)
-        }
-    }
-
-    @MainActor
-    private func performLogout(clearLocalData: Bool) async {
-        guard !isSigningOut else { return }
-        isSigningOut = true
-        defer { isSigningOut = false }
-
-        await sessionManager.logout()
-        conflictState = nil
-
-        if clearLocalData {
-            do {
-                try AccountDataResolutionCoordinator.shared.clearLocalUserData(context: modelContext)
-                showToast(message: "settings.cloud.logout.clearLocal.success")
-            } catch {
-                showToast(message: error.localizedDescription, error: true)
+    .confirmationDialog(
+      "settings.cloud.restore",
+      isPresented: Binding(
+        get: { selectedBackup != nil }, set: { if !$0 { selectedBackup = nil } }),
+      titleVisibility: .visible
+    ) {
+      if let backup = selectedBackup {
+        Button("settings.cloud.restore", role: .destructive) {
+          Task {
+            await perform {
+              try await backups.restore(backup, context: modelContext)
+              message = String(localized: "settings.cloud.message.restoreSuccess")
             }
-        } else {
-            AccountDataResolutionCoordinator.shared.clearPendingResolutionState(context: modelContext)
+          }
         }
-
+      }
+    } message: {
+      Text("settings.cloud.restore.replaceHint")
     }
+  }
 
-    @MainActor
-    private func startWebAuth(_ mode: WebAuthMode) {
-        guard !isBusy else { return }
-        guard let authURL = buildWebAuthURL(mode: mode) else {
-            showToast(message: "settings.cloud.config.error.unconfigured", error: true)
-            return
+  private func perform(_ operation: () async throws -> Void) async {
+    do { try await operation() } catch { message = error.localizedDescription }
+  }
+
+  private func startWebAuth(_ mode: String) {
+    guard let url = sessionManager.webAuthURL(mode: mode) else { return }
+    isOpeningWebAuth = true
+    let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "maimaid") { callbackURL, error in
+      Task { @MainActor in
+        isOpeningWebAuth = false
+        webAuthenticationSession = nil
+        if let callbackURL {
+          sessionManager.handleAuthRedirect(callbackURL)
+        } else if (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin {
+          message = String(localized: "settings.cloud.message.authLinkFailed")
         }
-
-        isOpeningWebAuth = true
-
-        let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "maimaid") { callbackURL, error in
-            Task { @MainActor in
-                isOpeningWebAuth = false
-                webAuthenticationSession = nil
-
-                if let callbackURL {
-                    sessionManager.handleAuthRedirect(callbackURL)
-                    consumePendingAuthMessageIfNeeded()
-                    return
-                }
-
-                if let authError = error as? ASWebAuthenticationSessionError,
-                    authError.code == .canceledLogin {
-                    return
-                }
-
-                showToast(message: "settings.cloud.message.authLinkFailed", error: true)
-            }
-        }
-
-        session.presentationContextProvider = webAuthPresentationContextProvider
-        session.prefersEphemeralWebBrowserSession = false
-
-        webAuthenticationSession = session
-
-        guard session.start() else {
-            isOpeningWebAuth = false
-            webAuthenticationSession = nil
-            showToast(message: "settings.cloud.message.authLinkFailed", error: true)
-            return
-        }
+      }
     }
-
-    private func buildWebAuthURL(mode: WebAuthMode) -> URL? {
-        guard let baseURL = BackendConfig.webAuthBaseURL else {
-            return nil
-        }
-        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-
-        var queryItems = components.queryItems ?? []
-        queryItems.removeAll { item in
-            item.name == "authMode" || item.name == "redirect_uri" || item.name == "client"
-        }
-        queryItems.append(URLQueryItem(name: "authMode", value: mode.rawValue))
-        queryItems.append(URLQueryItem(name: "redirect_uri", value: "maimaid://auth/callback"))
-        queryItems.append(URLQueryItem(name: "client", value: "app"))
-        components.queryItems = queryItems
-        return components.url
+    session.presentationContextProvider = presentationProvider
+    session.prefersEphemeralWebBrowserSession = false
+    webAuthenticationSession = session
+    if !session.start() {
+      isOpeningWebAuth = false
+      webAuthenticationSession = nil
     }
-
-    @MainActor
-    private func performBackup() async {
-        guard !isBusy else { return }
-
-        isSyncing = true
-        defer { isSyncing = false }
-
-        do {
-            try await BackendCloudSyncService.backupToCloud(context: modelContext)
-            showToast(message: "settings.cloud.message.backupSuccess")
-        } catch {
-            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            showToast(message: String(localized: "settings.cloud.message.backupFailed") + ": " + detail, error: true)
-        }
-    }
-
-    @MainActor
-    private func prepareRestore() async {
-        guard !isBusy else { return }
-
-        isSyncing = true
-        do {
-            localProfilesAbsentFromCloud = try await BackendCloudSyncService.previewLocalProfilesAbsentFromCloud(
-                context: modelContext
-            )
-            isSyncing = false
-            if localProfilesAbsentFromCloud.isEmpty {
-                await performRestore(removeLocalProfilesAbsentFromCloud: false)
-            } else {
-                showingRestoreProfileOptions = true
-            }
-        } catch {
-            isSyncing = false
-            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            showToast(message: String(localized: "settings.cloud.message.restoreFailed") + ": " + detail, error: true)
-        }
-    }
-
-    @MainActor
-    private func performRestore(removeLocalProfilesAbsentFromCloud: Bool) async {
-        guard !isBusy else { return }
-
-        isSyncing = true
-        defer { isSyncing = false }
-
-        do {
-            try await BackendCloudSyncService.restoreFromCloud(
-                context: modelContext,
-                removeLocalProfilesAbsentFromCloud: removeLocalProfilesAbsentFromCloud
-            )
-            localProfilesAbsentFromCloud = []
-            showToast(message: "settings.cloud.message.restoreSuccess")
-        } catch {
-            let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            showToast(message: String(localized: "settings.cloud.message.restoreFailed") + ": " + detail, error: true)
-        }
-    }
-}
-
-private struct HandleText: View {
-    let user: BackendAuthUser
-
-    var body: some View {
-        if user.usernameDiscriminator.isEmpty {
-            Text(verbatim: user.handle)
-        } else {
-            HStack(spacing: 0) {
-                Text(verbatim: user.username)
-                Text(verbatim: "#\(user.usernameDiscriminator)")
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
+  }
 }

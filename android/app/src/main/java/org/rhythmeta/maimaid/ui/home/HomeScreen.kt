@@ -480,12 +480,6 @@ private fun homeTools(): List<HomeTool> = listOf(
         icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
         detail = AppDetail.Collections,
     ),
-    HomeTool(
-        title = R.string.home_letter_game,
-        subtitle = R.string.home_letter_game_subtitle,
-        icon = Icons.Rounded.Extension,
-        detail = AppDetail.LetterGame,
-    ),
 )
 
 private fun ratingColor(rating: Int): Color = when {

@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import Security
+import CryptoKit
 
 struct BackendAuthUser: Codable, Equatable {
     let id: String
@@ -87,10 +88,13 @@ private struct BackendRefreshRequest: Encodable {
 
 private struct BackendSessionExchangeRequest: Encodable {
     let sessionCode: String
+    let clientId = "maimaid"
+    let redirectUri = "maimaid://auth/callback"
+    let codeVerifier: String
 }
 
 private struct KeychainTokenStore {
-    private static let account = "in.shikoch.maimaid.backend.tokens"
+    private static let account = "org.rhythmeta.maimaid.account.tokens"
     private static let service = "in.shikoch.maimaid"
 
     static func load() -> BackendTokenBundle? {
@@ -167,6 +171,7 @@ final class BackendSessionManager {
     private var accessToken: String?
     private var refreshToken: String?
     private var isRefreshing = false
+    private var pendingAppLogin: PendingAppLogin?
 
     var isConfigured: Bool {
         BackendConfig.baseURL != nil
@@ -182,6 +187,22 @@ final class BackendSessionManager {
             accessToken = cached.accessToken
             refreshToken = cached.refreshToken
         }
+    }
+
+    func webAuthURL(mode: String) -> URL? {
+        guard let baseURL = BackendConfig.webAuthBaseURL,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              let pending = PendingAppLogin.create() else { return nil }
+        pendingAppLogin = pending
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: "maimaid"),
+            URLQueryItem(name: "redirect_uri", value: "maimaid://auth/callback"),
+            URLQueryItem(name: "authMode", value: mode),
+            URLQueryItem(name: "state", value: pending.state),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "code_challenge", value: pending.challenge)
+        ]
+        return components.url
     }
 
     func clearPendingMessage() {
@@ -261,7 +282,7 @@ final class BackendSessionManager {
 
     func resendVerification(email: String) async throws -> Bool {
         let payload: BackendResendVerificationPayload = try await BackendAPIClient.request(
-            path: "v1/auth/verification:resend",
+            path: "auth/v1/verification:resend",
             method: "POST",
             body: ["email": email],
             authentication: .none
@@ -277,7 +298,7 @@ final class BackendSessionManager {
 
         do {
             let _: BackendSuccessResponse = try await BackendAPIClient.request(
-                path: "v1/auth/logout",
+                path: "auth/v1/logout",
                 method: "POST",
                 body: BackendRefreshRequest(refreshToken: refreshToken),
                 authentication: .none
@@ -303,7 +324,7 @@ final class BackendSessionManager {
 
         do {
             let payload: BackendAuthPayload = try await BackendAPIClient.request(
-                path: "v1/auth/refresh",
+                path: "auth/v1/refresh",
                 method: "POST",
                 body: BackendRefreshRequest(refreshToken: refreshToken),
                 authentication: .none
@@ -325,7 +346,7 @@ final class BackendSessionManager {
 
     private func loadCurrentUser() async throws -> BackendMePayload {
         try await BackendAPIClient.request(
-            path: "v1/auth/me",
+            path: "auth/v1/me",
             method: "GET",
             authentication: .required
         )
@@ -381,18 +402,21 @@ final class BackendSessionManager {
     }
 
     private func handleSessionRedirect(result: String?, from url: URL) async {
-        guard result == "success" else {
+        guard result == "success", let pending = pendingAppLogin,
+              pending.state == value(of: "state", from: url),
+              Date().timeIntervalSince(pending.createdAt) < 1800 else {
             pendingMessage = "settings.cloud.message.authLinkFailed"
             pendingMessageIsError = true
             return
         }
 
+        pendingAppLogin = nil
         if let sessionCode = value(of: "sessionCode", from: url), sessionCode.count >= 20 {
             do {
                 let payload: BackendAuthPayload = try await BackendAPIClient.request(
-                    path: "v1/auth/session:exchange",
+                    path: "auth/v1/session:exchange",
                     method: "POST",
-                    body: BackendSessionExchangeRequest(sessionCode: sessionCode),
+                    body: BackendSessionExchangeRequest(sessionCode: sessionCode, codeVerifier: pending.verifier),
                     authentication: .none
                 )
                 applyAuthPayload(payload)

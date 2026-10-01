@@ -1,6 +1,6 @@
 packages:
-  - backend
-  - dashboard
+  - static-builder
 onlyBuiltDependencies:
   - nx
   - esbuild
+  - workerd

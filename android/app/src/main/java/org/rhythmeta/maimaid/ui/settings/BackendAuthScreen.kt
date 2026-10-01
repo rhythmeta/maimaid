@@ -82,259 +82,75 @@ fun BackendAuthScreen(container: AppContainer) {
     val scope = rememberCoroutineScope()
     val sessionState by container.backendSessionManager.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    var operation by remember { mutableStateOf<CloudOperation?>(null) }
-    var accountConflict by remember { mutableStateOf<BackendAccountConflict?>(null) }
-    var profileConflict by remember { mutableStateOf<BackendProfileConflictException?>(null) }
-    var restorePreview by remember { mutableStateOf<BackendCloudRestorePreview?>(null) }
-    var showLogoutOptions by remember { mutableStateOf(false) }
-
-    fun showMessage(message: String) {
+    var busy by remember { mutableStateOf(false) }
+    var snapshots by remember { mutableStateOf<List<org.rhythmeta.maimaid.core.backup.CloudBackup>>(emptyList()) }
+    var restoreTarget by remember { mutableStateOf<org.rhythmeta.maimaid.core.backup.CloudBackup?>(null) }
+    fun message(text: String) { scope.launch { snackbar.showSnackbar(text) } }
+    fun run(work: suspend () -> Unit) {
+        if (busy) return
+        busy = true
         scope.launch {
-            snackbar.showSnackbar(message, duration = SnackbarDuration.Custom(3_000))
+            try { work() } catch (error: Exception) { message(error.localizedMessage ?: "Backup failed") }
+            finally { busy = false }
         }
-    }
-
-    val restoreSucceeded = stringResource(R.string.cloud_message_restore_success)
-    val resolutionSucceeded = stringResource(R.string.cloud_resolution_success)
-    val localDataCleared = stringResource(R.string.cloud_local_data_cleared)
-
-    fun performRestore(removeLocalProfilesAbsentFromCloud: Boolean) {
-        scope.launch {
-            operation = CloudOperation.Restore
-            runCatching {
-                container.backendSyncCoordinator.restore(removeLocalProfilesAbsentFromCloud)
-            }
-                .onSuccess { showMessage(restoreSucceeded) }
-                .onFailure { error ->
-                    if (error is BackendProfileConflictException) profileConflict = error
-                    else showMessage(error.localizedMessage ?: error.javaClass.simpleName)
-                }
-            operation = null
-        }
-    }
-
-    fun prepareRestore() {
-        scope.launch {
-            operation = CloudOperation.Restore
-            runCatching { container.backendSyncCoordinator.previewRestore() }
-                .onSuccess { preview ->
-                    operation = null
-                    if (preview.localOnlyProfiles.isEmpty()) {
-                        performRestore(removeLocalProfilesAbsentFromCloud = false)
-                    } else {
-                        restorePreview = preview
-                    }
-                }
-                .onFailure { error ->
-                    operation = null
-                    showMessage(error.localizedMessage ?: error.javaClass.simpleName)
-                }
-        }
-    }
-
-    suspend fun refreshConflict() {
-        val user = container.backendSessionManager.state.value.user
-        accountConflict = user?.let { container.backendSyncCoordinator.accountConflict(it.id) }
-    }
-
-    LaunchedEffect(Unit) {
-        container.backendSessionManager.checkSession()
-        refreshConflict()
     }
     LaunchedEffect(sessionState.user?.id) {
-        refreshConflict()
+        if (sessionState.user != null) run { snapshots = container.cloudBackupService.list() }
+        else snapshots = emptyList()
     }
-    val loginSucceeded = stringResource(R.string.cloud_message_login_success)
-    val authLinkSucceeded = stringResource(R.string.cloud_message_auth_link_success)
-    val authLinkFailed = stringResource(R.string.cloud_message_auth_link_failed)
+    LaunchedEffect(Unit) { container.backendSessionManager.checkSession() }
     LaunchedEffect(sessionState.notice) {
-        val message = when (sessionState.notice) {
-            BackendSessionNotice.LoginSucceeded -> loginSucceeded
-            BackendSessionNotice.AuthLinkSucceeded -> authLinkSucceeded
-            BackendSessionNotice.AuthLinkFailed -> authLinkFailed
-            null -> null
+        sessionState.notice?.let {
+            message(context.getString(if (it == BackendSessionNotice.LoginSucceeded) R.string.cloud_message_login_success else R.string.cloud_message_auth_link_failed))
+            container.backendSessionManager.consumeNotice()
         }
-        message?.let(::showMessage)
-        if (sessionState.notice != null) container.backendSessionManager.consumeNotice()
     }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                AccountSummaryCard(user = sessionState.user)
-            }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { AccountSummaryCard(sessionState.user) }
             if (sessionState.user == null) {
-                item {
-                    CloudSection(stringResource(R.string.cloud_sign_in_section)) {
-                        CloudActionRow(
-                            icon = Icons.AutoMirrored.Rounded.Login,
-                            title = stringResource(R.string.cloud_login),
-                            enabled = operation == null,
-                            onClick = { openWebAuth(context, container, BackendWebAuthMode.Login, ::showMessage) },
-                        )
-                        CloudActionRow(
-                            icon = Icons.Rounded.AddCircleOutline,
-                            title = stringResource(R.string.cloud_register),
-                            enabled = operation == null,
-                            onClick = { openWebAuth(context, container, BackendWebAuthMode.Register, ::showMessage) },
-                        )
-                        CloudActionRow(
-                            icon = Icons.Rounded.Key,
-                            title = stringResource(R.string.cloud_forgot_password),
-                            enabled = operation == null,
-                            onClick = { openWebAuth(context, container, BackendWebAuthMode.Forgot, ::showMessage) },
-                        )
-                    }
-                }
+                item { CloudSection("Rhythmeta") {
+                    CloudActionRow(Icons.AutoMirrored.Rounded.Login, stringResource(R.string.cloud_login), !busy) { openWebAuth(context, container, BackendWebAuthMode.Login, ::message) }
+                    CloudActionRow(Icons.Rounded.AddCircleOutline, stringResource(R.string.cloud_register), !busy) { openWebAuth(context, container, BackendWebAuthMode.Register, ::message) }
+                    CloudActionRow(Icons.Rounded.Key, stringResource(R.string.cloud_forgot_password), !busy) { openWebAuth(context, container, BackendWebAuthMode.Forgot, ::message) }
+                } }
             } else {
-                item {
-                    CloudSection(stringResource(R.string.cloud_account_section)) {
-                        CloudValueRow(stringResource(R.string.cloud_handle), sessionState.user?.displayHandle.orEmpty())
-                        CloudValueRow(stringResource(R.string.cloud_email), sessionState.user?.email.orEmpty())
-                        CloudValueRow(
-                            stringResource(R.string.cloud_status),
-                            stringResource(R.string.cloud_logged_in),
-                        )
+                item { CloudSection(stringResource(R.string.cloud_sync_section)) {
+                    CloudActionRow(Icons.Rounded.CloudUpload, stringResource(R.string.cloud_backup), !busy) {
+                        run { container.cloudBackupService.backup(); snapshots = container.cloudBackupService.list(); message(context.getString(R.string.cloud_message_backup_success)) }
                     }
-                }
-                item {
-                    val backupSucceeded = stringResource(R.string.cloud_message_backup_success)
-                    CloudSection(stringResource(R.string.cloud_sync_section)) {
-                        CloudActionRow(
-                            icon = Icons.Rounded.CloudUpload,
-                            title = stringResource(R.string.cloud_backup),
-                            enabled = operation == null && accountConflict == null,
-                            onClick = {
-                                scope.launch {
-                                    operation = CloudOperation.Backup
-                                    runCatching { container.backendSyncCoordinator.backup() }
-                                        .onSuccess { showMessage(backupSucceeded) }
-                                        .onFailure { error ->
-                                            if (error is BackendProfileConflictException) profileConflict = error
-                                            else showMessage(error.localizedMessage ?: error.javaClass.simpleName)
-                                        }
-                                    operation = null
-                                }
-                            },
-                        )
-                        CloudActionRow(
-                            icon = Icons.Rounded.CloudDownload,
-                            title = stringResource(R.string.cloud_restore),
-                            enabled = operation == null && accountConflict == null,
-                            onClick = ::prepareRestore,
-                        )
-                        if (operation == CloudOperation.Backup || operation == CloudOperation.Restore) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                Text(
-                                    text = stringResource(R.string.cloud_syncing),
-                                    style = MiuixTheme.textStyles.body2,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                )
-                            }
-                        }
+                    CloudActionRow(Icons.Rounded.Sync, stringResource(R.string.cloud_snapshots_refresh), !busy) { run { snapshots = container.cloudBackupService.list() } }
+                    Text(stringResource(R.string.cloud_snapshot_hint), modifier = Modifier.padding(16.dp), style = MiuixTheme.textStyles.footnote1)
+                    if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                } }
+                if (snapshots.isEmpty()) item { Text(stringResource(R.string.cloud_snapshots_empty), modifier = Modifier.padding(16.dp)) }
+                snapshots.forEach { snapshot -> item(key = snapshot.id) {
+                    CloudSection(snapshot.committedAt) {
+                        CloudValueRow(snapshot.deviceName, context.getString(R.string.cloud_snapshot_profiles, snapshot.profileCount))
+                        CloudActionRow(Icons.Rounded.CloudDownload, stringResource(R.string.cloud_restore), !busy) { restoreTarget = snapshot }
                     }
-                }
-                item {
-                    Button(
-                        onClick = { showLogoutOptions = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = operation == null,
-                        colors = ButtonDefaults.buttonColors(
-                            color = MiuixTheme.colorScheme.errorContainer,
-                            contentColor = MiuixTheme.colorScheme.onErrorContainer,
-                        ),
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.cloud_logout))
-                    }
-                }
+                } }
+                item { CloudActionRow(Icons.AutoMirrored.Rounded.Logout, stringResource(R.string.cloud_logout), !busy) { run { container.backendSessionManager.logout() } } }
             }
         }
-
-        SnackbarHost(
-            state = snackbar,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        )
+        SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))
     }
-
-    accountConflict?.let { conflict ->
-        AccountConflictDialog(
-            conflict = conflict,
-            isApplying = operation == CloudOperation.Resolve,
-            onSelect = { resolution ->
-                scope.launch {
-                    operation = CloudOperation.Resolve
-                    runCatching { container.backendSyncCoordinator.resolveAccountConflict(resolution) }
-                        .onSuccess {
-                            accountConflict = null
-                            showMessage(resolutionSucceeded)
-                        }
-                        .onFailure { showMessage(it.localizedMessage ?: it.javaClass.simpleName) }
-                    operation = null
-                }
-            },
-        )
-    }
-    profileConflict?.let { conflict ->
-        ProfileConflictDialog(
-            count = conflict.profileIds.size,
-            isApplying = operation == CloudOperation.Resolve,
-            onDismiss = { profileConflict = null },
-            onSelect = { resolution ->
-                scope.launch {
-                    operation = CloudOperation.Resolve
-                    runCatching { container.backendSyncCoordinator.resolveProfileConflict(resolution) }
-                        .onSuccess {
-                            profileConflict = null
-                            showMessage(resolutionSucceeded)
-                        }
-                        .onFailure { showMessage(it.localizedMessage ?: it.javaClass.simpleName) }
-                    operation = null
-                }
-            },
-        )
-    }
-    restorePreview?.let { preview ->
-        RestoreLocalProfilesDialog(
-            profileCount = preview.localOnlyProfiles.size,
-            isApplying = operation == CloudOperation.Restore,
-            onDismiss = { restorePreview = null },
-            onKeep = {
-                restorePreview = null
-                performRestore(removeLocalProfilesAbsentFromCloud = false)
-            },
-            onRemove = {
-                restorePreview = null
-                performRestore(removeLocalProfilesAbsentFromCloud = true)
-            },
-        )
-    }
-    LogoutDialog(
-        show = showLogoutOptions,
-        isApplying = operation == CloudOperation.Logout,
-        onDismiss = { showLogoutOptions = false },
-        onSelect = { clearLocal ->
-                scope.launch {
-                    operation = CloudOperation.Logout
-                    container.backendSyncCoordinator.onLogout(clearLocal)
-                    container.backendSessionManager.logout()
-                showLogoutOptions = false
-                operation = null
-                if (clearLocal) showMessage(localDataCleared)
-            }
-        },
-    )
+    if (busy && restoreTarget == null) WindowDialog(
+        show = true,
+        title = stringResource(R.string.cloud_sync_section),
+        onDismissRequest = {},
+    ) { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+    restoreTarget?.let { snapshot -> WindowDialog(
+        show = true,
+        title = stringResource(R.string.cloud_restore),
+        summary = stringResource(R.string.cloud_restore_replace_hint),
+        onDismissRequest = { if (!busy) restoreTarget = null },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { restoreTarget = null }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cloud_snapshot_cancel)) }
+            Button(onClick = { run { container.cloudBackupService.restore(snapshot); restoreTarget = null; container.widgetUpdateCoordinator.requestUpdate(); message(context.getString(R.string.cloud_message_restore_success)) } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cloud_restore)) }
+        }
+    } }
 }
 
 @Composable
@@ -443,152 +259,6 @@ private fun MonochromeIcon(icon: ImageVector) {
             .size(24.dp),
         tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
     )
-}
-
-@Composable
-private fun AccountConflictDialog(
-    conflict: BackendAccountConflict,
-    isApplying: Boolean,
-    onSelect: (BackendAccountResolution) -> Unit,
-) {
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.cloud_resolution_title),
-        summary = stringResource(R.string.cloud_resolution_account_message),
-        onDismissRequest = null,
-        outsideMargin = DpSize(24.dp, 24.dp),
-    ) {
-        ConflictIdentityRow(stringResource(R.string.cloud_resolution_current), conflict.currentUserId)
-        ConflictIdentityRow(stringResource(R.string.cloud_resolution_owner), conflict.ownerUserId)
-        ConflictButtons(isApplying = isApplying, onSelect = onSelect)
-    }
-}
-
-@Composable
-private fun ProfileConflictDialog(
-    count: Int,
-    isApplying: Boolean,
-    onDismiss: () -> Unit,
-    onSelect: (BackendAccountResolution) -> Unit,
-) {
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.cloud_profile_conflict_title),
-        summary = stringResource(R.string.cloud_profile_conflict_message, count),
-        onDismissRequest = onDismiss,
-        outsideMargin = DpSize(24.dp, 24.dp),
-    ) {
-        ConflictButtons(isApplying = isApplying, onSelect = onSelect)
-    }
-}
-
-@Composable
-private fun RestoreLocalProfilesDialog(
-    profileCount: Int,
-    isApplying: Boolean,
-    onDismiss: () -> Unit,
-    onKeep: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.cloud_restore_local_profiles_title),
-        summary = stringResource(R.string.cloud_restore_local_profiles_summary, profileCount),
-        onDismissRequest = onDismiss,
-        outsideMargin = DpSize(24.dp, 24.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onKeep,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isApplying,
-            ) {
-                Text(stringResource(R.string.cloud_restore_keep_local_profiles))
-            }
-            Button(
-                onClick = onRemove,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isApplying,
-                colors = ButtonDefaults.buttonColors(
-                    color = MiuixTheme.colorScheme.errorContainer,
-                    contentColor = MiuixTheme.colorScheme.onErrorContainer,
-                ),
-            ) {
-                Text(stringResource(R.string.cloud_restore_remove_local_profiles))
-            }
-            if (isApplying) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-    }
-}
-
-@Composable
-private fun ConflictIdentityRow(title: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(title, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-        Spacer(Modifier.weight(1f))
-        Text(value, style = MiuixTheme.textStyles.footnote1, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
-private fun ConflictButtons(isApplying: Boolean, onSelect: (BackendAccountResolution) -> Unit) {
-    val choices = listOf(
-        Triple(BackendAccountResolution.Merge, Icons.Rounded.Merge, stringResource(R.string.cloud_resolution_merge)),
-        Triple(BackendAccountResolution.KeepLocal, Icons.Rounded.CloudUpload, stringResource(R.string.cloud_resolution_keep_local)),
-        Triple(BackendAccountResolution.UseCloud, Icons.Rounded.CloudDownload, stringResource(R.string.cloud_resolution_use_cloud)),
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
-        choices.forEach { (resolution, icon, title) ->
-            Button(
-                onClick = { onSelect(resolution) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isApplying,
-            ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(title)
-            }
-        }
-        if (isApplying) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
-private fun LogoutDialog(
-    show: Boolean,
-    isApplying: Boolean,
-    onDismiss: () -> Unit,
-    onSelect: (Boolean) -> Unit,
-) {
-    WindowDialog(
-        show = show,
-        title = stringResource(R.string.cloud_logout_options_title),
-        summary = stringResource(R.string.cloud_logout_options_message),
-        onDismissRequest = onDismiss,
-        outsideMargin = DpSize(24.dp, 24.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = { onSelect(false) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isApplying,
-            ) { Text(stringResource(R.string.cloud_logout_keep_local)) }
-            Button(
-                onClick = { onSelect(true) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isApplying,
-                colors = ButtonDefaults.buttonColors(
-                    color = MiuixTheme.colorScheme.errorContainer,
-                    contentColor = MiuixTheme.colorScheme.onErrorContainer,
-                ),
-            ) { Text(stringResource(R.string.cloud_logout_clear_local)) }
-        }
-    }
 }
 
 private fun openWebAuth(

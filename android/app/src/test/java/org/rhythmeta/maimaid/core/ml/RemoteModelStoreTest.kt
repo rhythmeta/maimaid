@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.core.ml
 
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
@@ -193,7 +194,7 @@ class RemoteModelStoreTest {
     private class FailingTransport : ModelAssetTransport {
         override suspend fun fetchManifest(): List<ModelManifestEntry> = error("offline")
 
-        override suspend fun download() =
+        override suspend fun download(entry: ModelManifestEntry, destination: File, onBytes: (Long) -> Unit): Unit =
             error("offline")
     }
 

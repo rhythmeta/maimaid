@@ -5,22 +5,7 @@ enum CollectionSharingService {
         extractSegment(from: url.absoluteString) != nil
     }
 
-    static func fetchCloudCollection(_ collectionID: UUID) async throws -> SongCollectionExport? {
-        do {
-            let response: Response = try await BackendAPIClient.request(
-                path: "v1/public/collections/\(collectionID.uuidString.lowercased())",
-                authentication: .none
-            )
-            return SongCollectionExport(
-                name: response.collection.name,
-                entries: response.collection.entries.map {
-                    SongCollectionExportEntry(songId: $0.songId, chartType: $0.chartType, difficulty: $0.difficulty)
-                }
-            )
-        } catch let error as BackendAPIError where error.statusCode == 404 {
-            return nil
-        }
-    }
+    static func fetchCloudCollection(_ collectionID: UUID) async throws -> SongCollectionExport? { nil }
 
     static func resolveImport(_ value: String) async throws -> SongCollectionExport {
         let normalized = value.filter { !$0.isWhitespace }

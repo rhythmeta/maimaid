@@ -46,14 +46,7 @@ class SyncManager {
     /// Unified sync entry for manual score-save flow:
     /// backend incremental sync + third-party (DF/LXNS) sync.
     func syncAfterScoreSave(sheet: Sheet, score: Score, context: ModelContext) async {
-        let backendTask = Task { @MainActor in
-            await uploadScoreImmediately(sheet: sheet, score: score, context: context)
-        }
-        let thirdPartyTask = Task { @MainActor in
-            await uploadToThirdPartiesIfNeeded(sheet: sheet, score: score, context: context)
-        }
-        await backendTask.value
-        await thirdPartyTask.value
+        await uploadToThirdPartiesIfNeeded(sheet: sheet, score: score, context: context)
     }
 
     /// Legacy entry: syncs multiple scores to third-party services when enabled.
@@ -87,17 +80,7 @@ class SyncManager {
 
     /// Syncs a score immediately to backend when user is authenticated.
     func uploadScoreImmediately(sheet: Sheet, score: Score, context: ModelContext) async {
-        guard BackendSessionManager.shared.isAuthenticated else {
-            return
-        }
-
-        print("SyncManager: 检测到「\(sheetTitle(sheet))」成绩更新，准备即时增量上行。")
-        guard let profile = resolveProfile(for: score, context: context) else {
-            print("SyncManager: 未找到可用于上传的当前激活档案。")
-            return
-        }
-
-        await uploadToBackend(sheet: sheet, score: score, profile: profile)
+        // Personal cloud data is saved only through manual Rhythmeta snapshots.
     }
 
     private func uploadToThirdPartiesIfNeeded(
@@ -141,24 +124,11 @@ class SyncManager {
 
     /// Deletion path fallback: run a full overwrite backup so removed records can be reflected server-side.
     func syncCloudSnapshotIfNeeded(context: ModelContext) async {
-        guard BackendSessionManager.shared.isAuthenticated else {
-            return
-        }
-
-        do {
-            try await BackendCloudSyncService.backupToCloud(context: context)
-            print("SyncManager: [Backend] 已完成覆盖式云端同步。")
-        } catch {
-            print("SyncManager: [Backend] 覆盖式云端同步失败：\(error.localizedDescription)")
-        }
+        // Personal cloud data is saved only through manual Rhythmeta snapshots.
     }
 
     func markCloudDataPending(profileId: UUID, context: ModelContext, fullReplace: Bool = false) {
-        BackendIncrementalSyncService.markDataPending(
-            profileId: profileId,
-            context: context,
-            fullReplace: fullReplace
-        )
+        // Personal cloud data is saved only through manual Rhythmeta snapshots.
     }
 
     private func uploadToBackend(sheet: Sheet, score: Score, profile: UserProfile) async {

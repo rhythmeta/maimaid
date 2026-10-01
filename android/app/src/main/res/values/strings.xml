@@ -853,4 +853,10 @@
 		your seat in the room.</string>
 	<string name="letter_game_cancel">Cancel</string>
 	<string name="letter_game_join_game">Join room</string>
+    <string name="cloud_snapshots_refresh">Refresh backups</string>
+    <string name="cloud_snapshot_hint">Create backups manually. The latest three are kept. Anyone with a download link can read it; do not share links.</string>
+    <string name="cloud_snapshots_empty">No cloud backups yet.</string>
+    <string name="cloud_snapshot_profiles">%1$d profiles</string>
+    <string name="cloud_restore_replace_hint">This replaces all personal data for this game on this device. A local rollback copy will be saved before restoring.</string>
+    <string name="cloud_snapshot_cancel">Cancel</string>
 </resources>

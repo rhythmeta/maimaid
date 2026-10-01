@@ -873,3 +873,11 @@
 "letterGame.joinRejected" = "Your request to join the room was rejected.";
 "letterGame.dissolved" = "The room was dissolved.";
 "letterGame.ambiguousGuess" = "That guess matches multiple songs. Enter a more specific title.";
+
+// Rhythmeta cloud backups
+"settings.cloud.snapshots.refresh" = "Refresh backups";
+"settings.cloud.snapshot.hint" = "Create backups manually. The latest three are kept. Anyone with a download link can read it; do not share links.";
+"settings.cloud.snapshots.empty" = "No cloud backups yet.";
+"settings.cloud.snapshot.profiles %lld" = "%lld profiles";
+"settings.cloud.restore.replaceHint" = "This replaces all personal data for this game on this device. A local rollback copy is saved first.";
+"settings.cloud.snapshots.title" = "Cloud backups";

@@ -25,21 +25,7 @@ class CollectionSharingService(
     private val apiClient: BackendApiClient,
     private val json: Json,
 ) {
-    suspend fun fetchCloudCollection(collectionId: String): SongCollectionExport? {
-        val response = try {
-            apiClient.request("v1/public/collections/$collectionId")
-        } catch (error: BackendApiException) {
-            if (error.statusCode == 404) return null
-            throw error
-        }
-        val payload = json.decodeFromJsonElement(PublicCollectionResponse.serializer(), response).collection
-        return SongCollectionExport(
-            name = payload.name,
-            entries = payload.entries.map { entry ->
-                SongCollectionExportEntry(entry.songId, entry.chartType, entry.difficulty)
-            },
-        )
-    }
+    suspend fun fetchCloudCollection(collectionId: String): SongCollectionExport? = null
 
     suspend fun resolveImport(value: String): SongCollectionExport {
         SongCollectionCodec.extractToken(value)?.let { return SongCollectionCodec.decode(it) }

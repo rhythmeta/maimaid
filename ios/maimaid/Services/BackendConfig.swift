@@ -31,7 +31,7 @@ enum BackendConfig {
             }
         }
 
-        return baseURL
+        return URL(string: "https://dash.rhythmeta.org")
     }
 
     static var staticAssetsBaseURL: URL? {

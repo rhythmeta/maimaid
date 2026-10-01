@@ -139,7 +139,7 @@ This section is the persistent source of truth for porting the current iOS maima
 6. Utilities: implement random song selection, constant tables, and constant-table image export.
 7. Progress: implement plate progress, version groups, achievement conditions, Dan lists, and Dan details.
 8. Community aliases: implement candidate submission, duplicate detection, voting board, daily quota, and approved-alias synchronization.
-9. Accounts and synchronization: implement profiles, DivingFish/LXNS imports, backend authentication, incremental synchronization, conflict resolution, backup, and restore.
+9. Accounts and synchronization: implement profiles, DivingFish/LXNS imports, backend authentication, Rhythmeta PKCE authentication, manual protobuf + gzip backup, and replacement restore with durable rollback.
 10. Complete OCR pipeline: implement camera and photo input, PP-OCRv6 detection and recognition, all three vision models, NMS, song/chart matching, result confirmation, and score persistence.
 11. Final acceptance: complete all four localizations, accessibility, dark theme, offline and failure states, predictive back behavior, device performance validation, and visual regression checks.
 

@@ -84,6 +84,7 @@ nonisolated struct CommunityAliasVoteResult: Codable, Sendable {
 }
 
 nonisolated struct CommunityAliasApprovedSyncRow: Codable, Sendable {
+    let status: String?
     let candidateId: UUID
     let songIdentifier: String
     let aliasText: String
@@ -162,7 +163,7 @@ final class CommunityAliasService {
                 tzOffsetMinutes: TimeZone.current.secondsFromGMT() / 60
             )
             let response: CommunityAliasSubmitResponse = try await BackendAPIClient.request(
-                path: "v1/community/candidates",
+                path: "maimaid/v1/community/candidates",
                 method: "POST",
                 body: payload,
                 authentication: .required
@@ -210,7 +211,7 @@ final class CommunityAliasService {
         do {
             let response: CommunityAliasRowsResponse<CommunityAliasVotingBoardItem> =
                 try await BackendAPIClient.request(
-                path: "v1/community/candidates:votingBoard?limit=\(safeLimit)&offset=\(safeOffset)",
+                path: "maimaid/v1/community/candidates:votingBoard?limit=\(safeLimit)&offset=\(safeOffset)",
                 method: "GET",
                 authentication: .optional
             )
@@ -228,7 +229,7 @@ final class CommunityAliasService {
             songIdentifier.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? songIdentifier
         do {
             let response: CommunityAliasRowsResponse<CommunityAliasMyCandidate> = try await BackendAPIClient.request(
-                path: "v1/community/candidates:my?songIdentifier=\(escapedSongIdentifier)&limit=\(safeLimit)",
+                path: "maimaid/v1/community/candidates:my?songIdentifier=\(escapedSongIdentifier)&limit=\(safeLimit)",
                 method: "GET",
                 authentication: .required
             )
@@ -250,7 +251,7 @@ final class CommunityAliasService {
         )
         do {
             let response: CommunityAliasDailyCountResponse = try await BackendAPIClient.request(
-                path: "v1/community/candidates:dailyCount?localDate=\(formattedDate)",
+                path: "maimaid/v1/community/candidates:dailyCount?localDate=\(formattedDate)",
                 method: "GET",
                 authentication: .required
             )
@@ -275,7 +276,7 @@ final class CommunityAliasService {
                 ?? candidateId.uuidString.lowercased()
             let payload = CommunityAliasVotePayload(vote: support ? 1 : -1)
             let response: CommunityAliasVoteResult = try await BackendAPIClient.request(
-                path: "v1/community/candidates/\(escapedCandidateId):vote",
+                path: "maimaid/v1/community/candidates/\(escapedCandidateId):vote",
                 method: "POST",
                 body: payload,
                 authentication: .required
@@ -308,26 +309,8 @@ final class CommunityAliasService {
     ) async {
         guard isConfigured else { return }
 
-        let rawSince = force ? nil : UserDefaults.app.communityAliasApprovedSyncAt
         let now = Date.now
-        let since: Date?
-        if let rawSince, rawSince > now.addingTimeInterval(5 * 60) {
-            UserDefaults.app.communityAliasApprovedSyncAt = nil
-            since = nil
-        } else {
-            since = rawSince
-        }
-
-        let path: String
-        if let since {
-            let encoded =
-                since.ISO8601Format().addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
-                ?? since.ISO8601Format()
-            path = "v1/community/aliases:sync?since=\(encoded)&limit=1000"
-        } else {
-            path = "v1/community/aliases:sync?limit=1000"
-        }
-
+        let path = "maimaid/v1/community/aliases:sync"
         let response: CommunityAliasRowsResponse<CommunityAliasApprovedSyncRow>
         do {
             response = try await BackendAPIClient.request(path: path, method: "GET", authentication: .none)
@@ -336,10 +319,16 @@ final class CommunityAliasService {
             return
         }
 
-        let rows = response.rows
+        let rows = response.rows.filter { ($0.status ?? "approved") == "approved" }
         var didMutate = false
+        for row in response.rows where row.status != nil && row.status != "approved" {
+            if let song = fetchSong(songIdentifier: row.songIdentifier, modelContext: modelContext) {
+                song.aliases.removeAll { $0.localizedCaseInsensitiveCompare(row.aliasText) == .orderedSame }
+                didMutate = true
+            }
+        }
 
-        if force {
+        do {
             let remoteIdSet = Set(rows.map { $0.candidateId.uuidString })
             if reconcileApprovedCacheForForceSync(remoteIdSet: remoteIdSet, modelContext: modelContext) {
                 didMutate = true
@@ -353,7 +342,7 @@ final class CommunityAliasService {
             return
         }
 
-        var maxUpdatedAt = since ?? .distantPast
+        var maxUpdatedAt = Date.distantPast
 
         for row in rows {
             let remoteId = row.candidateId.uuidString
