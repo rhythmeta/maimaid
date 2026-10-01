@@ -7,6 +7,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.UUID
 
 class OtogameImportPolicyTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -40,7 +41,29 @@ class OtogameImportPolicyTest {
         assertEquals(first, OtogameImportPolicy.stableRecordId("profile-a", record))
         assertNotEquals(first, OtogameImportPolicy.stableRecordId("profile-b", record))
         assertNotEquals(first, OtogameImportPolicy.stableRecordId("profile-a", record.copy(trackNo = 2)))
-        assertEquals(64, first.length)
+        assertEquals(first, UUID.fromString(first).toString())
+    }
+
+    @Test
+    fun `record UUID matches iOS and ignores profile UUID case`() {
+        val profile = "11111111-1111-4111-8111-111111111111"
+        assertEquals("fdb1ff8e-b738-5bd5-a7b4-42d3399a826b", OtogameImportPolicy.stableRecordId(profile, playlog()))
+        val mixedCaseProfile = "a1111111-b111-4111-8111-c11111111111"
+        assertEquals(
+            OtogameImportPolicy.stableRecordId(mixedCaseProfile, playlog()),
+            OtogameImportPolicy.stableRecordId(mixedCaseProfile.uppercase(), playlog()),
+        )
+    }
+
+    @Test
+    fun `reimport recognizes migrated legacy and restored iOS IDs`() {
+        val profile = "11111111-1111-4111-8111-111111111111"
+        assertTrue(OtogameImportPolicy.isPreviouslyImported(profile, playlog(), setOf("fdb1ff8e-b738-5bd5-a7b4-42d3399a826b")))
+        // Older imports hashed the original profile UUID case, before normalization.
+        assertTrue(OtogameImportPolicy.isPreviouslyImported(
+            "A1111111-B111-4111-8111-C11111111111", playlog(), setOf("e48901f8-e4bf-5aac-8d99-a21c3242a7e1"),
+        ))
+        assertFalse(OtogameImportPolicy.isPreviouslyImported(profile, playlog().copy(trackNo = 2), setOf("fdb1ff8e-b738-5bd5-a7b4-42d3399a826b")))
     }
 
     @Test

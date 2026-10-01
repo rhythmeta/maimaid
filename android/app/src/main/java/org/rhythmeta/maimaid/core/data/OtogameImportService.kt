@@ -32,7 +32,7 @@ class OtogameImportService(
         if (!OtogameImportPolicy.isEligibleServer(profile.server)) throw OtogameProfileUnavailableException()
 
         val existingRecordIds = database.scoreDao().playRecords(profile.id)
-            .mapTo(mutableSetOf(), PlayRecordEntity::id)
+            .mapTo(mutableSetOf()) { it.id.lowercase() }
         val fetched = fetchNewPlaylogs(
             profileId = profile.id,
             authorizationHeader = authorizationHeader,
@@ -167,7 +167,7 @@ class OtogameImportService(
             for (playlog in response.data.data) {
                 fetchedCount += 1
                 val id = OtogameImportPolicy.stableRecordId(profileId, playlog)
-                if (id in existingRecordIds) {
+                if (OtogameImportPolicy.isPreviouslyImported(profileId, playlog, existingRecordIds)) {
                     duplicateCount += 1
                     continue
                 }

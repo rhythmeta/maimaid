@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SongCollectionEntity::class,
         SongCollectionItemEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)
@@ -32,6 +32,22 @@ abstract class MaimaidDatabase : RoomDatabase() {
     abstract fun songCollectionDao(): SongCollectionDao
 
     companion object {
+        val Migration7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Otogame imports previously stored the full SHA-256 digest. Use the
+                // same first 16 bytes and UUID bits as new imports and iOS, retaining
+                // every record and allowing subsequent imports to find duplicates.
+                db.execSQL("""
+                    UPDATE play_records SET id = lower(
+                        substr(id, 1, 8) || '-' || substr(id, 9, 4) || '-5' ||
+                        substr(id, 14, 3) || '-' ||
+                        substr('89ab89ab89ab89ab', instr('0123456789abcdef', lower(substr(id, 17, 1))), 1) ||
+                        substr(id, 18, 3) || '-' || substr(id, 21, 12)
+                    ) WHERE length(id) = 64 AND id NOT GLOB '*[^0-9a-fA-F]*'
+                """.trimIndent())
+            }
+        }
+
         val Migration1To2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
