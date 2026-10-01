@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.util.UUID
 
 @Database(
     entities = [
@@ -37,14 +38,28 @@ abstract class MaimaidDatabase : RoomDatabase() {
                 // Otogame imports previously stored the full SHA-256 digest. Use the
                 // same first 16 bytes and UUID bits as new imports and iOS, retaining
                 // every record and allowing subsequent imports to find duplicates.
-                db.execSQL("""
-                    UPDATE play_records SET id = lower(
+                db.query("""
+                    SELECT rowid, CASE WHEN length(id) = 64 AND id NOT GLOB '*[^0-9a-fA-F]*' THEN lower(
                         substr(id, 1, 8) || '-' || substr(id, 9, 4) || '-5' ||
                         substr(id, 14, 3) || '-' ||
                         substr('89ab89ab89ab89ab', instr('0123456789abcdef', lower(substr(id, 17, 1))), 1) ||
                         substr(id, 18, 3) || '-' || substr(id, 21, 12)
-                    ) WHERE length(id) = 64 AND id NOT GLOB '*[^0-9a-fA-F]*'
-                """.trimIndent())
+                    ) ELSE NULL END FROM play_records
+                    ORDER BY rowid
+                """.trimIndent()).use { records ->
+                    // Keep all rows in the result: CursorWindow may re-run the query
+                    // while paging, so filtering out updated IDs would skip records.
+                    while (records.moveToNext()) {
+                        if (records.isNull(1)) continue
+                        var id = records.getString(1)
+                        while (db.query("SELECT 1 FROM play_records WHERE id IN (?, ?) LIMIT 1", arrayOf(id, id.uppercase())).use { it.moveToFirst() }) {
+                            // An older cross-platform import may already contain the UUID.
+                            // Preserve both rows instead of overwriting either history entry.
+                            id = UUID.randomUUID().toString()
+                        }
+                        db.execSQL("UPDATE play_records SET id = ? WHERE rowid = ?", arrayOf<Any>(id, records.getLong(0)))
+                    }
+                }
             }
         }
 
