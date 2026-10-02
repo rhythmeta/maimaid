@@ -508,7 +508,7 @@
 "settings.cloud.syncing" = "正在同步...";
 "settings.cloud.logout" = "退出登录";
 "settings.cloud.login.title" = "登录云端";
-"settings.cloud.login.subtitle" = "通过电子邮件登录以使用云端同步服务";
+"settings.cloud.login.subtitle" = "登录 Rhythmeta 账号以备份和恢复数据。";
 "settings.cloud.login.button" = "登录";
 "settings.cloud.signup.subtitle" = "通过电子邮件注册以使用云端同步服务";
 "settings.cloud.signup.button" = "注册";
@@ -520,7 +520,7 @@
 "settings.cloud.recovery.newPassword" = "新密码";
 "settings.cloud.recovery.updateButton" = "更新密码";
 "settings.cloud.recovery.cancel" = "取消";
-"settings.cloud.privacy.hint" = "您的账户信息用于在您登录时启用云端同步，数据将加密存储在云端。";
+"settings.cloud.privacy.hint" = "Rhythmeta 账号可用于 maimaid 和 chunithmd，备份需要手动创建。";
 "settings.cloud.message.loginSuccess" = "登录成功！";
 "settings.cloud.message.authLinkSuccess" = "账号验证已完成，现在可以登录了。";
 "settings.cloud.message.authLinkFailed" = "验证链接无效或已过期。";

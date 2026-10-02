@@ -511,7 +511,7 @@
 "settings.cloud.syncing" = "同期中...";
 "settings.cloud.logout" = "ログアウト";
 "settings.cloud.login.title" = "クラウドログイン";
-"settings.cloud.login.subtitle" = "メールでサインインしてクラウド同期サービスを有効にします";
+"settings.cloud.login.subtitle" = "Rhythmeta アカウントでログインして、データをバックアップ・復元できます。";
 "settings.cloud.login.button" = "ログイン";
 "settings.cloud.signup.subtitle" = "メールでサインアップしてクラウド同期サービスを有効にします";
 "settings.cloud.signup.button" = "サインアップ";
@@ -523,7 +523,7 @@
 "settings.cloud.recovery.newPassword" = "新しいパスワード";
 "settings.cloud.recovery.updateButton" = "パスワードを更新する";
 "settings.cloud.recovery.cancel" = "キャンセル";
-"settings.cloud.privacy.hint" = "アカウント情報は、サインイン時にクラウド同期を有効にするために使用されます。データはクラウドに安全に保存されます。";
+"settings.cloud.privacy.hint" = "Rhythmeta アカウントは maimaid と chunithmd で共通です。バックアップは手動で作成します。";
 "settings.cloud.message.loginSuccess" = "ログインしました。";
 "settings.cloud.message.authLinkSuccess" = "アカウント認証が完了しました。これでサインインできるようになりました。";
 "settings.cloud.message.authLinkFailed" = "認証リンクが無効か期限切れです。";

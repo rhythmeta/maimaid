@@ -130,7 +130,7 @@ fun BackendAuthScreen(container: AppContainer) {
                         CloudActionRow(Icons.Rounded.CloudDownload, stringResource(R.string.cloud_restore), !busy) { restoreTarget = snapshot }
                     }
                 } }
-                item { CloudActionRow(Icons.AutoMirrored.Rounded.Logout, stringResource(R.string.cloud_logout), !busy) { run { container.backendSessionManager.logout() } } }
+                item { LogoutButton(enabled = !busy) { run { container.backendSessionManager.logout() } } }
             }
         }
         SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))
@@ -274,5 +274,33 @@ private fun openWebAuth(
     }
     if (!context.openInAppBrowser(url)) {
         onError(context.getString(R.string.cloud_browser_unavailable))
+    }
+}
+
+@Composable
+private fun LogoutButton(enabled: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            color = MiuixTheme.colorScheme.errorContainer,
+            contentColor = MiuixTheme.colorScheme.error,
+        ),
+    ) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.Logout,
+                contentDescription = null,
+                modifier = Modifier.align(Alignment.CenterStart).size(24.dp),
+                tint = MiuixTheme.colorScheme.error,
+            )
+            Text(
+                text = stringResource(R.string.cloud_logout),
+                modifier = Modifier.padding(horizontal = 32.dp),
+                color = MiuixTheme.colorScheme.error,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }

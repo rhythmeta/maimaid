@@ -28,31 +28,49 @@ struct BackendAuthView: View {
   @State private var backups = CloudBackupService.shared
   @State private var webAuthenticationSession: ASWebAuthenticationSession?
   @State private var isOpeningWebAuth = false
+  @State private var isSigningOut = false
   @State private var message: String?
+  @State private var isErrorMessage = false
   @State private var selectedBackup: CloudBackup?
   private let presentationProvider = WebAuthPresentationProvider()
 
   var body: some View {
     List {
-      Section("Rhythmeta") {
-        if let user = sessionManager.currentUser {
-          LabeledContent("settings.cloud.handle", value: user.handle)
-          LabeledContent("settings.cloud.email", value: user.email)
-          Button("settings.cloud.logout", role: .destructive) {
-            Task { await sessionManager.logout() }
+      Section {
+        CloudAccountSummary(user: sessionManager.currentUser)
+      }
+      .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+      .listRowBackground(Color.clear)
+      .listSectionSeparator(.hidden)
+      if let user = sessionManager.currentUser {
+        Section("settings.cloud.account.section") {
+          LabeledContent("settings.cloud.account.handle", value: user.handle)
+          LabeledContent("settings.cloud.account.email", value: user.email)
+          LabeledContent("settings.cloud.account.status") {
+            Text("settings.cloud.status.loggedIn").foregroundStyle(.secondary)
           }
-        } else {
-          Button("settings.cloud.login") { startWebAuth("login") }
-          Button("settings.cloud.register") { startWebAuth("register") }
-          Button("settings.cloud.forgotPassword") { startWebAuth("forgot") }
+        }
+      } else {
+        Section {
+          CloudAccountAction(title: "settings.cloud.login.button",
+                             icon: "person.crop.circle.badge.checkmark", tint: .blue) { startWebAuth("login") }
+          CloudAccountAction(title: "settings.cloud.signup.button",
+                             icon: "person.badge.plus.fill", tint: .green) { startWebAuth("register") }
+          CloudAccountAction(title: "settings.cloud.forgotPassword",
+                             icon: "key.fill", tint: .orange) { startWebAuth("forgot") }
         }
       }
       if sessionManager.isAuthenticated {
         Section {
-          Button("settings.cloud.backup", systemImage: "icloud.and.arrow.up") {
-            Task { await perform { try await backups.backup(context: modelContext) } }
+          CloudAccountAction(title: "settings.cloud.backup", icon: "icloud.and.arrow.up.fill", tint: .blue) {
+            Task {
+              await perform {
+                try await backups.backup(context: modelContext)
+                message = String(localized: "settings.cloud.message.backupSuccess")
+              }
+            }
           }
-          Button("settings.cloud.snapshots.refresh", systemImage: "arrow.clockwise") {
+          CloudAccountAction(title: "settings.cloud.snapshots.refresh", icon: "arrow.clockwise", tint: .green) {
             Task { await perform { try await backups.reload() } }
           }
           if backups.isBusy { ProgressView() }
@@ -67,25 +85,46 @@ struct BackendAuthView: View {
             Button {
               selectedBackup = backup
             } label: {
-              VStack(alignment: .leading) {
-                Text(backup.committedAt)
-                Text(backup.deviceName).foregroundStyle(.secondary)
-                Text("settings.cloud.snapshot.profiles \(backup.profileCount)").font(.caption)
-              }
+              CloudBackupRow(backup: backup)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+      }
+      if sessionManager.isAuthenticated {
+        Section {
+          Button("settings.cloud.logout", role: .destructive) {
+            Task {
+              isSigningOut = true
+              await sessionManager.logout()
+              isSigningOut = false
             }
           }
         }
       }
-      if let message { Section { Text(message).textSelection(.enabled) } }
+    }
+    .listStyle(.insetGrouped)
+    .overlay(alignment: .bottom) {
+      if let message {
+        CloudAccountNotice(message: message, isError: isErrorMessage)
+          .padding(20)
+      }
+    }
+    .task(id: message) {
+      guard message != nil else { return }
+      do { try await Task.sleep(for: .seconds(4)) } catch { return }
+      message = nil
     }
     .navigationTitle("Rhythmeta")
-    .disabled(backups.isBusy || isOpeningWebAuth)
+    .navigationBarTitleDisplayMode(.inline)
+    .disabled(backups.isBusy || isOpeningWebAuth || isSigningOut)
     .task { await sessionManager.checkSession() }
     .task(id: sessionManager.currentUser?.id) {
       if sessionManager.isAuthenticated { await perform { try await backups.reload() } }
     }
     .onChange(of: sessionManager.pendingMessage) { _, value in
       if let value {
+        isErrorMessage = value != "settings.cloud.message.loginSuccess"
         message = String(localized: String.LocalizationValue(value))
         sessionManager.clearPendingMessage()
       }
@@ -112,7 +151,11 @@ struct BackendAuthView: View {
   }
 
   private func perform(_ operation: () async throws -> Void) async {
-    do { try await operation() } catch { message = error.localizedDescription }
+    isErrorMessage = false
+    do { try await operation() } catch {
+      isErrorMessage = true
+      message = error.localizedDescription
+    }
   }
 
   private func startWebAuth(_ mode: String) {
@@ -125,6 +168,7 @@ struct BackendAuthView: View {
         if let callbackURL {
           sessionManager.handleAuthRedirect(callbackURL)
         } else if (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin {
+          isErrorMessage = true
           message = String(localized: "settings.cloud.message.authLinkFailed")
         }
       }
