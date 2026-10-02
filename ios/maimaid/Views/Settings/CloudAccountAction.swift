@@ -22,7 +22,6 @@ struct CloudAccountAction: View {
                     .foregroundStyle(tint)
                     .accessibilityHidden(true)
             }
-            .frame(minHeight: 44)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

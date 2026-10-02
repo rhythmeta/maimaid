@@ -31,7 +31,6 @@ struct BackendAuthView: View {
   @State private var isSigningOut = false
   @State private var message: String?
   @State private var isErrorMessage = false
-  @State private var selectedBackup: CloudBackup?
   private let presentationProvider = WebAuthPresentationProvider()
 
   var body: some View {
@@ -82,12 +81,14 @@ struct BackendAuthView: View {
             Text("settings.cloud.snapshots.empty").foregroundStyle(.secondary)
           }
           ForEach(backups.backups) { backup in
-            Button {
-              selectedBackup = backup
-            } label: {
-              CloudBackupRow(backup: backup)
+            CloudBackupRestoreButton(backup: backup) {
+              Task {
+                await perform {
+                  try await backups.restore(backup, context: modelContext)
+                  message = String(localized: "settings.cloud.message.restoreSuccess")
+                }
+              }
             }
-            .buttonStyle(.plain)
           }
         }
       }
@@ -128,25 +129,6 @@ struct BackendAuthView: View {
         message = String(localized: String.LocalizationValue(value))
         sessionManager.clearPendingMessage()
       }
-    }
-    .confirmationDialog(
-      "settings.cloud.restore",
-      isPresented: Binding(
-        get: { selectedBackup != nil }, set: { if !$0 { selectedBackup = nil } }),
-      titleVisibility: .visible
-    ) {
-      if let backup = selectedBackup {
-        Button("settings.cloud.restore", role: .destructive) {
-          Task {
-            await perform {
-              try await backups.restore(backup, context: modelContext)
-              message = String(localized: "settings.cloud.message.restoreSuccess")
-            }
-          }
-        }
-      }
-    } message: {
-      Text("settings.cloud.restore.replaceHint")
     }
   }
 
