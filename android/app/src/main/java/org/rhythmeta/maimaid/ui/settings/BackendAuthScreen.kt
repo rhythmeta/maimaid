@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +44,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.time.format.FormatStyle
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
@@ -125,7 +131,7 @@ fun BackendAuthScreen(container: AppContainer) {
                 } }
                 if (snapshots.isEmpty()) item { Text(stringResource(R.string.cloud_snapshots_empty), modifier = Modifier.padding(16.dp)) }
                 snapshots.forEach { snapshot -> item(key = snapshot.id) {
-                    CloudSection(snapshot.committedAt) {
+                    CloudSection(formatBackupDate(snapshot.committedAt)) {
                         CloudValueRow(snapshot.deviceName, context.getString(R.string.cloud_snapshot_profiles, snapshot.profileCount))
                         CloudActionRow(Icons.Rounded.CloudDownload, stringResource(R.string.cloud_restore), !busy) { restoreTarget = snapshot }
                     }
@@ -288,19 +294,36 @@ private fun LogoutButton(enabled: Boolean, onClick: () -> Unit) {
             contentColor = MiuixTheme.colorScheme.error,
         ),
     ) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.Logout,
                 contentDescription = null,
-                modifier = Modifier.align(Alignment.CenterStart).size(24.dp),
+                modifier = Modifier.size(24.dp),
                 tint = MiuixTheme.colorScheme.error,
             )
             Text(
                 text = stringResource(R.string.cloud_logout),
-                modifier = Modifier.padding(horizontal = 32.dp),
                 color = MiuixTheme.colorScheme.error,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
+    }
+}
+
+@Composable
+private fun formatBackupDate(value: String): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val formatter = remember(locale) {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+            .withLocale(locale)
+    }
+    return try {
+        Instant.parse(value).atZone(ZoneId.systemDefault()).format(formatter)
+    } catch (_: DateTimeParseException) {
+        value
     }
 }
