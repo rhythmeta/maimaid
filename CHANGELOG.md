@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.2.8
+
+### 中文
+
+#### 新增
+
+- 恢复 iOS 与 Android 的水鱼（Diving-Fish）和落雪（LXNS）成绩导入，客户端直接连接对应服务；水鱼支持设备码授权。
+- 新增跨平台手动云备份与恢复，备份包含档案、成绩、游玩记录、收藏夹和设置，每个游戏保留最近三份；恢复前保存本地回滚副本。
+- 设置页新增后端服务状态显示。
+
+#### 变更
+
+- 账号与云服务迁移到 Rhythmeta，账号网站改为 `dash.rhythmeta.org`。原有账号继续有效，迁移后需重新登录；旧逐条云同步改为手动备份与恢复。
+- 收藏夹分享链接改为 `https://dash.rhythmeta.org/collection/MMD2.…`，仅保留 MMD2 快照解析，移除“云端最新”分享和 UUID 导入；网页支持免登录预览和打开 App 导入。
+- 统一歌曲详情的当前最佳与历史成绩布局，使用 tint badge 显示星数、FC 和 FS，并调整排序入口；收起谱面卡片时隐藏评级与星数。
+- iOS 的 B50 和吃分推荐采用 tint badge；两端吃分推荐补充定数，按“谱面类型、定数”的顺序显示。
+- 首页档案的服务器标签改为 tint badge；版本标签在浅色模式下按背景调整文字颜色，深色模式下使用白色文字。
+- 拟合定数和定数变化历史移到当前最佳成绩下方，拟合定数显示在前。
+- 恢复 iOS 导入页面的完整布局，调整账号、备份和退出登录界面，精简云同步相关文案。
+- 移除开字母小游戏。
+
+#### 修复
+
+- 修复旧谱面追加的 Re:MASTER 被错误归入 B15 的问题，使其保留在 B35，并修正历史版本筛选的分类行为。
+- 修复 Android 导入历史记录迁移时 ID 冲突和过大导致记录丢失的问题。
+- 修复 iOS 当前最佳和历史成绩中的达成率换行问题。
+- 修复 Android 容错计算器未使用曲绘取色强调色的问题。
+- 修复导入完成提示在退出页面后再次进入时重复显示的问题。
+
+### English
+
+#### Added
+
+- Restored Diving-Fish and LXNS score imports on iOS and Android through direct connections to each provider, with device-code authorization for Diving-Fish.
+- Added portable manual cloud backups and restores for profiles, scores, play history, collections, and settings. Each game retains the latest three backups, and a local rollback copy is saved before restoring.
+- Added backend service status to Settings.
+
+#### Changed
+
+- Moved accounts and cloud services to Rhythmeta, with the account website at `dash.rhythmeta.org`. Existing accounts remain valid but require signing in again after migration. Manual backups and restores replace the old per-record cloud sync.
+- Moved collection links to `https://dash.rhythmeta.org/collection/MMD2.…`. Only MMD2 snapshots are supported; removed latest-cloud sharing and UUID imports. The web page supports public previews and opening collections in the app.
+- Unified personal-best and play-history layouts in song details, with tinted star, FC, and FS badges and updated sorting controls. Collapsed chart cards hide ranks and stars.
+- Applied tinted badges to iOS B50 and rating recommendations. Recommendations on both platforms now show the chart type followed by the chart constant.
+- Applied tinted server badges to home-screen profiles. Version-badge text adapts to its background in light mode and uses white in dark mode.
+- Moved fitted constants and constant-change history below the personal best, with fitted constants first.
+- Restored the full iOS import-page layout, refined account, backup, and logout screens, and simplified cloud-sync wording.
+- Removed the letter game.
+
+#### Fixed
+
+- Fixed appended Re:MASTER charts from older charts being assigned to B15 instead of B35, and corrected classification when selecting historical versions.
+- Fixed Android imported-history migration losing records with colliding or oversized IDs.
+- Fixed achievement percentages wrapping in iOS personal-best and play-history rows.
+- Fixed the Android tolerance calculator ignoring the accent color extracted from the song jacket.
+- Fixed import-completion messages appearing again after leaving and reopening the import page.
+
 ## 1.2.7.1
 
 ### 中文
