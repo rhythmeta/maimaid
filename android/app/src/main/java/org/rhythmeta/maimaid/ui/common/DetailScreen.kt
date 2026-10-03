@@ -86,7 +86,6 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import org.rhythmeta.maimaid.ui.collections.SongCollectionsScreen
 import org.rhythmeta.maimaid.ui.catalog.CatalogDisplayMode
 import org.rhythmeta.maimaid.core.data.CatalogSortOption
-import org.rhythmeta.maimaid.ui.lettergame.LetterGameScreen
 
 @Composable
 internal fun DetailScreen(
@@ -117,15 +116,6 @@ internal fun DetailScreen(
     onOpenDanCategory: (String, String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
     onOpenOtogameLogin: () -> Unit,
-    onOpenLogin: () -> Unit = {},
-    letterGameJoinRequestToken: Int = 0,
-    letterGameExitRequestToken: Int = 0,
-    letterGameCopyRequestToken: Int = 0,
-    letterGameSettingsRequestToken: Int = 0,
-    onLetterGameRoomPresenceChanged: (Boolean) -> Unit = {},
-    onLetterGameRoomCodeChanged: (String?) -> Unit = {},
-    onLetterGameMatchActiveChanged: (Boolean) -> Unit = {},
-    onLetterGameJoinActionAvailabilityChanged: (Boolean) -> Unit = {},
     onSongDetailBackgroundChanged: (androidx.compose.ui.graphics.Color?) -> Unit,
     onSongDetailTitleChanged: (String) -> Unit,
     collectionsDisplayMode: CatalogDisplayMode = CatalogDisplayMode.List,
@@ -321,19 +311,6 @@ internal fun DetailScreen(
             onCreateRequestHandled = onProfileCreateRequestHandled,
         )
         AppDetail.BackendAuth -> BackendAuthScreen(container = container)
-        AppDetail.LetterGame -> LetterGameScreen(
-            container = container,
-            contentTopPadding = songContentTopPadding,
-            onOpenLogin = onOpenLogin,
-            joinRequestToken = letterGameJoinRequestToken,
-            exitRequestToken = letterGameExitRequestToken,
-            copyRequestToken = letterGameCopyRequestToken,
-            settingsRequestToken = letterGameSettingsRequestToken,
-            onRoomPresenceChanged = onLetterGameRoomPresenceChanged,
-            onRoomCodeChanged = onLetterGameRoomCodeChanged,
-            onMatchActiveChanged = onLetterGameMatchActiveChanged,
-            onJoinActionAvailabilityChanged = onLetterGameJoinActionAvailabilityChanged,
-        )
         AppDetail.DivingFishImport -> DivingFishImportScreen(
             container = container,
             contentTopPadding = songContentTopPadding,

@@ -54,7 +54,7 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 - **Views/**: Page-oriented SwiftUI features, aligned with Android's `ui` packages:
   `Home/`, `Catalog/`, `Best/`, `Song/`, `Collections/`, `Score/`, `ScoreQuery/`,
   `Recommendation/`, `ConstantTable/`, `Dan/`, `Plate/`, `Random/`, `Scanner/`,
-  `Community/`, `LetterGame/`, `Settings/`, and `Onboarding/`. Shared UI stays in
+  `Community/`, `Settings/`, and `Onboarding/`. Shared UI stays in
   `Components/`; app-level tab routing stays in `Navigation/`.
 - **Services/**: Backend API client (`BackendAPIClient`), session management (`BackendSessionManager`), manual snapshots (`CloudBackupService`), local score uploads, data import from Diving Fish / LXNS, image recognition (`MLScoreProcessor`, `MLChooseProcessor`, `MLDistinguishProcessor`), community aliases
 - **Localization**: `Localizable.strings` in `en`, `ja`, `zh-Hans`, `zh-Hant`. When adding user-facing strings, translate into all four languages.
