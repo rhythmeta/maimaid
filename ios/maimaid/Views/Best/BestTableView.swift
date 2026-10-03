@@ -535,15 +535,15 @@ struct BestTableView: View {
                 }
 
                 HStack(spacing: 4) {
-                    BadgeView(
-                        text: entry.type.uppercased(), background: entry.type.uppercased() == "DX" ? .orange : .blue)
+                    ScoreTintBadge(
+                        text: entry.type.uppercased(), tint: entry.type.uppercased() == "DX" ? .orange : .blue)
 
                     if let fc = entry.fc, !fc.isEmpty {
-                        BadgeView(text: ThemeUtils.normalizeFC(fc), background: ThemeUtils.fcColor(fc))
+                        ScoreTintBadge(text: ThemeUtils.normalizeFC(fc), tint: ThemeUtils.fcColor(fc))
                     }
 
                     if let fs = entry.fs, !fs.isEmpty {
-                        BadgeView(text: ThemeUtils.normalizeFS(fs), background: ThemeUtils.fsColor(fs))
+                        ScoreTintBadge(text: ThemeUtils.normalizeFS(fs), tint: ThemeUtils.fsColor(fs))
                     }
                 }
             }

@@ -9,6 +9,7 @@ import org.rhythmeta.maimaid.core.database.UserProfileEntity
 data class RecommendationResult(
     val song: SongEntity,
     val sheet: SheetEntity,
+    val constant: Double,
     val fitDifficulty: Double? = null,
     val difficultyGap: Double? = null,
     val currentAchievement: Double?,
@@ -119,6 +120,7 @@ object RecommendationCalculator {
             val result = RecommendationResult(
                 song = song,
                 sheet = sheet,
+                constant = level,
                 fitDifficulty = fitDifficulty,
                 difficultyGap = fitDifficulty?.let { level - it },
                 currentAchievement = currentScore?.achievement,

@@ -5,6 +5,7 @@ struct RecommendationResult: Identifiable, Sendable {
     let id = UUID()
     let song: Song
     let sheet: Sheet
+    let constant: Double
     let fitDiff: Double?
     let diffGap: Double? // internalLevel - fitDiff
     let currentRate: Double?
@@ -162,6 +163,7 @@ class RecommendationService {
                     let result = RecommendationResult(
                         song: song,
                         sheet: sheet,
+                        constant: internalLevelValue,
                         fitDiff: fitDiff,
                         diffGap: diffGap,
                         currentRate: currentScore?.rate,

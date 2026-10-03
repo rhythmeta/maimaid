@@ -51,6 +51,7 @@ import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
+import org.rhythmeta.maimaid.ui.song.ScoreTintBadge
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -315,19 +316,7 @@ private fun ServerBadge(server: String) {
         "intl", "us", "usa" -> stringResource(R.string.server_intl)
         else -> stringResource(R.string.server_jp)
     }
-    Text(
-        text = label,
-        style = MiuixTheme.textStyles.footnote2,
-        fontWeight = FontWeight.Bold,
-        color = Color.White,
-        modifier = Modifier
-            .squircleSurface(
-                color = color,
-                cornerRadius = 5.dp,
-                extension = SquircleExtension,
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    )
+    ScoreTintBadge(text = label, color = color)
 }
 
 @Composable

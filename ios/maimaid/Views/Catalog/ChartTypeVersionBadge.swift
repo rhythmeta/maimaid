@@ -4,15 +4,16 @@ struct ChartTypeVersionBadge: View {
     let text: String
     let chartTypes: [String]
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.self) private var environment
 
     private var colors: [Color] {
-        chartTypes.map { ThemeUtils.badgeColorForChartType($0, colorScheme) }
+        (chartTypes.isEmpty ? ["std"] : chartTypes).map { ThemeUtils.badgeColorForChartType($0, colorScheme) }
     }
 
     var body: some View {
         Text(text)
             .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(colorScheme == .dark ? .white : BadgeContrast.foreground(on: colors, in: environment))
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
             .background {

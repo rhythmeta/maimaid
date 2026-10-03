@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
+import org.rhythmeta.maimaid.ui.util.BadgeContrast
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -62,7 +63,7 @@ internal fun ChartTypeVersionBadge(
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
             ),
-            color = Color.White,
+            color = if (darkTheme) Color.White else BadgeContrast.foreground(colors.ifEmpty { listOf(backgroundColor) }),
             maxLines = 1,
             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
         )

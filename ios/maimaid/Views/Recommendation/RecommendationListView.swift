@@ -242,9 +242,13 @@ struct RecommendationRow: View {
 
                 // Line 3: Badges
                 HStack(spacing: 4) {
-                    BadgeView(
+                    ScoreTintBadge(
                         text: result.sheet.type.uppercased(),
-                        background: result.sheet.type.lowercased() == "dx" ? .orange : .blue)
+                        tint: result.sheet.type.lowercased() == "dx" ? .orange : .blue)
+                    ScoreTintBadge(
+                        text: result.constant.formatted(.number.precision(.fractionLength(1))),
+                        tint: ThemeUtils.colorForDifficulty(result.sheet.difficulty, result.sheet.type, colorScheme)
+                    )
                 }
             }
             .frame(minHeight: 56, alignment: .leading)

@@ -309,19 +309,37 @@ private fun RecommendationRow(
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
-            Text(
-                text = result.sheet.type.uppercase(),
-                style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
-                fontWeight = FontWeight.Bold,
-                color = typeColor,
-                modifier = Modifier
-                    .squircleSurface(
-                        color = typeColor.copy(alpha = 0.13f),
-                        cornerRadius = 4.dp,
-                        extension = SquircleExtension,
-                    )
-                    .padding(horizontal = 5.dp, vertical = 2.dp),
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = result.sheet.type.uppercase(),
+                    style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = typeColor,
+                    modifier = Modifier
+                        .squircleSurface(
+                            color = typeColor.copy(alpha = 0.13f),
+                            cornerRadius = 4.dp,
+                            extension = SquircleExtension,
+                        )
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                )
+                Text(
+                    text = String.format(Locale.ROOT, "%.1f", result.constant),
+                    style = MiuixTheme.textStyles.footnote2.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = difficultyColor,
+                    modifier = Modifier
+                        .squircleSurface(
+                            color = difficultyColor.copy(alpha = 0.13f),
+                            cornerRadius = 4.dp,
+                            extension = SquircleExtension,
+                        )
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                )
+            }
         }
         Spacer(Modifier.width(8.dp))
         Column(

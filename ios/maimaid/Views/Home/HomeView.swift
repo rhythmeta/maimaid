@@ -420,12 +420,7 @@ struct HomeView: View {
 
                         // Server badge
                         if let profile = activeProfile, let server = GameServer(rawValue: profile.server) {
-                            Text(server.displayName)
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 2)
-                                .background(serverColor(server), in: RoundedRectangle(cornerRadius: 4))
+                            ScoreTintBadge(text: server.displayName, tint: serverColor(server))
                         }
                     }
 

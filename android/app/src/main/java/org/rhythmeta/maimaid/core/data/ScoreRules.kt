@@ -17,6 +17,20 @@ enum class ScoreValidationError {
 }
 
 object ScoreRules {
+    fun dxStars(dxScore: Int, maxDxScore: Int): Int {
+        if (maxDxScore <= 0) return 0
+        val percentage = dxScore.toLong() * 100
+        val maximum = maxDxScore.toLong()
+        return when {
+            percentage >= maximum * 97 -> 5
+            percentage >= maximum * 95 -> 4
+            percentage >= maximum * 93 -> 3
+            percentage >= maximum * 90 -> 2
+            percentage >= maximum * 85 -> 1
+            else -> 0
+        }
+    }
+
     fun effectiveMaxDxScore(sheetTotal: Int?, override: Int? = null): Int =
 			override?.takeIf { it > 0 } ?: ((sheetTotal ?: 0) * 3)
 

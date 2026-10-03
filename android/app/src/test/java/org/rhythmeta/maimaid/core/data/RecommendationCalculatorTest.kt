@@ -27,6 +27,7 @@ class RecommendationCalculatorTest {
         )
 
         assertEquals(1, result.b15.size)
+        assertEquals(13.0, result.b15.single().constant, 0.0)
         assertEquals("S", result.b15.single().targetRank)
         assertEquals(RatingUtils.calculate(13.0, 97.0), result.b15.single().potentialGain)
     }
@@ -284,6 +285,7 @@ class RecommendationCalculatorTest {
     ) = RecommendationResult(
         song = song(songId, "BUDDiES"),
         sheet = sheet(songId, "BUDDiES", 13.0),
+        constant = 13.0,
         fitDifficulty = 13.0 - difficultyGap,
         difficultyGap = difficultyGap,
         currentAchievement = null,

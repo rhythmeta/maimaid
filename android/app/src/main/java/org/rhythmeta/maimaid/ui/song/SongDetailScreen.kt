@@ -67,7 +67,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -163,7 +162,6 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.basic.TextField
-import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -1570,7 +1568,7 @@ private fun SheetScoreCard(
             }
             if (!expanded) {
                 chart.score?.let { score ->
-                    SheetScorePreview(score)
+                    SheetScorePreview(score, (chart.sheet.total ?: 0) * 3)
                     Spacer(Modifier.width(8.dp))
                 }
             }
@@ -1596,12 +1594,18 @@ private fun SheetScoreCard(
                 Spacer(Modifier.height(12.dp))
                 ChartVersionDetails(
                     additionVersion = additionVersion,
-                    constantChanges = constantChanges,
                     gameVersions = gameVersions,
                     accentColor = accent,
                 )
+                BestScoreRow(chart.score, chart.sheet)
                 ChartFitStatsSection(chart.chartFit, accent)
-                BestScoreRow(chart.score, chart.sheet, accentColor)
+                if (constantChanges.isNotEmpty()) {
+                    ConstantHistorySection(
+                        changes = constantChanges,
+                        gameVersions = gameVersions,
+                        accentColor = accent,
+                    )
+                }
 
                 NoteStatisticsSection(chart.sheet)
 
@@ -1614,13 +1618,14 @@ private fun SheetScoreCard(
                 if (chart.sheet.hasNoteData()) {
                     FaultToleranceCalculator(
                         sheet = chart.sheet,
-                        accentColor = accent,
+                        accentColor = accentColor,
                     )
                 }
 
                 if (chart.history.isNotEmpty()) {
                     PlayHistorySection(
                         records = chart.history,
+                        maxDxScore = (chart.sheet.total ?: 0) * 3,
                         accentColor = accent,
                         onDeleteRecord = onDeleteRecord,
                     )
@@ -1657,7 +1662,6 @@ private fun SheetScoreCard(
 @Composable
 private fun ChartVersionDetails(
     additionVersion: String?,
-    constantChanges: List<ChartConstantHistoryEntry>,
     gameVersions: List<GameVersionEntity>,
     accentColor: Color,
 ) {
@@ -1682,13 +1686,7 @@ private fun ChartVersionDetails(
             )
         }
     }
-    if (constantChanges.isNotEmpty()) {
-        ConstantHistorySection(
-            changes = constantChanges,
-            gameVersions = gameVersions,
-            accentColor = accentColor,
-        )
-    }
+
 }
 
 @Composable
@@ -1830,7 +1828,7 @@ private fun ChartFitStatDivider(accentColor: Color) {
 }
 
 @Composable
-private fun SheetScorePreview(score: ScoreEntity) {
+private fun SheetScorePreview(score: ScoreEntity, maxDxScore: Int) {
     Column(horizontalAlignment = Alignment.End) {
         Text(
             text = "${formatAchievement(score.achievement)}%",
@@ -1838,51 +1836,8 @@ private fun SheetScorePreview(score: ScoreEntity) {
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = score.rank,
-                style = MiuixTheme.textStyles.footnote1,
-                fontWeight = FontWeight.Bold,
-                color = ScoreStatusColors.rank(score.rank)
-                    ?: MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-            ScoreRules.displayFc(score.fc)?.let { combo ->
-                ScorePreviewBadge(
-                    text = combo,
-                    color = ScoreStatusColors.combo(score.fc)
-                        ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-            }
-            displaySyncStatus(score.fs)?.let { sync ->
-                ScorePreviewBadge(
-                    text = sync,
-                    color = ScoreStatusColors.sync(score.fs)
-                        ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-            }
-        }
+        ScoreStatusBadges(score.dxScore, maxDxScore, score.fc, score.fs, showStars = false)
     }
-}
-
-@Composable
-private fun ScorePreviewBadge(text: String, color: Color) {
-    Text(
-        text = text,
-        style = MiuixTheme.textStyles.footnote2,
-        fontWeight = FontWeight.Bold,
-        color = Color.White,
-        maxLines = 1,
-        modifier = Modifier
-            .squircleSurface(
-                color = color,
-                cornerRadius = 4.dp,
-                extension = SquircleExtension,
-            )
-            .padding(horizontal = 4.dp, vertical = 1.dp),
-    )
 }
 
 private data class NoteBreakdownItem(
@@ -1900,6 +1855,7 @@ private fun CollapsibleDetailSection(
     title: String,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    headerActions: @Composable RowScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1927,6 +1883,7 @@ private fun CollapsibleDetailSection(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
+            headerActions()
             Icon(
                 imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
@@ -2028,7 +1985,7 @@ private fun NoteStatisticsSection(sheet: SheetEntity) {
 }
 
 @Composable
-private fun BestScoreRow(score: ScoreEntity?, sheet: SheetEntity, accentColor: Color) {
+private fun BestScoreRow(score: ScoreEntity?, sheet: SheetEntity) {
     if (score == null) {
         Text(
             text = stringResource(R.string.detail_no_scores),
@@ -2064,33 +2021,16 @@ private fun BestScoreRow(score: ScoreEntity?, sheet: SheetEntity, accentColor: C
                         ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
                 )
             }
+            ScoreStatusBadges(
+                score.dxScore, maxDxScore, score.fc, score.fs,
+                modifier = Modifier.padding(top = 3.dp),
+            )
         }
-        Column(horizontalAlignment = Alignment.End) {
-            if (score.dxScore > 0) {
-                Text(
-                    text = if (maxDxScore > 0) "${score.dxScore} / $maxDxScore" else score.dxScore.toString(),
-                    style = MiuixTheme.textStyles.body2,
-                )
-            }
-            if (score.fc != null || score.fs != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ScoreRules.displayFc(score.fc)?.let { combo ->
-                        Text(
-                            text = combo,
-                            style = MiuixTheme.textStyles.footnote1,
-                            color = ScoreStatusColors.combo(score.fc)
-                                ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                        )
-                    }
-                    displaySyncStatus(score.fs)?.let { sync ->
-                        Text(
-                            text = sync,
-                            style = MiuixTheme.textStyles.footnote1,
-                            color = ScoreStatusColors.sync(score.fs) ?: accentColor,
-                        )
-                    }
-                }
-            }
+        if (score.dxScore > 0) {
+            Text(
+                text = if (maxDxScore > 0) "${score.dxScore} / $maxDxScore" else score.dxScore.toString(),
+                style = MiuixTheme.textStyles.body2,
+            )
         }
     }
 }
@@ -2254,11 +2194,11 @@ private fun FaultToleranceCalculator(
                     text = target.rank,
                     style = MiuixTheme.textStyles.footnote1,
                     fontWeight = FontWeight.Bold,
-                    color = rankColor,
+                    color = if (selected) accentColor else rankColor,
                     modifier = Modifier
                         .squircleSurface(
                             color = if (selected) {
-                                rankColor.copy(alpha = 0.16f)
+                                accentColor.copy(alpha = 0.16f)
                             } else {
                                 MiuixTheme.colorScheme.surfaceContainerHigh
                             },
@@ -2342,6 +2282,7 @@ private fun ToleranceResult(
 @Composable
 private fun PlayHistorySection(
     records: List<PlayRecordEntity>,
+    maxDxScore: Int,
     accentColor: Color,
     onDeleteRecord: (PlayRecordEntity) -> Unit,
 ) {
@@ -2373,34 +2314,26 @@ private fun PlayHistorySection(
         title = stringResource(R.string.score_history),
         expanded = expanded,
         onExpandedChange = { expanded = it },
+        headerActions = {
+            HistorySortOption(
+                text = stringResource(R.string.score_history_sort_time),
+                selected = sortByDate,
+                accentColor = accentColor,
+                onClick = { sortByDate = true; page = 1 },
+            )
+            HistorySortOption(
+                text = stringResource(R.string.score_history_sort_achievement),
+                selected = !sortByDate,
+                accentColor = accentColor,
+                onClick = { sortByDate = false; page = 1 },
+            )
+        },
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TabRowWithContour(
-                    tabs = listOf(
-                        stringResource(R.string.score_history_sort_time),
-                        stringResource(R.string.score_history_sort_achievement),
-                    ),
-                    selectedTabIndex = if (sortByDate) 0 else 1,
-                    onTabSelected = { index ->
-                        sortByDate = index == 0
-                        page = 1
-                    },
-                    modifier = Modifier.width(160.dp),
-                    minWidth = 70.dp,
-                    maxWidth = 80.dp,
-                    height = 36.dp,
-                    cornerRadius = 10.dp,
-                )
-            }
             displayRecords.forEachIndexed { index, record ->
                 HistoryRow(
                     record = record,
+                    maxDxScore = maxDxScore,
                     isBest = record.id == bestRecordId,
                     alternate = index % 2 == 0,
                     accentColor = accentColor,
@@ -2515,6 +2448,7 @@ private fun HistoryPagination(
 @Composable
 private fun HistoryRow(
     record: PlayRecordEntity,
+    maxDxScore: Int,
     isBest: Boolean,
     alternate: Boolean,
     accentColor: Color,
@@ -2562,7 +2496,7 @@ private fun HistoryRow(
             Text(
                 text = playedAt.format(timeFormatter),
                 style = MiuixTheme.textStyles.footnote2,
-                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
         Column(modifier = Modifier.weight(1f)) {
@@ -2583,58 +2517,28 @@ private fun HistoryRow(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            if (record.dxScore > 0) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(10.dp),
-                    )
-                    Text(
-                        text = record.dxScore.toString(),
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                    )
-                }
-            }
+            ScoreStatusBadges(
+                record.dxScore, maxDxScore, record.fc, record.fs,
+                modifier = Modifier.padding(top = 3.dp),
+            )
         }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        if (record.dxScore > 0) {
+            Text(
+                text = record.dxScore.toString(),
+                style = MiuixTheme.textStyles.footnote2,
+                color = MiuixTheme.colorScheme.onSurfaceContainerVariant,
+            )
+        }
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(32.dp),
         ) {
-            ScoreRules.displayFc(record.fc)?.let { combo ->
-                Text(
-                    text = combo,
-                    style = MiuixTheme.textStyles.footnote2,
-                    fontWeight = FontWeight.Bold,
-                    color = ScoreStatusColors.combo(record.fc)
-                        ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-            }
-            displaySyncStatus(record.fs)?.let { sync ->
-                Text(
-                    text = sync,
-                    style = MiuixTheme.textStyles.footnote2,
-                    fontWeight = FontWeight.Bold,
-                    color = ScoreStatusColors.sync(record.fs)
-                        ?: MiuixTheme.colorScheme.onSurfaceContainerVariant,
-                )
-            }
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Delete,
-                    contentDescription = stringResource(R.string.score_delete_record),
-                    tint = MiuixTheme.colorScheme.error.copy(alpha = 0.65f),
-                    modifier = Modifier.size(16.dp),
-                )
-            }
+            Icon(
+                imageVector = Icons.Rounded.Delete,
+                contentDescription = stringResource(R.string.score_delete_record),
+                tint = MiuixTheme.colorScheme.error.copy(alpha = 0.65f),
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }
