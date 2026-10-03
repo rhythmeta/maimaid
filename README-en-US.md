@@ -27,7 +27,7 @@ Clients use `https://api.rhythmeta.org` and `https://dash.rhythmeta.org`. Androi
 
 ## Accounts and backups
 
-Existing accounts remain valid; log in again after migration. Manual backups contain personal profiles, scores/history, collections, favorites and settings as protobuf + gzip in R2. Each game retains three snapshots. Restore replaces all local personal data and saves a recovery copy first. Catalog assets and credentials are excluded. Old per-row cloud sync, cloud imports, public collection storage and multiplayer have been retired. Local imports, score uploads and collection snapshot links remain available.
+Existing accounts remain valid; log in again after migration. Manual backups contain personal profiles, scores/history, collections, favorites and settings as protobuf + gzip in R2. Each game retains three snapshots. Restore replaces all local personal data and saves a recovery copy first. Catalog assets and credentials are excluded. Old per-row cloud sync, cloud imports, public collection storage and multiplayer have been retired. Local imports, score uploads and collection snapshot links remain available. Collection links use `https://dash.rhythmeta.org/collection/MMD2.…`. Only MMD2 snapshot codes and their web/app links are accepted; cloud collection UUIDs are no longer supported.
 
 ## Data and copyright
 

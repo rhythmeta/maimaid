@@ -17,8 +17,6 @@ struct SongCollectionsView: View {
     @State private var showingCreate = false
     @State private var newName = ""
     @State private var sharePayload: CollectionSharePayload?
-    @State private var pendingShareCollection: SongCollection?
-    @State private var showingShareChoices = false
     @State private var feedbackMessage: String?
 
     init() {
@@ -97,17 +95,6 @@ struct SongCollectionsView: View {
         }
         .sheet(item: $sharePayload) { payload in
             ShareSheetView(items: [payload.url])
-        }
-        .confirmationDialog(
-            "collections_share_source_title",
-            isPresented: $showingShareChoices,
-            titleVisibility: .visible
-        ) {
-            Button("collections_share_current_snapshot", action: sharePendingSnapshot)
-            Button("collections_share_cloud_latest", action: sharePendingCloud)
-            Button("profile.edit.cancel", role: .cancel) {
-                pendingShareCollection = nil
-            }
         }
         .onChange(of: collectionImportCoordinator.feedbackID) {
             let message = collectionImportCoordinator.feedbackKey == "collections_import_success"
@@ -189,17 +176,6 @@ struct SongCollectionsView: View {
         return "\(baseName) (\(suffix))"
     }
 
-    private func share(_ collection: SongCollection) {
-        Task {
-            if (try? await CollectionSharingService.fetchCloudCollection(collection.id)) != nil {
-                pendingShareCollection = collection
-                showingShareChoices = true
-            } else {
-                shareSnapshot(collection)
-            }
-        }
-    }
-
     private func importFromClipboard() {
         guard let value = UIPasteboard.general.string else {
             showFeedback(String(localized: "collections_import_failed"))
@@ -210,19 +186,7 @@ struct SongCollectionsView: View {
         }
     }
 
-    private func sharePendingSnapshot() {
-        guard let collection = pendingShareCollection else { return }
-        shareSnapshot(collection)
-        pendingShareCollection = nil
-    }
-
-    private func sharePendingCloud() {
-        guard let collection = pendingShareCollection else { return }
-        sharePayload = CollectionSharePayload(url: SongCollectionCodec.webURL(for: collection.id))
-        pendingShareCollection = nil
-    }
-
-    private func shareSnapshot(_ collection: SongCollection) {
+    private func share(_ collection: SongCollection) {
         guard let encoded = try? SongCollectionCodec.encode(collection: collection, items: items) else { return }
         sharePayload = CollectionSharePayload(url: SongCollectionCodec.webURL(for: encoded))
     }
@@ -253,7 +217,6 @@ struct SongCollectionDetailView: View {
     @State private var showingRename = false
     @State private var draftName = ""
     @State private var sharePayload: CollectionSharePayload?
-    @State private var showingShareChoices = false
 
     init(collection: SongCollection, songs: [Song]) {
         self.collection = collection
@@ -373,15 +336,6 @@ struct SongCollectionDetailView: View {
         .sheet(item: $sharePayload) { payload in
             ShareSheetView(items: [payload.url])
         }
-        .confirmationDialog(
-            "collections_share_source_title",
-            isPresented: $showingShareChoices,
-            titleVisibility: .visible
-        ) {
-            Button("collections_share_current_snapshot", action: shareSnapshot)
-            Button("collections_share_cloud_latest", action: shareCloud)
-            Button("profile.edit.cancel", role: .cancel) {}
-        }
     }
 
     private func collectionGridMetrics(columnCount: Int, width: CGFloat) -> (
@@ -464,22 +418,8 @@ struct SongCollectionDetailView: View {
     }
 
     private func share() {
-        Task {
-            if (try? await CollectionSharingService.fetchCloudCollection(collection.id)) != nil {
-                showingShareChoices = true
-            } else {
-                shareSnapshot()
-            }
-        }
-    }
-
-    private func shareSnapshot() {
         guard let encoded = try? SongCollectionCodec.encode(collection: collection, items: items) else { return }
         sharePayload = CollectionSharePayload(url: SongCollectionCodec.webURL(for: encoded))
-    }
-
-    private func shareCloud() {
-        sharePayload = CollectionSharePayload(url: SongCollectionCodec.webURL(for: collection.id))
     }
 }
 

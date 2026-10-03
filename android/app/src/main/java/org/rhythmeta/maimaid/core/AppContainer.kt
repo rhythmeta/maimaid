@@ -127,7 +127,7 @@ class AppContainer(context: Context) {
         syncStateStore = backendSyncStateStore,
     )
     val songCollectionRepository = SongCollectionRepository(database.songCollectionDao())
-    val collectionSharingService = CollectionSharingService(backendApiClient, json)
+    val collectionSharingService = CollectionSharingService()
 
     val catalogRepository = CatalogRepository(
         database = database,

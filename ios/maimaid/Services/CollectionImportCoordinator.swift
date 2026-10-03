@@ -18,7 +18,7 @@ final class CollectionImportCoordinator {
         pendingImport = nil
         Task { [weak self] in
             do {
-                let payload = try await CollectionSharingService.resolveImport(value)
+                let payload = try CollectionSharingService.resolveImport(value)
                 guard !Task.isCancelled else { return }
                 self?.pendingImport = PendingImport(payload: payload)
             } catch is CancellationError {
@@ -47,7 +47,7 @@ final class CollectionImportCoordinator {
 
     func importCollection(from value: String, context: ModelContext) async {
         do {
-            let payload = try await CollectionSharingService.resolveImport(value)
+            let payload = try CollectionSharingService.resolveImport(value)
             try SongCollectionImportService.importCollection(payload, context: context)
             feedbackKey = "collections_import_success"
         } catch is CancellationError {

@@ -112,7 +112,6 @@ fun SongCollectionsScreen(
     val collections by container.songCollectionRepository.collections.collectAsState(emptyList())
     val items by container.songCollectionRepository.items.collectAsState(emptyList())
     var draftName by remember { mutableStateOf("") }
-    var sharingCollection by remember { mutableStateOf<SongCollectionEntity?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -164,16 +163,7 @@ fun SongCollectionsScreen(
                 coverImageStore = coverImageStore,
                 onOpen = { onSelectedCollectionIdChange(it.id) },
                 onShare = { collection ->
-                    scope.launch {
-                        val cloudCollection = runCatching {
-                            container.collectionSharingService.fetchCloudCollection(collection.id)
-                        }.getOrNull()
-                        if (cloudCollection == null) {
-                            shareCollectionSnapshot(context, collection, items)
-                        } else {
-                            sharingCollection = collection
-                        }
-                    }
+                    shareCollectionSnapshot(context, collection, items)
                 },
                 onDelete = { collection ->
                     scope.launch { container.songCollectionRepository.delete(collection) }
@@ -257,34 +247,6 @@ fun SongCollectionsScreen(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColorsPrimary(),
                 ) { Text(stringResource(R.string.action_done)) }
-            }
-        }
-    }
-
-    sharingCollection?.let { collection ->
-        WindowDialog(
-            show = true,
-            title = stringResource(R.string.collections_share_source_title),
-            onDismissRequest = { sharingCollection = null },
-        ) {
-            TextButton(
-                text = stringResource(R.string.collections_share_current_snapshot),
-                onClick = {
-                    shareCollectionSnapshot(context, collection, items)
-                    sharingCollection = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = {
-                    shareCollectionUrl(context, SongCollectionCodec.WEB_BASE_URL + collection.id)
-                    sharingCollection = null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColorsPrimary(),
-            ) {
-                Text(stringResource(R.string.collections_share_cloud_latest))
             }
         }
     }
@@ -561,14 +523,6 @@ private fun shareCollectionSnapshot(
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, SongCollectionCodec.webUrl(export))
-    }
-    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.collections_share_chooser)))
-}
-
-private fun shareCollectionUrl(context: Context, url: String) {
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, url)
     }
     context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.collections_share_chooser)))
 }

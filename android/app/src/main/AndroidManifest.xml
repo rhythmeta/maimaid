@@ -70,7 +70,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="maimaid.rhythmeta.org"
+                    android:host="dash.rhythmeta.org"
                     android:pathPrefix="/collection/"
                     android:scheme="https" />
             </intent-filter>

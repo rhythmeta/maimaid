@@ -101,8 +101,7 @@ class MainActivity : ComponentActivity() {
 
     private fun dispatchCollectionIntent(intent: Intent?) {
         val url = intent?.dataString ?: return
-        val isCollectionLink = org.rhythmeta.maimaid.core.data.SongCollectionCodec.extractToken(url) != null ||
-            org.rhythmeta.maimaid.core.data.SongCollectionCodec.extractCollectionId(url) != null
+        val isCollectionLink = org.rhythmeta.maimaid.core.data.SongCollectionCodec.extractToken(url) != null
         if (!isCollectionLink) return
         val container = (application as MaimaidApplication).container
         collectionResolutionJob?.cancel()

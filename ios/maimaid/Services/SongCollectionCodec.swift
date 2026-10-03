@@ -4,10 +4,10 @@ import zlib
 
 enum SongCollectionCodec {
     nonisolated static let prefix = "MMD2."
-    nonisolated static let webBaseURL = "https://maimaid.rhythmeta.org/collection/"
+    nonisolated static let webBaseURL = "https://dash.rhythmeta.org/collection/"
     nonisolated static let appBaseURL = "maimaid://collection/"
 
-    private static let maxTextLength = 2_000_000
+    nonisolated private static let maxTextLength = 2_000_000
     private static let maxCompressedBytes = 1_000_000
     private static let maxRawBytes = 1_000_000
     private static let maxEntries = 10_000
@@ -44,8 +44,7 @@ enum SongCollectionCodec {
     }
 
     static func decode(_ value: String) throws -> SongCollectionExport {
-        let normalizedValue = value.filter { !$0.isWhitespace }
-        guard normalizedValue.hasPrefix(prefix), normalizedValue.count <= maxTextLength else {
+        guard let normalizedValue = extractToken(from: value) else {
             throw SongCollectionCodecError.invalid
         }
 
@@ -133,8 +132,31 @@ enum SongCollectionCodec {
         }
     }
 
-    static func webURL(for collectionID: UUID) -> URL {
-        makeURL(webBaseURL + collectionID.uuidString.lowercased())
+    nonisolated static func extractToken(from value: String) -> String? {
+        let normalized = value.filter { !$0.isWhitespace }
+        guard normalized.count <= maxTextLength else { return nil }
+        let token: String
+        if normalized.hasPrefix(prefix) {
+            token = normalized
+        } else {
+            guard let components = URLComponents(string: normalized) else { return nil }
+            let parts = components.path.split(separator: "/", omittingEmptySubsequences: false)
+            if components.scheme == "https", components.host == "dash.rhythmeta.org",
+               parts.count == 3, parts[0].isEmpty, parts[1] == "collection" {
+                token = String(parts[2])
+            } else if components.scheme == "maimaid", components.host == "collection",
+                      parts.count == 2, parts[0].isEmpty {
+                token = String(parts[1])
+            } else {
+                return nil
+            }
+        }
+        guard token.hasPrefix(prefix), token.count > prefix.count,
+              token.dropFirst(prefix.count).utf8.allSatisfy({ byte in
+                  (65...90).contains(byte) || (97...122).contains(byte) ||
+                      (48...57).contains(byte) || byte == 45 || byte == 95
+              }) else { return nil }
+        return token
     }
 
     static func webURL(for snapshot: String) -> URL {

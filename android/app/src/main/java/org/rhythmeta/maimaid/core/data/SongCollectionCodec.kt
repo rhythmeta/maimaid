@@ -20,7 +20,7 @@ data class SongCollectionExportEntry(
 
 object SongCollectionCodec {
     const val PREFIX = "MMD2."
-    const val WEB_BASE_URL = "https://maimaid.rhythmeta.org/collection/"
+    const val WEB_BASE_URL = "https://dash.rhythmeta.org/collection/"
 
 	private const val MAX_TEXT_LENGTH = 2_000_000
     private const val MAX_COMPRESSED_BYTES = 1_000_000
@@ -46,7 +46,7 @@ object SongCollectionCodec {
         return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(compress(message.toByteArray()))
     }
 
-    fun webUrl(collection: SongCollectionExport): String = "maimaid://collection/" + encode(collection)
+    fun webUrl(collection: SongCollectionExport): String = WEB_BASE_URL + encode(collection)
 
 	fun decode(value: String): SongCollectionExport {
         val token = extractToken(value) ?: throw IllegalArgumentException("Invalid collection sharing link")
@@ -73,24 +73,20 @@ object SongCollectionCodec {
     fun extractToken(value: String): String? {
         val normalized = value.filterNot(Char::isWhitespace)
         if (normalized.length > MAX_TEXT_LENGTH) return null
-        if (normalized.startsWith(PREFIX)) return normalized
-        return extractSegment(normalized)?.takeIf { it.startsWith(PREFIX) && it.length <= MAX_TEXT_LENGTH }
+        val token = if (normalized.startsWith(PREFIX)) normalized else extractSegment(normalized)
+        return token?.takeIf { TokenPattern.matches(it) }
     }
-
-    fun extractCollectionId(value: String): String? = extractSegment(value.filterNot(Char::isWhitespace))
-        ?.takeIf { CollectionIdPattern.matches(it) }
 
     private fun extractSegment(value: String): String? {
         val uri = runCatching { java.net.URI(value) }.getOrNull() ?: return null
-        return when (uri.scheme) {
-					"https" if uri.host == "maimaid.rhythmeta.org" ->
-						uri.path.removePrefix("/collection/").trim('/').takeIf(String::isNotEmpty)
-
-					"maimaid" if uri.host == "collection" ->
-						uri.path.trim('/').takeIf(String::isNotEmpty)
-
-					else -> null
-				}
+        val parts = uri.path?.split('/') ?: return null
+        return when {
+            uri.scheme == "https" && uri.host == "dash.rhythmeta.org" &&
+                parts.size == 3 && parts[0].isEmpty() && parts[1] == "collection" -> parts[2]
+            uri.scheme == "maimaid" && uri.host == "collection" &&
+                parts.size == 2 && parts[0].isEmpty() -> parts[1]
+            else -> null
+        }
     }
 
     private fun compress(raw: ByteArray): ByteArray {
@@ -125,5 +121,5 @@ object SongCollectionCodec {
         }
     }
 
-    private val CollectionIdPattern = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    private val TokenPattern = Regex("^MMD2\\.[A-Za-z0-9_-]+$")
 }
