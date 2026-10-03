@@ -73,7 +73,7 @@
 "settings.data.importOtogame" = "Otogame からインポート";
 "settings.data.bound" = "連携済み";
 "settings.sync.header" = "スコアの同期";
-"settings.sync.footer" = "DF/LXNS からのスコア取り込みはすべてのサーバープロフィールで利用できます。スコア送信は有効なプロフィールが中国版サーバーの場合のみ動作します。クラウド同期はこの設定とは独立しています。";
+"settings.sync.footer" = "DF/LXNS からのスコア取り込みはすべてのサーバープロフィールで利用できます。スコア送信は有効なプロフィールが中国版サーバーの場合のみ動作します。";
 "settings.sync.autoUpload" = "スコア同期";
 "settings.appearance.header" = "外観";
 "settings.appearance.theme" = "テーマ";
@@ -717,3 +717,8 @@
 "settings.cloud.snapshot.profiles %lld" = "%lld プロフィール";
 "settings.cloud.restore.replaceHint" = "この端末のゲームの個人データをすべて置き換えます。復元前にローカルのロールバック用コピーを保存します。";
 "settings.cloud.snapshots.title" = "クラウドバックアップ";
+
+// Direct score imports
+"import.local.description" = "スコアトラッカーから現在のプロフィールへ直接インポートします。各項目のより良いスコアを保持します。";
+"import.local.profileChanged" = "プロフィールが変更されました。インポートをやり直してください。";
+"import.local.result %lld %lld %lld" = "取得 %lld 件 · 更新 %lld 件 · 未一致または無効 %lld 件";

@@ -380,67 +380,8 @@ final class ScoreService {
 
     /// 获取当前用户在指定谱面的游玩历史
     func playHistory(for sheet: Sheet, context: ModelContext) -> [PlayRecord] {
-        guard let profileId = currentActiveProfileId(context: context) else {
-            var records = sheet.playRecords?.filter { $0.userProfileId == nil } ?? []
-
-            if let bestScore = score(for: sheet, context: context) {
-                let hasMatch = records.contains { abs($0.rate - bestScore.rate) < 0.0001 }
-                if !hasMatch && bestScore.rate > 0 {
-                    let generatedRecord = PlayRecord(
-                        sheetId: bestScore.sheetId,
-                        rate: bestScore.rate,
-                        rank: bestScore.rank,
-                        dxScore: bestScore.dxScore,
-                        fc: bestScore.fc,
-                        fs: bestScore.fs,
-                        playDate: bestScore.achievementDate,
-                        userProfileId: bestScore.userProfileId
-                    )
-                    generatedRecord.sheet = sheet
-                    context.insert(generatedRecord)
-
-                    if sheet.playRecords == nil {
-                        sheet.playRecords = []
-                    }
-                    sheet.playRecords?.append(generatedRecord)
-                    records.append(generatedRecord)
-
-                    try? context.save()
-                }
-            }
-
-            return records.sorted { $0.playDate > $1.playDate }
-        }
-
-        var records = sheet.playRecords?.filter { $0.userProfileId == profileId } ?? []
-
-        // Auto-repair missing PlayRecord from imported Score
-        if let bestScore = score(for: sheet, context: context) {
-            let hasMatch = records.contains { abs($0.rate - bestScore.rate) < 0.0001 }
-            if !hasMatch && bestScore.rate > 0 {
-                let generatedRecord = PlayRecord(
-                    sheetId: bestScore.sheetId,
-                    rate: bestScore.rate,
-                    rank: bestScore.rank,
-                    dxScore: bestScore.dxScore,
-                    fc: bestScore.fc,
-                    fs: bestScore.fs,
-                    playDate: bestScore.achievementDate,
-                    userProfileId: bestScore.userProfileId
-                )
-                generatedRecord.sheet = sheet
-                context.insert(generatedRecord)
-
-                if sheet.playRecords == nil {
-                    sheet.playRecords = []
-                }
-                sheet.playRecords?.append(generatedRecord)
-                records.append(generatedRecord)
-
-                try? context.save()
-            }
-        }
-
-        return records.sorted { $0.playDate > $1.playDate }
+        let profileId = currentActiveProfileId(context: context)
+        return (sheet.playRecords ?? []).filter { $0.userProfileId == profileId }
+            .sorted { $0.playDate > $1.playDate }
     }
 }

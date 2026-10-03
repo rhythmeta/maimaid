@@ -93,6 +93,8 @@ class AppContainer(context: Context) {
         kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { cloudBackupService.recover() }
     }
 
+    val thirdPartyImportService = org.rhythmeta.maimaid.core.data.ThirdPartyImportService(database, profileCredentialStore, json)
+
     val backendImportService = BackendImportService(
         sessionManager = backendSessionManager,
         json = json,
@@ -190,6 +192,7 @@ class AppContainer(context: Context) {
         credentials = profileCredentialStore,
         backendSyncCoordinator = backendSyncCoordinator,
         backendImportService = backendImportService,
+        thirdPartyImportService = thirdPartyImportService,
         json = json,
     )
 

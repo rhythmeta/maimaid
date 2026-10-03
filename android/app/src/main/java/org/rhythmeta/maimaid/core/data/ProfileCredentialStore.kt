@@ -13,6 +13,7 @@ import androidx.core.content.edit
 
 data class ProfileCredentials(
     val lxnsToken: String = "",
+    val divingFishToken: String = "",
 )
 
 class ProfileCredentialStore(context: Context) {
@@ -23,31 +24,38 @@ class ProfileCredentialStore(context: Context) {
 
     fun credentials(profileId: String): ProfileCredentials = ProfileCredentials(
         lxnsToken = decrypt(preferences.getString("$profileId.lxns", null)),
+        divingFishToken = decrypt(preferences.getString("$profileId.df.oauth", null)),
     )
 
+    @Synchronized
+    fun update(profileId: String, transform: (ProfileCredentials) -> ProfileCredentials) {
+        save(profileId, transform(credentials(profileId)))
+    }
+
+    @Synchronized
     fun save(profileId: String, credentials: ProfileCredentials) {
-        preferences.edit {
-					putString("$profileId.lxns", encrypt(credentials.lxnsToken))
-						.remove("$profileId.df")
-				}
+        val lxns = encrypt(credentials.lxnsToken)
+        val df = encrypt(credentials.divingFishToken)
+        check(preferences.edit().putString("$profileId.lxns", lxns)
+            .putString("$profileId.df.oauth", df).remove("$profileId.df").commit()) {
+            "Could not save credentials"
+        }
     }
 
     fun delete(profileId: String) {
-        preferences.edit {
-					remove("$profileId.df")
-						.remove("$profileId.lxns")
-				}
+        check(preferences.edit().remove("$profileId.df").remove("$profileId.df.oauth")
+            .remove("$profileId.lxns").commit()) { "Could not delete credentials" }
     }
 
     private fun encrypt(value: String): String? {
         if (value.isEmpty()) return null
-        return runCatching {
+        return run {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, secretKey())
             val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
             Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + ":" +
                 Base64.encodeToString(encrypted, Base64.NO_WRAP)
-        }.getOrNull()
+        }
     }
 
     private fun decrypt(payload: String?): String {

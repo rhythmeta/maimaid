@@ -73,7 +73,7 @@
 "settings.data.importOtogame" = "Import from Otogame";
 "settings.data.bound" = "Bound";
 "settings.sync.header" = "Score Sync";
-"settings.sync.footer" = "DF/LXNS score import works with every server profile. Score uploads run only while the active profile uses the CN server. Cloud sync remains independent.";
+"settings.sync.footer" = "DF/LXNS score import works with every server profile. Score uploads run only while the active profile uses the CN server.";
 "settings.sync.autoUpload" = "Sync Scores";
 "settings.appearance.header" = "Appearance";
 "settings.appearance.theme" = "Theme";
@@ -717,3 +717,8 @@
 "settings.cloud.snapshot.profiles %lld" = "%lld profiles";
 "settings.cloud.restore.replaceHint" = "This replaces all personal data for this game on this device. A local rollback copy is saved first.";
 "settings.cloud.snapshots.title" = "Cloud backups";
+
+// Direct score imports
+"import.local.description" = "Import scores directly from the score tracker into the current profile. Better local scores are preserved.";
+"import.local.profileChanged" = "The active profile changed. Please start the import again.";
+"import.local.result %lld %lld %lld" = "Fetched %lld · Updated %lld · Unmatched or invalid %lld";

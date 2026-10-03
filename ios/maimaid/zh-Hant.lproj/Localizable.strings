@@ -73,7 +73,7 @@
 "settings.data.importOtogame" = "從 Otogame 匯入成績";
 "settings.data.bound" = "已綁定";
 "settings.sync.header" = "成績同步";
-"settings.sync.footer" = "DF/LXNS 成績匯入適用於所有伺服器檔案；成績上送僅在目前啟用的檔案為國服時生效。自家雲端同步不受此開關影響。";
+"settings.sync.footer" = "DF/LXNS 成績匯入適用於所有伺服器檔案；成績上送僅在目前啟用的檔案為國服時生效。";
 "settings.sync.autoUpload" = "同步成績";
 "settings.appearance.header" = "外觀";
 "settings.appearance.theme" = "主題";
@@ -717,3 +717,8 @@
 "settings.cloud.snapshot.profiles %lld" = "%lld 個檔案";
 "settings.cloud.restore.replaceHint" = "這會取代本機此遊戲的所有個人資料。還原前會儲存本機回復副本。";
 "settings.cloud.snapshots.title" = "雲端備份";
+
+// Direct score imports
+"import.local.description" = "直接從查分器匯入目前檔案，保留各項較佳成績。";
+"import.local.profileChanged" = "目前檔案已切換，請重新開始匯入。";
+"import.local.result %lld %lld %lld" = "取得 %lld 筆 · 更新 %lld 筆 · 未匹配或無效 %lld 筆";

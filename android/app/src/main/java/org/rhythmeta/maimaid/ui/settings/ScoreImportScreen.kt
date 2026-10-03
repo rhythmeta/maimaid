@@ -18,10 +18,8 @@ import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudDownload
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.Merge
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Sync
@@ -33,13 +31,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
-import org.rhythmeta.maimaid.core.data.ImportSyncResolution
 import org.rhythmeta.maimaid.ui.common.openInAppBrowser
 import org.rhythmeta.maimaid.ui.components.appTextFieldColors
 import top.yukonga.miuix.kmp.basic.Button
@@ -53,7 +49,6 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
 fun DivingFishImportScreen(
@@ -61,8 +56,11 @@ fun DivingFishImportScreen(
     contentTopPadding: Dp,
 ) {
     val context = LocalContext.current
-    val viewModel = viewModel<ScoreImportViewModel>(factory = ScoreImportViewModel.Factory(container))
+    val viewModel = viewModel<ScoreImportViewModel>(key = "diving-fish-import", factory = ScoreImportViewModel.Factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    androidx.compose.runtime.DisposableEffect(viewModel) {
+        onDispose { viewModel.cancel() }
+    }
 
     ScoreImportPage(contentTopPadding = contentTopPadding) {
         item {
@@ -85,12 +83,11 @@ fun DivingFishImportScreen(
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
-                if (state.hasDivingFishAccount && !state.divingFishCanWrite) {
-                    Text(
-                        text = stringResource(R.string.import_df_write_pending),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.primary,
-                    )
+                if (state.userCode.isNotBlank()) {
+                    Text(state.userCode, style = MiuixTheme.textStyles.title3)
+                }
+                if (state.isBusy) {
+                    Button(onClick = viewModel::cancel) { Text(stringResource(R.string.action_cancel)) }
                 }
                 if (state.hasDivingFishAccount) {
                     ImportPrimaryButton(
@@ -136,7 +133,6 @@ fun DivingFishImportScreen(
         }
         importStatusItem(state)
     }
-    ImportConflictDialog(state, viewModel)
 }
 
 @Composable
@@ -145,8 +141,11 @@ fun LxnsImportScreen(
     contentTopPadding: Dp,
 ) {
     val context = LocalContext.current
-    val viewModel = viewModel<ScoreImportViewModel>(factory = ScoreImportViewModel.Factory(container))
+    val viewModel = viewModel<ScoreImportViewModel>(key = "lxns-import", factory = ScoreImportViewModel.Factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    androidx.compose.runtime.DisposableEffect(viewModel) {
+        onDispose { viewModel.cancel() }
+    }
 
     ScoreImportPage(contentTopPadding = contentTopPadding) {
         item {
@@ -236,7 +235,6 @@ fun LxnsImportScreen(
         }
         importStatusItem(state)
     }
-    ImportConflictDialog(state, viewModel)
 }
 
 @Composable
@@ -413,42 +411,3 @@ private fun phaseTitle(phase: ScoreImportPhase): String = stringResource(
         ScoreImportPhase.Applying -> R.string.import_status_applying
     },
 )
-
-@Composable
-private fun ImportConflictDialog(
-    state: ScoreImportUiState,
-    viewModel: ScoreImportViewModel,
-) {
-    val preview = state.conflictPreview ?: return
-    WindowDialog(
-        show = true,
-        title = stringResource(R.string.import_conflict_title),
-        summary = stringResource(
-            R.string.import_conflict_summary,
-            preview.localOnlyCount,
-            preview.differentCount,
-        ),
-        onDismissRequest = viewModel::dismissConflict,
-        outsideMargin = DpSize(24.dp, 24.dp),
-    ) {
-        val choices = listOf(
-            Triple(ImportSyncResolution.MergeBest, Icons.Rounded.Merge, R.string.import_conflict_merge),
-            Triple(ImportSyncResolution.KeepLocal, Icons.Rounded.CloudUpload, R.string.import_conflict_keep_local),
-            Triple(ImportSyncResolution.UseImport, Icons.Rounded.CloudDownload, R.string.import_conflict_use_import),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            choices.forEach { (resolution, icon, title) ->
-                Button(
-                    onClick = { viewModel.resolveConflict(resolution) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isResolvingConflict,
-                ) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(title))
-                }
-            }
-            if (state.isResolvingConflict) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-    }
-}

@@ -21,6 +21,7 @@ class ScoreSyncService(
     private val credentials: ProfileCredentialStore,
     private val backendSyncCoordinator: BackendSyncCoordinator,
     private val backendImportService: BackendImportService,
+    private val thirdPartyImportService: ThirdPartyImportService,
     private val json: Json,
 ) {
     suspend fun syncAfterScoreSave(sheetKey: String, score: ScoreEntity) = coroutineScope {
@@ -74,13 +75,9 @@ class ScoreSyncService(
         refreshToken: String,
     ) {
         if (refreshToken.isBlank() || sheet.providerSongId <= 0) return
-        val tokenPair = backendImportService.refreshLxnsToken(refreshToken)
-        credentials.save(
-            profile.id,
-            credentials.credentials(profile.id).copy(lxnsToken = tokenPair.refreshToken),
-        )
+        val accessToken = thirdPartyImportService.accessToken(ScoreImportProvider.Lxns, profile.id)
         postJson(
-            headers = mapOf("Authorization" to "Bearer ${tokenPair.accessToken}"),
+            headers = mapOf("Authorization" to "Bearer $accessToken"),
             body = json.encodeToString(
                 LxnsScoreUploadRequest(
                     scores = listOf(

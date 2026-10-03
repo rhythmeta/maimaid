@@ -67,6 +67,13 @@ struct SettingsView: View {
 
                 // Data Import Section
                 Section(header: Text("settings.sync.header"), footer: Text("settings.sync.footer")) {
+                    NavigationLink(value: ScoreImportProvider.divingFish) {
+                        settingsRowLabel(icon: "fish.fill", iconColor: .blue, title: "settings.data.importDivingFish")
+                    }
+                    NavigationLink(value: ScoreImportProvider.lxns) {
+                        settingsRowLabel(icon: "snowflake", iconColor: .cyan, title: "settings.data.importLxns")
+                    }
+
                     if activeProfile?.server == GameServer.jp.rawValue {
                         NavigationLink {
                             OtogameImportView()
@@ -130,6 +137,9 @@ struct SettingsView: View {
                         icon: "info.circle.fill", iconColor: .gray, title: "settings.about.version",
                         value: appVersionText)
                 }
+            }
+            .navigationDestination(for: ScoreImportProvider.self) { provider in
+                LocalScoreImportView(provider: provider)
             }
             .navigationTitle("settings.title")
             .task {

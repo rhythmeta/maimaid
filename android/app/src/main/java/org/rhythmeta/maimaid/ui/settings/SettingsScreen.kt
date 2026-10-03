@@ -95,6 +95,18 @@ fun SettingsScreen(
         }
         item {
             SettingsSection(title = stringResource(R.string.settings_import)) {
+                SettingsRow(
+                    icon = Icons.Rounded.SetMeal,
+                    title = stringResource(R.string.settings_diving_fish),
+                    summary = stringResource(R.string.settings_diving_fish_description),
+                    onClick = { onOpenDetail(AppDetail.DivingFishImport) },
+                )
+                SettingsRow(
+                    icon = Icons.Rounded.AcUnit,
+                    title = stringResource(R.string.settings_lxns),
+                    summary = stringResource(R.string.settings_lxns_description),
+                    onClick = { onOpenDetail(AppDetail.LxnsImport) },
+                )
                 if (canImportOtogame) {
                     SettingsRow(
                         icon = Icons.Rounded.History,

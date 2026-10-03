@@ -305,8 +305,7 @@
 	<string name="import_df_connected">Diving Fish connected</string>
 	<string name="import_df_connected_description">Connected securely with OAuth.</string>
 	<string name="import_df_oauth_section">Diving Fish OAuth</string>
-	<string name="import_df_oauth_description">Authorize maimaid to read and sync scores.
-		Authorization opens the Diving Fish sign-in page, and maimaid never receives your password.</string>
+	<string name="import_df_oauth_description">Authorize maimaid to import scores directly into this profile. Better local scores are preserved.</string>
 	<string name="import_df_write_pending">Score sync access is pending Diving Fish approval. Import
 		remains available.</string>
 	<string name="import_df_connect_import">Connect and import</string>
@@ -314,8 +313,7 @@
 	<string name="import_df_quick_sync">Quick import</string>
 	<string name="import_df_disconnect">Disconnect Diving Fish</string>
 	<string name="import_lxns_summary_title">Connect LXNS</string>
-	<string name="import_lxns_summary_description">Authorize LXNS to import scores into the active
-		profile.</string>
+	<string name="import_lxns_summary_description">Authorize maimaid to import scores directly into this profile. Better local scores are preserved.</string>
 	<string name="import_lxns_connected">LXNS connected</string>
 	<string name="import_lxns_connected_description">The refresh token is stored securely on this
 		device.</string>
@@ -341,7 +339,7 @@
 	<string name="import_status_login_required">Sign in to the cloud account before importing.</string>
 	<string name="import_status_token_expired">LXNS authorization expired. Connect the account again.</string>
 	<string name="import_status_failed">Import failed</string>
-	<string name="import_status_counts">Fetched %1$d · updated %2$d · skipped %3$d</string>
+	<string name="import_status_counts">Fetched %1$d · updated %2$d · unmatched or invalid %3$d</string>
 	<string name="import_conflict_title">Choose how to handle score conflicts</string>
 	<string name="import_conflict_summary">%1$d local-only scores and %2$d different scores were
 		found.</string>

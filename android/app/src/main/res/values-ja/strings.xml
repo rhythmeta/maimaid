@@ -293,15 +293,14 @@
 	<string name="import_df_connected">Diving Fish 接続済み</string>
 	<string name="import_df_connected_description">OAuth で安全に接続されています。</string>
 	<string name="import_df_oauth_section">Diving Fish OAuth</string>
-	<string name="import_df_oauth_description">maimaid にスコアの読み取りと同期を許可します。認証は Diving Fish
-		のログインページで行われ、maimaid がパスワードを受け取ることはありません。</string>
+	<string name="import_df_oauth_description">現在のプロフィールへ直接スコアをインポートします。各項目のより良いスコアを保持します。</string>
 	<string name="import_df_write_pending">スコア同期権限は Diving Fish の審査待ちです。インポートは引き続き利用できます。</string>
 	<string name="import_df_connect_import">接続してインポート</string>
 	<string name="import_df_reconnect">アカウントを再接続</string>
 	<string name="import_df_quick_sync">クイックインポート</string>
 	<string name="import_df_disconnect">Diving Fish の接続を解除</string>
 	<string name="import_lxns_summary_title">LXNS に接続</string>
-	<string name="import_lxns_summary_description">LXNS を認証し、現在のプロフィールへスコアを取り込みます。</string>
+	<string name="import_lxns_summary_description">現在のプロフィールへ直接スコアをインポートします。各項目のより良いスコアを保持します。</string>
 	<string name="import_lxns_connected">LXNS 接続済み</string>
 	<string name="import_lxns_connected_description">リフレッシュ Token はこの端末に安全に保存されています。</string>
 	<string name="import_lxns_account_section">LXNS アカウント</string>
@@ -325,7 +324,7 @@
 	<string name="import_status_login_required">インポート前にクラウドアカウントへログインしてください。</string>
 	<string name="import_status_token_expired">LXNS 認証の有効期限が切れました。再接続してください。</string>
 	<string name="import_status_failed">インポートに失敗しました</string>
-	<string name="import_status_counts">取得 %1$d · 更新 %2$d · スキップ %3$d</string>
+	<string name="import_status_counts">取得 %1$d 件 · 更新 %2$d 件 · 未一致または無効 %3$d 件</string>
 	<string name="import_conflict_title">スコア競合の処理方法を選択</string>
 	<string name="import_conflict_summary">ローカルのみ %1$d 件、異なるスコア %2$d 件が見つかりました。</string>
 	<string name="import_conflict_merge">両方からベストを保持</string>

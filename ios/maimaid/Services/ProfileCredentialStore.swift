@@ -4,6 +4,7 @@ import SwiftData
 
 struct ProfileCredentials: Equatable {
     var lxnsRefreshToken: String
+    var divingFishRefreshToken: String = ""
 
     static let empty = ProfileCredentials(lxnsRefreshToken: "")
 }
@@ -21,6 +22,7 @@ final class ProfileCredentialStore {
 
     private struct StoredCredentials: Codable {
         let lxnsRefreshToken: String
+        var divingFishRefreshToken: String?
     }
 
     private init() {}
@@ -30,26 +32,34 @@ final class ProfileCredentialStore {
             return .empty
         }
         return ProfileCredentials(
-            lxnsRefreshToken: decoded.lxnsRefreshToken
+            lxnsRefreshToken: decoded.lxnsRefreshToken,
+            divingFishRefreshToken: decoded.divingFishRefreshToken ?? ""
         )
     }
 
     func setCredentials(_ credentials: ProfileCredentials, for profileId: UUID) {
+        try? saveCredentials(credentials, for: profileId)
+    }
+
+    func saveCredentials(_ credentials: ProfileCredentials, for profileId: UUID) throws {
         let sanitized = ProfileCredentials(
-            lxnsRefreshToken: credentials.lxnsRefreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            lxnsRefreshToken: credentials.lxnsRefreshToken.trimmingCharacters(in: .whitespacesAndNewlines),
+            divingFishRefreshToken: credentials.divingFishRefreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
         )
 
         if sanitized == .empty {
-            clearCredentials(for: profileId)
+            let status = SecItemDelete(keychainQuery(for: profileId) as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw ScoreImportError(code: "keychain_\(status)")
+            }
             return
         }
 
         let payload = StoredCredentials(
-            lxnsRefreshToken: sanitized.lxnsRefreshToken
+            lxnsRefreshToken: sanitized.lxnsRefreshToken,
+            divingFishRefreshToken: sanitized.divingFishRefreshToken
         )
-        guard let data = try? JSONEncoder().encode(payload) else {
-            return
-        }
+        let data = try JSONEncoder().encode(payload)
 
         let query = keychainQuery(for: profileId)
         let update: [CFString: Any] = [
@@ -64,7 +74,10 @@ final class ProfileCredentialStore {
             insert[kSecValueData] = data
             insert[kSecAttrAccessible] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             insert[kSecAttrSynchronizable] = kCFBooleanFalse as Any
-            SecItemAdd(insert as CFDictionary, nil)
+            let inserted = SecItemAdd(insert as CFDictionary, nil)
+            guard inserted == errSecSuccess else { throw ScoreImportError(code: "keychain_\(inserted)") }
+        } else if status != errSecSuccess {
+            throw ScoreImportError(code: "keychain_\(status)")
         }
     }
 

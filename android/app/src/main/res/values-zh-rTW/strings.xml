@@ -292,14 +292,14 @@
 	<string name="import_df_connected">已連接水魚查分器</string>
 	<string name="import_df_connected_description">已透過 OAuth 安全連接。</string>
 	<string name="import_df_oauth_section">水魚 OAuth 授權</string>
-	<string name="import_df_oauth_description">授權 maimaid 讀取並同步成績。授權會開啟水魚登入頁，maimaid 不會接觸你的密碼。</string>
+	<string name="import_df_oauth_description">授權 maimaid 直接匯入目前檔案，保留各項較佳成績。</string>
 	<string name="import_df_write_pending">成績同步權限正在等待水魚審核，成績匯入仍可使用。</string>
 	<string name="import_df_connect_import">連接並匯入</string>
 	<string name="import_df_reconnect">重新連接帳號</string>
 	<string name="import_df_quick_sync">快速匯入</string>
 	<string name="import_df_disconnect">中斷水魚連接</string>
 	<string name="import_lxns_summary_title">連接 LXNS</string>
-	<string name="import_lxns_summary_description">授權 LXNS，將成績匯入目前檔案。</string>
+	<string name="import_lxns_summary_description">授權 maimaid 直接匯入目前檔案，保留各項較佳成績。</string>
 	<string name="import_lxns_connected">已連接 LXNS</string>
 	<string name="import_lxns_connected_description">Refresh Token 已安全儲存在本機。</string>
 	<string name="import_lxns_account_section">LXNS 帳戶</string>
@@ -323,7 +323,7 @@
 	<string name="import_status_login_required">請先登入雲端帳戶再匯入。</string>
 	<string name="import_status_token_expired">LXNS 授權已過期，請重新連接帳戶。</string>
 	<string name="import_status_failed">匯入失敗</string>
-	<string name="import_status_counts">取得 %1$d · 更新 %2$d · 略過 %3$d</string>
+	<string name="import_status_counts">取得 %1$d 筆 · 更新 %2$d 筆 · 未匹配或無效 %3$d 筆</string>
 	<string name="import_conflict_title">選擇成績衝突處理方式</string>
 	<string name="import_conflict_summary">發現 %1$d 筆僅本機成績和 %2$d 筆不同成績。</string>
 	<string name="import_conflict_merge">兩邊取最佳成績</string>
