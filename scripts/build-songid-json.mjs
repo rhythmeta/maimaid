@@ -5,28 +5,30 @@ import { fileURLToPath } from "node:url";
 
 import { ADX_ATTRIBUTION, fetchJSON, isRecord, writeJSONAtomically } from "./json-build-utils.mjs";
 
-const SOURCE_URL = "https://adxdls.saop.cc/charts/search-index.json";
+// The website's search index is generated from this public catalog. Read it
+// directly so website access restrictions cannot break the scheduled build.
+const SOURCE_URL = "https://raw.githubusercontent.com/AdingApkgg/adx-dl/main/data/catalog/index.json";
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const outputPath = resolve(process.argv[2] ?? repositoryRoot, process.argv[2] ? "" : "songid.json");
 
 const source = await fetchJSON(SOURCE_URL);
-if (!Array.isArray(source)) {
-	throw new TypeError("ADX search index must be an array");
+if (!isRecord(source) || !Array.isArray(source.entries)) {
+	throw new TypeError("ADX catalog must contain an entries array");
 }
 
 const seenIds = new Set();
-const songs = source.map((item, index) => {
+const songs = source.entries.map((item, index) => {
 	if (!isRecord(item)) {
-		throw new TypeError(`Search index entry ${index} must be an object`);
+		throw new TypeError(`Catalog entry ${index} must be an object`);
 	}
 
 	const id = typeof item.slug === "string" && /^\d+$/u.test(item.slug) ? Number(item.slug) : NaN;
 	const name = typeof item.title === "string" ? item.title.trim() : "";
 	if (!Number.isSafeInteger(id) || id <= 0) {
-		throw new TypeError(`Search index entry ${index} has an invalid slug`);
+		throw new TypeError(`Catalog entry ${index} has an invalid slug`);
 	}
 	if (!name) {
-		throw new TypeError(`Search index entry ${index} has an empty title`);
+		throw new TypeError(`Catalog entry ${index} has an empty title`);
 	}
 	if (seenIds.has(id)) {
 		throw new Error(`Duplicate song ID ${id}`);
