@@ -10,7 +10,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -136,6 +135,7 @@ import org.rhythmeta.maimaid.ui.components.dashedSquircleBorder
 import org.rhythmeta.maimaid.ui.community.CommunityAliasMessage
 import org.rhythmeta.maimaid.ui.community.SongCommunityAliasUiState
 import org.rhythmeta.maimaid.ui.community.SongCommunityAliasViewModel
+import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -967,7 +967,7 @@ private fun MarqueeText(
         modifier = Modifier
             .fillMaxWidth()
             .then(modifier)
-            .basicMarquee(),
+            .fadingMarquee(),
     )
 }
 

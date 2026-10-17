@@ -1,7 +1,6 @@
 package org.rhythmeta.maimaid.ui.dan
 
 import androidx.compose.foundation.MarqueeSpacing
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -50,6 +49,7 @@ import org.rhythmeta.maimaid.core.data.ServerChartPolicy
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -357,7 +357,7 @@ private fun DanSongRow(
                 overflow = TextOverflow.Clip,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .basicMarquee(spacing = MarqueeSpacing(24.dp)),
+                    .fadingMarquee(spacing = MarqueeSpacing(24.dp)),
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,

@@ -15,7 +15,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -78,6 +77,7 @@ import org.rhythmeta.maimaid.core.ml.RecognizedRegion
 import org.rhythmeta.maimaid.core.ml.ScannerMatch
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.song.ScoreEntrySheet
 import org.rhythmeta.maimaid.ui.song.SheetScoreUiState
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -583,7 +583,7 @@ private fun ScannerResultCard(
                                 fontSize = 12.sp,
                                 lineHeight = 14.sp,
                             ),
-                            modifier = Modifier.fillMaxWidth().basicMarquee(),
+                            modifier = Modifier.fillMaxWidth().fadingMarquee(),
                         )
                     }
                     Text(
@@ -605,7 +605,7 @@ private fun ScannerResultCard(
                             fontSize = 12.sp,
                             lineHeight = 14.sp,
                         ),
-                        modifier = Modifier.fillMaxWidth().basicMarquee(),
+                        modifier = Modifier.fillMaxWidth().fadingMarquee(),
                     )
                     Text(
                         text = match.song.artist,
@@ -615,7 +615,7 @@ private fun ScannerResultCard(
                             fontSize = 10.sp,
                             lineHeight = 12.sp,
                         ),
-                        modifier = Modifier.basicMarquee(),
+                        modifier = Modifier.fadingMarquee(),
                     )
                 }
             }

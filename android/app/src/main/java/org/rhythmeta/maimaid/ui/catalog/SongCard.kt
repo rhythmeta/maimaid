@@ -1,6 +1,5 @@
 package org.rhythmeta.maimaid.ui.catalog
 
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +39,7 @@ import org.rhythmeta.maimaid.core.database.ScoreEntity
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Text
@@ -146,7 +146,7 @@ internal fun SongCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(20.dp)
-                        .basicMarquee(),
+                        .fadingMarquee(),
                 )
                 Text(
                     text = artist,
@@ -157,7 +157,7 @@ internal fun SongCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(16.dp)
-                        .basicMarquee(),
+                        .fadingMarquee(),
                 )
             }
             Spacer(Modifier.width(8.dp))
