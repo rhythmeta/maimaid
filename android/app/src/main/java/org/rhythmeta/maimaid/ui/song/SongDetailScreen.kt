@@ -2895,7 +2895,7 @@ private fun ScoreDropdownField(
             WindowListPopup(
                 show = expanded,
                 alignment = PopupPositionProvider.Align.End,
-                enableWindowDim = false,
+                enableWindowDim = true,
                 onDismissRequest = { expanded = false },
             ) {
                 ListPopupColumn {
