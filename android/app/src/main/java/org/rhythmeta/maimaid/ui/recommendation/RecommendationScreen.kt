@@ -26,7 +26,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,7 +51,6 @@ import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleSurface
@@ -72,7 +70,6 @@ internal fun RecommendationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var visibleNewCount by remember { mutableIntStateOf(PageSize) }
     var visibleOldCount by remember { mutableIntStateOf(PageSize) }
-    var isRefreshing by remember { mutableStateOf(false) }
     val results = if (selectedPage == RecommendationNewPage) state.response.b15 else state.response.b35
     val visibleCount = if (selectedPage == RecommendationNewPage) visibleNewCount else visibleOldCount
     val visibleResults = remember(results, visibleCount) { results.take(visibleCount) }
@@ -96,56 +93,43 @@ internal fun RecommendationScreen(
     LaunchedEffect(selectedPage) {
         listState.scrollToItem(0)
     }
-    LaunchedEffect(state.refreshGeneration) {
-        isRefreshing = false
-    }
-
-    PullToRefresh(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            viewModel.refresh()
-        },
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = contentTopPadding + 12.dp,
-                    bottom = 96.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                when {
-                    state.isLoading -> item(key = "loading", contentType = "state") {
-                        RecommendationLoading()
-                    }
-                    results.isEmpty() -> item(key = "empty", contentType = "state") {
-                        RecommendationEmpty()
-                    }
-                    else -> {
-                        items(
-                            items = visibleResults,
-                            key = { it.sheet.sheetKey },
-                            contentType = { "recommendation" },
-                        ) { result ->
-                            RecommendationRow(
-                                result = result,
-                                container = container,
-                                onClick = { onOpenSong(result.song.songIdentifier) },
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = contentTopPadding + 12.dp,
+                bottom = 96.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            when {
+                state.isLoading -> item(key = "loading", contentType = "state") {
+                    RecommendationLoading()
+                }
+                results.isEmpty() -> item(key = "empty", contentType = "state") {
+                    RecommendationEmpty()
+                }
+                else -> {
+                    items(
+                        items = visibleResults,
+                        key = { it.sheet.sheetKey },
+                        contentType = { "recommendation" },
+                    ) { result ->
+                        RecommendationRow(
+                            result = result,
+                            container = container,
+                            onClick = { onOpenSong(result.song.songIdentifier) },
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
                     }
                 }
             }
-            SongListScrollBar(
-                state = listState,
-                trackPadding = PaddingValues(top = contentTopPadding + 12.dp, bottom = 96.dp),
-            )
         }
+        SongListScrollBar(
+            state = listState,
+            trackPadding = PaddingValues(top = contentTopPadding + 12.dp, bottom = 96.dp),
+        )
     }
 }
 
