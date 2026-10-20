@@ -44,10 +44,12 @@ class ServerVersionService {
             return "9999-12-31" // All JP songs are playable
         case .cn:
             let date = calendar.date(byAdding: .month, value: -15, to: now) ?? now
-            return date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+            let style = Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash)
+            return date.formatted(style)
         case .intl:
             let date = calendar.date(byAdding: .month, value: -4, to: now) ?? now
-            return date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+            let style = Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash)
+            return date.formatted(style)
         }
     }
 
