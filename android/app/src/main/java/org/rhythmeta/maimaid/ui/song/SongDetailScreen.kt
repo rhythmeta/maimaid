@@ -2197,11 +2197,7 @@ private fun FaultToleranceCalculator(
                     color = if (selected) accentColor else rankColor,
                     modifier = Modifier
                         .squircleSurface(
-                            color = if (selected) {
-                                accentColor.copy(alpha = 0.16f)
-                            } else {
-                                MiuixTheme.colorScheme.surfaceContainerHigh
-                            },
+                            color = accentColor.copy(alpha = if (selected) 0.16f else 0.08f),
                             cornerRadius = 50.dp,
                             extension = SquircleExtension,
                         )
