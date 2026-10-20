@@ -15,3 +15,4 @@
 
 # Protobuf lite resolves generated message fields by their source names.
 -keep class org.rhythmeta.maimaid.sharing.** { *; }
+-keep class org.rhythmeta.backup.proto.** { *; }
