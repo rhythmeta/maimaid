@@ -36,10 +36,6 @@ class ServerVersionService {
     /// version with at least one playable song on that server.
     /// Deleted songs (not playable on ANY server) are excluded.
     func cutoffDate(for server: GameServer) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
         let now = Date()
         let calendar = Calendar.current
 
@@ -48,10 +44,10 @@ class ServerVersionService {
             return "9999-12-31" // All JP songs are playable
         case .cn:
             let date = calendar.date(byAdding: .month, value: -15, to: now) ?? now
-            return formatter.string(from: date)
+            return date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
         case .intl:
             let date = calendar.date(byAdding: .month, value: -4, to: now) ?? now
-            return formatter.string(from: date)
+            return date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
         }
     }
 
@@ -89,45 +85,30 @@ class ServerVersionService {
     }
 
     func latestVersion(for server: GameServer, songs: [Song]) -> String {
-        let cutoff = cutoffDate(for: server)
-
         let sequence = UserDefaults.app.maimaiVersionSequence
-        let orderedVersions: [String]
-        if sequence.isEmpty {
-            let uniqueVersions = Array(Set(songs.compactMap { $0.version }))
-            orderedVersions = uniqueVersions.sorted()
-        } else {
-            orderedVersions = sequence
+        let snapshots = songs.map { song in
+            let sheets = song.sheets
+            let hasJpRegion = sheets.contains { $0.regionJp }
+            let hasIntlRegion = sheets.contains { $0.regionIntl }
+            let hasCnRegion = sheets.contains { $0.regionCn }
+            return ServerVersionSongSnapshot(
+                version: song.version,
+                category: song.category,
+                releaseDate: song.releaseDate,
+                hasAnyRegion: hasJpRegion || hasIntlRegion || hasCnRegion,
+                hasJpRegion: hasJpRegion,
+                hasIntlRegion: hasIntlRegion,
+                hasCnRegion: hasCnRegion
+            )
         }
-
-        var serverVersion = orderedVersions.first ?? ThemeUtils.latestVersion
-
-        for version in orderedVersions {
-            let versionSongs = songs.filter {
-                $0.version == version && !($0.category.lowercased().contains("utage") || $0.category.contains("宴"))
-            }
-
-            // Exclude completely deleted/removed songs from the version count
-            let activeVersionSongs = versionSongs.filter { song in
-                !song.sheets.isEmpty && !song.sheets.allSatisfy { !$0.regionJp && !$0.regionIntl && !$0.regionCn }
-            }
-            if activeVersionSongs.isEmpty { continue }
-
-            let playableCount = activeVersionSongs.filter {
-                isPlayable(song: $0, cutoff: cutoff, server: server)
-            }.count
-
-            guard playableCount > 0 else { break }
-
-            serverVersion = version
-            if playableCount < activeVersionSongs.count {
-                // The first partially released version is the server's current
-                // generation. Later-generation previews must not advance it.
-                break
-            }
-        }
-
-        return serverVersion
+        return ServerVersionCalculator.latestVersion(
+            for: server.rawValue,
+            songs: snapshots,
+            sequence: sequence,
+            cutoff: cutoffDate(for: server),
+            versionReleaseDates: ServerVersionCalculator.releaseDates(from: UserDefaults.app.maimaiVersionsData),
+            fallback: ThemeUtils.latestVersion
+        )
     }
 
     /// Returns a dictionary of latest versions for all servers

@@ -12,16 +12,6 @@ struct UserProfileListView: View {
     // Cache server versions to avoid recomputing per-row
     @State private var serverVersionCache: [GameServer: String] = [:]
 
-    private struct SongVersionSnapshot: Sendable {
-        let version: String?
-        let category: String
-        let releaseDate: String?
-        let hasAnyRegion: Bool
-        let hasJpRegion: Bool
-        let hasIntlRegion: Bool
-        let hasCnRegion: Bool
-    }
-
     var body: some View {
         List {
             if profiles.isEmpty {
@@ -117,8 +107,13 @@ struct UserProfileListView: View {
         let cutoffs = Dictionary(uniqueKeysWithValues: GameServer.allCases.map { server in
             (server.rawValue, ServerVersionService.shared.cutoffDate(for: server))
         })
+        let requests = GameServer.allCases.map { server in
+            (server.rawValue, cutoffs[server.rawValue] ?? "9999-12-31")
+        }
+        let versionReleaseDates = ServerVersionCalculator.releaseDates(from: UserDefaults.app.maimaiVersionsData)
+        let fallback = ThemeUtils.latestVersion
 
-        let cache = await Task.detached(priority: .utility) {
+        let versionCache = await Task.detached(priority: .utility) {
             let context = ModelContext(container)
             let songs = (try? context.fetch(FetchDescriptor<Song>())) ?? []
             let snapshots = songs.map { song in
@@ -126,7 +121,7 @@ struct UserProfileListView: View {
                 let hasJpRegion = sheets.contains { $0.regionJp }
                 let hasIntlRegion = sheets.contains { $0.regionIntl }
                 let hasCnRegion = sheets.contains { $0.regionCn }
-                return SongVersionSnapshot(
+                return ServerVersionSongSnapshot(
                     version: song.version,
                     category: song.category,
                     releaseDate: song.releaseDate,
@@ -137,62 +132,25 @@ struct UserProfileListView: View {
                 )
             }
 
-            var result: [GameServer: String] = [:]
-            for server in GameServer.allCases {
-                result[server] = UserProfileListView.latestVersion(
+            var result: [String: String] = [:]
+            for (server, cutoff) in requests {
+                result[server] = ServerVersionCalculator.latestVersion(
                     for: server,
                     songs: snapshots,
                     sequence: sequence,
-                    cutoff: cutoffs[server.rawValue] ?? "9999-12-31"
+                    cutoff: cutoff,
+                    versionReleaseDates: versionReleaseDates,
+                    fallback: fallback
                 )
             }
             return result
         }.value
 
         guard !Task.isCancelled else { return }
-        serverVersionCache = cache
-    }
-
-    nonisolated private static func latestVersion(
-        for server: GameServer,
-        songs: [SongVersionSnapshot],
-        sequence: [String],
-        cutoff: String
-    ) -> String {
-        let orderedVersions: [String]
-        if sequence.isEmpty {
-            orderedVersions = Set(songs.compactMap(\.version)).sorted()
-        } else {
-            orderedVersions = sequence
-        }
-
-        var serverVersion = orderedVersions.first ?? sequence.last ?? ""
-        for version in orderedVersions {
-            let activeSongs = songs.filter { song in
-                song.version == version &&
-                !song.category.localizedStandardContains("utage") &&
-                !song.category.contains("宴") &&
-                song.hasAnyRegion
-            }
-            guard !activeSongs.isEmpty else { continue }
-
-            let playableCount = activeSongs.count { song in
-                let hasRegion: Bool
-                switch server {
-                case .jp: hasRegion = song.hasJpRegion
-                case .intl: hasRegion = song.hasIntlRegion
-                case .cn: hasRegion = song.hasCnRegion
-                }
-                if hasRegion { return true }
-                guard let releaseDate = song.releaseDate, !releaseDate.isEmpty else { return true }
-                return releaseDate <= cutoff
-            }
-
-            guard playableCount > 0 else { break }
-            serverVersion = version
-            if playableCount < activeSongs.count { break }
-        }
-        return serverVersion
+        serverVersionCache = Dictionary(uniqueKeysWithValues: GameServer.allCases.compactMap { server in
+            guard let version = versionCache[server.rawValue] else { return nil }
+            return (server, version)
+        })
     }
 
     private func profileRow(_ profile: UserProfile) -> some View {

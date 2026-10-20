@@ -83,6 +83,54 @@ class RatingUtilsTest {
         )
     }
 
+    @Test
+    fun `cn ignores sparse early access and uses version release cutoff`() {
+        val versionEntities = listOf(
+            GameVersionEntity("ORANGE PLUS", "ORANGE+", "2015-03-19", 0),
+            GameVersionEntity("PRiSM PLUS", "PRiSM+", "2025-03-13", 1),
+            GameVersionEntity("CiRCLE", "CiRCLE", "2025-09-18", 2),
+            GameVersionEntity("CiRCLE PLUS", "CiRCLE+", "2026-03-19", 3),
+            GameVersionEntity("MAGiCAL", "MAGiCAL", "2026-09-17", 4),
+        )
+        val songs = listOf(
+            testSong("legacy-rerelease", "ORANGE PLUS", "2026-10-16"),
+            testSong("prism-cn", "PRiSM PLUS", "2025-06-01"),
+            testSong("prism-upcoming", "PRiSM PLUS", "2025-08-01"),
+            testSong("circle-early-access-1", "CiRCLE", "2025-09-26"),
+            testSong("circle-early-access-2", "CiRCLE", "2025-09-26"),
+            testSong("circle-early-access-3", "CiRCLE", "2026-01-23"),
+            testSong("circle-early-access-4", "CiRCLE", "2026-01-23"),
+            testSong("circle-early-access-5", "CiRCLE", "2026-01-23"),
+            testSong("circle-not-cn", "CiRCLE", "2025-09-18"),
+            testSong("circle-plus", "CiRCLE PLUS", "2026-03-19"),
+            testSong("magical", "MAGiCAL", "2026-09-17"),
+        )
+        val sheets = listOf(
+            testSheet("legacy-rerelease", "ORANGE PLUS", intl = false),
+            testSheet("prism-cn", "PRiSM PLUS", intl = false, cn = true),
+            testSheet("prism-upcoming", "PRiSM PLUS", intl = false),
+            testSheet("circle-early-access-1", "CiRCLE", intl = false, cn = true),
+            testSheet("circle-early-access-2", "CiRCLE", intl = false, cn = true),
+            testSheet("circle-early-access-3", "CiRCLE", intl = false, cn = true),
+            testSheet("circle-early-access-4", "CiRCLE", intl = false, cn = true),
+            testSheet("circle-early-access-5", "CiRCLE", intl = false, cn = true),
+            testSheet("circle-not-cn", "CiRCLE", intl = false),
+            testSheet("circle-plus", "CiRCLE PLUS", intl = false),
+            testSheet("magical", "MAGiCAL", intl = false),
+        )
+
+        assertEquals(
+            "PRiSM PLUS",
+            RatingUtils.latestVersionForServer(
+                songs,
+                sheets,
+                versionEntities,
+                "cn",
+                LocalDate.of(2026, 10, 20),
+            ),
+        )
+    }
+
     private fun testSong(id: String, version: String, releaseDate: String? = null) = SongEntity(
         songIdentifier = id,
         category = "maimai",

@@ -110,17 +110,49 @@ object RatingUtils {
         server: String,
         currentDate: LocalDate = LocalDate.now(),
     ): String? {
-        val orderedVersions = versions.sortedBy(GameVersionEntity::sortOrder).map(GameVersionEntity::name)
+        val orderedVersions = versions.sortedBy(GameVersionEntity::sortOrder)
         if (orderedVersions.isEmpty()) return null
         val sheetsBySong = sheets.groupBy(SheetEntity::songIdentifier)
-        val cutoff = when (server.lowercase()) {
+        val normalizedServer = server.lowercase()
+        val cutoff = when (normalizedServer) {
             "cn" -> currentDate.minusMonths(15)
             "intl", "us", "usa" -> currentDate.minusMonths(4)
             else -> LocalDate.MAX
         }
-        var serverVersion = orderedVersions.first()
 
-        for (version in orderedVersions) {
+        if (normalizedServer == "cn") {
+            // CN can expose a few future-generation songs during early access.
+            val releaseDates = orderedVersions.map { versionEntity ->
+                versionEntity.releaseDate?.let { releaseDate ->
+                    runCatching { LocalDate.parse(releaseDate) }.getOrNull()
+                }
+            }
+            if (releaseDates.all { it != null }) {
+                val chineseVersions = orderedVersions.filter { versionEntity ->
+                    songs.any { song ->
+                        song.version.equals(versionEntity.name, ignoreCase = true) &&
+                            !song.isUtage &&
+                            sheetsBySong[song.songIdentifier]
+                                .orEmpty()
+                                .any { sheet -> sheet.isActiveOnServer(normalizedServer) }
+                    }
+                }
+                val eligibleChineseVersion = orderedVersions.zip(releaseDates)
+                    .lastOrNull { (versionEntity, releaseDate) ->
+                        versionEntity in chineseVersions &&
+                            releaseDate?.let { !it.isAfter(cutoff) } == true
+                    }
+                    ?.first
+                return eligibleChineseVersion?.name
+                    ?: chineseVersions.firstOrNull()?.name
+                    ?: orderedVersions.first().name
+            }
+        }
+
+        var serverVersion = orderedVersions.first().name
+
+        for (versionEntity in orderedVersions) {
+            val version = versionEntity.name
             val activeVersionSongs = songs.filter { song ->
                 song.version.equals(version, ignoreCase = true) &&
                     !song.isUtage &&
