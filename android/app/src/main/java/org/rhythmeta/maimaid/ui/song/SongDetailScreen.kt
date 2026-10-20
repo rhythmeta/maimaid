@@ -3049,10 +3049,6 @@ private fun String.displayDifficulty(): String = when (lowercase()) {
     else -> uppercase()
 }
 
-private fun displaySyncStatus(value: String?): String? = ScoreRules.displayFs(value)?.let { display ->
-    if (display == "S") "SYNC" else display
-}
-
 private fun formatAchievement(value: Double): String = value
     .toBigDecimal()
     .setScale(4, RoundingMode.HALF_UP)
