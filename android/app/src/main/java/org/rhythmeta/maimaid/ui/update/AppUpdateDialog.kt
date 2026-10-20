@@ -44,6 +44,7 @@ fun AppUpdateDialog(
     state: AppUpdateState,
     canInstall: Boolean,
     onDismiss: () -> Unit,
+    onShare: () -> Unit,
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onCheck: () -> Unit,
@@ -117,8 +118,9 @@ fun AppUpdateDialog(
             }
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(text = stringResource(if (manifest != null) R.string.update_later else android.R.string.cancel),
-                    onClick = onDismiss, modifier = Modifier.weight(1f))
+                if (manifest != null && state.artifact != null) {
+                    TextButton(text = stringResource(R.string.update_share), onClick = onShare, modifier = Modifier.weight(1f))
+                }
                 when (state.phase) {
                     AppUpdatePhase.Downloading, AppUpdatePhase.Verifying -> TextButton(
                         text = stringResource(android.R.string.cancel), onClick = onCancel, modifier = Modifier.weight(1f))

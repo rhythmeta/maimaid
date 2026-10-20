@@ -44,6 +44,7 @@ class AppUpdateDialogTest {
         val dark = mutableStateOf(false)
         val localeTag = mutableStateOf("zh-CN")
         var downloads = 0
+        var sharedLinks = 0
         compose.setContent {
             key(localeTag.value, dark.value) {
                 val localizedContext = context.createConfigurationContext(configuration.value)
@@ -51,7 +52,7 @@ class AppUpdateDialogTest {
                     MaimaidTheme(settings = AppThemeSettings(colorMode = if (dark.value) ColorMode.DARK else ColorMode.LIGHT)) {
                         Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) {
                             Box(Modifier.fillMaxSize()) {
-                                AppUpdateDialog(true, fixture(), true, {}, { downloads++ }, {}, {}, {}, {})
+                                AppUpdateDialog(true, fixture(), true, {}, { sharedLinks++ }, { downloads++ }, {}, {}, {}, {})
                             }
                         }
                     }
@@ -69,7 +70,10 @@ class AppUpdateDialogTest {
                 val resources = context.createConfigurationContext(configuration.value).resources
                 compose.onNodeWithText(resources.getString(R.string.update_found)).assertIsDisplayed()
                 compose.onNodeWithText("${BuildConfig.VERSION_CODE} → ${BuildConfig.VERSION_CODE + 2}").assertIsDisplayed()
+                compose.onNodeWithText(resources.getString(R.string.update_share)).assertIsDisplayed()
                 compose.onNodeWithText(resources.getString(R.string.update_download)).assertIsDisplayed()
+                compose.onNodeWithText(resources.getString(R.string.update_later)).assertDoesNotExist()
+                compose.onNodeWithText(resources.getString(R.string.update_share)).performClick()
                 compose.onNodeWithText(resources.getString(R.string.update_download)).performClick()
                 compose.onNodeWithText("→", substring = true).performScrollTo()
                 val screenshot = File(context.getExternalFilesDir(null), "update-$tag-${if (darkMode) "dark" else "light"}.png")
@@ -78,7 +82,10 @@ class AppUpdateDialogTest {
                 compose.onNodeWithText(resources.getString(R.string.update_download)).assertIsDisplayed()
             }
         }
-        compose.runOnIdle { assertEquals(8, downloads) }
+        compose.runOnIdle {
+            assertEquals(8, downloads)
+            assertEquals(8, sharedLinks)
+        }
     }
 
     private fun fixture(): AppUpdateState {

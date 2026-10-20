@@ -684,6 +684,8 @@
     <string name="update_changes_incomplete">Some earlier commits may not be shown.</string>
     <string name="update_view_changes">View all changes on GitHub</string>
     <string name="update_later">Later</string>
+    <string name="update_share">Share</string>
+    <string name="update_share_chooser">Share APK download link</string>
     <string name="update_download">Download</string>
     <string name="update_downloading">Downloading…</string>
     <string name="update_download_progress">%1$s / %2$s MB</string>

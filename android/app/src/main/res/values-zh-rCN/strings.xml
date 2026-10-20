@@ -657,6 +657,8 @@
     <string name="update_changes_incomplete">可能还有更早的提交未展示。</string>
     <string name="update_view_changes">在 GitHub 查看全部更改</string>
     <string name="update_later">稍后</string>
+    <string name="update_share">分享</string>
+    <string name="update_share_chooser">分享 APK 下载链接</string>
     <string name="update_download">下载</string>
     <string name="update_downloading">正在下载…</string>
     <string name="update_download_progress">%1$s / %2$s MB</string>

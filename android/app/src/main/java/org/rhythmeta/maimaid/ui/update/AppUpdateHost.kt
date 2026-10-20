@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.ui.update
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -12,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.rhythmeta.maimaid.BuildConfig
+import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.update.ApkInstaller
 import org.rhythmeta.maimaid.core.update.AppUpdatePhase
 import org.rhythmeta.maimaid.core.update.AppUpdatePolicy
@@ -52,6 +54,15 @@ fun AppUpdateHost(viewModel: AppUpdateViewModel, blocked: Boolean) {
         state = state,
         canInstall = canInstall,
         onDismiss = viewModel::dismiss,
+        onShare = {
+            state.artifact?.let { artifact ->
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, artifact.url)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.update_share_chooser)))
+            }
+        },
         onDownload = viewModel::download,
         onCancel = viewModel::cancel,
         onCheck = { viewModel.check() },

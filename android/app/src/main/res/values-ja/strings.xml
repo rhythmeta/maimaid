@@ -658,6 +658,8 @@
     <string name="update_changes_incomplete">以前のコミットが一部表示されていない可能性があります。</string>
     <string name="update_view_changes">GitHub ですべての変更を見る</string>
     <string name="update_later">後で</string>
+    <string name="update_share">共有</string>
+    <string name="update_share_chooser">APK のダウンロードリンクを共有</string>
     <string name="update_download">ダウンロード</string>
     <string name="update_downloading">ダウンロード中…</string>
     <string name="update_download_progress">%1$s / %2$s MB</string>
