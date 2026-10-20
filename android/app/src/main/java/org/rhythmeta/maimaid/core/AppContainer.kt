@@ -68,6 +68,22 @@ class AppContainer(context: Context) {
     val widgetUpdateCoordinator = WidgetUpdateCoordinator(applicationContext)
 
     val appPreferencesRepository = AppPreferencesRepository(applicationContext)
+    private val updateScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate,
+    )
+    val appUpdateRepository = org.rhythmeta.maimaid.core.update.AppUpdateRepository(
+        remote = org.rhythmeta.maimaid.core.update.AppUpdateClient(BuildConfig.UPDATE_URL, json),
+        store = org.rhythmeta.maimaid.core.update.AppUpdateStateStore(applicationContext, json),
+        downloader = org.rhythmeta.maimaid.core.update.AndroidAppUpdateDownloader(applicationContext),
+        verifier = org.rhythmeta.maimaid.core.update.AndroidAppUpdateVerifier(applicationContext),
+        scope = updateScope,
+        updateUrl = BuildConfig.UPDATE_URL,
+        packageName = applicationContext.packageName,
+        installedCode = BuildConfig.VERSION_CODE.toLong(),
+        installedSha = BuildConfig.GIT_SHA,
+        supportedAbis = android.os.Build.SUPPORTED_ABIS.toList(),
+        sdk = android.os.Build.VERSION.SDK_INT,
+    )
     val remoteModelStore = RemoteModelStore(
         context = applicationContext,
         baseUrl = BuildConfig.MODEL_ASSETS_URL,

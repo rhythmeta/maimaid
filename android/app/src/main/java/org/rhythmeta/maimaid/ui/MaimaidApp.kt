@@ -177,6 +177,9 @@ fun MaimaidApp(
         return
     }
     var destination by rememberSaveable { mutableStateOf(RootDestination.Home) }
+    val appUpdateViewModel: org.rhythmeta.maimaid.ui.update.AppUpdateViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = org.rhythmeta.maimaid.ui.update.AppUpdateViewModel.Factory(container.appUpdateRepository),
+    )
     var displayedNonHomeDestination by rememberSaveable {
         mutableStateOf(destination.takeUnless { it == RootDestination.Home })
     }
@@ -735,6 +738,7 @@ fun MaimaidApp(
                 onThirdPartyScoreSyncEnabledChange = viewModel::setThirdPartyScoreSyncEnabled,
                 onOpenDetail = openDetail,
                 onSendLogs = onSendLogs,
+                onCheckUpdates = { appUpdateViewModel.check() },
             )
         }
     }
@@ -2212,6 +2216,13 @@ fun MaimaidApp(
                 }
             }
         }
+
+        org.rhythmeta.maimaid.ui.update.AppUpdateHost(
+            viewModel = appUpdateViewModel,
+            blocked = detail != null || destination == RootDestination.Scanner || showHomeProfileEditor ||
+                showCatalogFilter || showConstantTableFilter || showScoreQueryFilter ||
+                pendingCollectionImport != null || homeTabTransitionActive,
+        )
 
         ProfileEditorSheet(
             visible = showHomeProfileEditor,

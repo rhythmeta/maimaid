@@ -55,6 +55,7 @@ fun SettingsScreen(
     onThirdPartyScoreSyncEnabledChange: (Boolean) -> Unit,
     onOpenDetail: (AppDetail) -> Unit,
     onSendLogs: () -> Unit,
+    onCheckUpdates: () -> Unit,
 ) {
     var backendAvailable by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(backendApiClient) {
@@ -144,13 +145,19 @@ fun SettingsScreen(
         }
         item {
             SettingsSection(title = stringResource(R.string.settings_about)) {
-					SettingsHealthRow(available = backendAvailable)
-					SettingsRow(
-								icon = Icons.Rounded.BugReport,
-								title = stringResource(R.string.settings_send_logs),
-								summary = stringResource(R.string.settings_send_logs_description),
-								onClick = onSendLogs,
-							)
+                SettingsRow(
+                    icon = Icons.Rounded.Download,
+                    title = stringResource(R.string.update_check),
+                    summary = stringResource(R.string.update_check_description),
+                    onClick = onCheckUpdates,
+                )
+                SettingsHealthRow(available = backendAvailable)
+                SettingsRow(
+                    icon = Icons.Rounded.BugReport,
+                    title = stringResource(R.string.settings_send_logs),
+                    summary = stringResource(R.string.settings_send_logs_description),
+                    onClick = onSendLogs,
+                )
                 SettingsValueRow(
                     icon = Icons.Rounded.Info,
                     title = stringResource(R.string.settings_version_label),
@@ -242,7 +249,7 @@ private fun SettingsValueRow(
         startAction = { SettingsPreferenceIcon(icon) },
         endActions = {
             Text(
-                text = BuildConfig.VERSION_NAME,
+                text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantActions,
             )

@@ -646,4 +646,38 @@
     <string name="cloud_snapshot_profiles">%1$d プロフィール</string>
     <string name="cloud_restore_replace_hint">この端末のゲームの個人データをすべて置き換えます。復元前にローカルのロールバック用コピーを保存します。</string>
     <string name="cloud_snapshot_cancel">キャンセル</string>
+
+    <!-- In-app CI updates -->
+    <string name="update_check">更新を確認</string>
+    <string name="update_check_description">main ブランチの最新 CI ビルドを確認</string>
+    <string name="update_found">新しい CI ビルドがあります</string>
+    <string name="update_branch_commit">ブランチとコミット</string>
+    <string name="update_author">最新コミットの作成者</string>
+    <string name="update_time">更新日時</string>
+    <string name="update_changes">現在のビルドからの変更</string>
+    <string name="update_changes_incomplete">以前のコミットが一部表示されていない可能性があります。</string>
+    <string name="update_view_changes">GitHub ですべての変更を見る</string>
+    <string name="update_later">後で</string>
+    <string name="update_download">ダウンロード</string>
+    <string name="update_downloading">ダウンロード中…</string>
+    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_verifying">APK を検証中…</string>
+    <string name="update_ready">ダウンロードが完了しました。インストールできます。</string>
+    <string name="update_install">インストール</string>
+    <string name="update_permission">システム設定で maimaid に不明なアプリのインストールを許可してから戻ってください。</string>
+    <string name="update_allow_install">インストールを許可</string>
+    <string name="update_checking">更新を確認中…</string>
+    <string name="update_latest">最新のビルドです</string>
+    <string name="update_latest_description">利用可能な最新の CI ビルドがインストールされています。</string>
+    <string name="update_retry">再試行</string>
+    <string name="update_check_again">更新を再確認</string>
+    <string name="update_error_network">更新を確認できませんでした。接続を確認して再試行してください。</string>
+    <string name="update_error_manifest">更新情報が無効です。後で再試行してください。</string>
+    <string name="update_error_device">このデバイスに対応する APK がありません。</string>
+    <string name="update_error_storage">ストレージ容量が不足しているか、保存先を利用できません。</string>
+    <string name="update_error_download">ダウンロードに失敗しました。再試行するか更新を再確認してください。</string>
+    <string name="update_error_integrity">APK の検証に失敗しました。再度ダウンロードしてください。</string>
+    <string name="update_error_package">この APK では現在のアプリを更新できません。</string>
+    <string name="update_error_signature">APK と現在のアプリの署名に互換性がないため、上書き更新できません。</string>
+    <string name="update_error_install">インストーラーを開けませんでした。再試行してください。</string>
 </resources>

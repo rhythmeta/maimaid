@@ -672,4 +672,38 @@
     <string name="cloud_snapshot_profiles">%1$d profiles</string>
     <string name="cloud_restore_replace_hint">This replaces all personal data for this game on this device. A local rollback copy will be saved before restoring.</string>
     <string name="cloud_snapshot_cancel">Cancel</string>
+
+    <!-- In-app CI updates -->
+    <string name="update_check">Check for updates</string>
+    <string name="update_check_description">Check for the latest main CI build</string>
+    <string name="update_found">New CI build available</string>
+    <string name="update_branch_commit">Branch and commit</string>
+    <string name="update_author">Latest commit author</string>
+    <string name="update_time">Updated at</string>
+    <string name="update_changes">Changes since your current build</string>
+    <string name="update_changes_incomplete">Some earlier commits may not be shown.</string>
+    <string name="update_view_changes">View all changes on GitHub</string>
+    <string name="update_later">Later</string>
+    <string name="update_download">Download</string>
+    <string name="update_downloading">Downloading…</string>
+    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_verifying">Verifying APK…</string>
+    <string name="update_ready">Download complete. Ready to install.</string>
+    <string name="update_install">Install</string>
+    <string name="update_permission">Allow maimaid to install unknown apps in system settings, then return to continue installing.</string>
+    <string name="update_allow_install">Allow installation</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_latest">Already up to date</string>
+    <string name="update_latest_description">You are using the latest available CI build.</string>
+    <string name="update_retry">Retry</string>
+    <string name="update_check_again">Check again</string>
+    <string name="update_error_network">Could not check for updates. Check your connection and try again.</string>
+    <string name="update_error_manifest">The update information is invalid. Please try again later.</string>
+    <string name="update_error_device">No compatible APK is available for this device.</string>
+    <string name="update_error_storage">Not enough storage, or the download directory is unavailable.</string>
+    <string name="update_error_download">Download failed. Retry or check for a newer build.</string>
+    <string name="update_error_integrity">APK verification failed. Download it again.</string>
+    <string name="update_error_package">This APK cannot update the installed app.</string>
+    <string name="update_error_signature">The APK signature differs from this installation. In-place updating is unavailable.</string>
+    <string name="update_error_install">Could not open the installer. Please try again.</string>
 </resources>

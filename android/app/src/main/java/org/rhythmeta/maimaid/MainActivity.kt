@@ -50,16 +50,21 @@ class MainActivity : ComponentActivity() {
                         fontScale = baseDensity.fontScale,
                     ),
                 ) {
-                    MaimaidApp(
-                        viewModel = mainViewModel,
-                        container = maimaidApplication.container,
-                        onSendLogs = ::sendLogs,
-                        initialDetail = widgetDetail.value,
-                        resetToHome = widgetHomeRequest.value,
-                        pendingCollectionImport = pendingCollectionImport.value,
-                        onCollectionImportConfirmed = ::confirmCollectionImport,
-                        onCollectionImportDismissed = { pendingCollectionImport.value = null },
-                    )
+                    // MIUIX overlays share a root host above pages and the floating tab bar.
+                    top.yukonga.miuix.kmp.basic.Scaffold(
+                        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                    ) {
+                        MaimaidApp(
+                            viewModel = mainViewModel,
+                            container = maimaidApplication.container,
+                            onSendLogs = ::sendLogs,
+                            initialDetail = widgetDetail.value,
+                            resetToHome = widgetHomeRequest.value,
+                            pendingCollectionImport = pendingCollectionImport.value,
+                            onCollectionImportConfirmed = ::confirmCollectionImport,
+                            onCollectionImportDismissed = { pendingCollectionImport.value = null },
+                        )
+                    }
                 }
             }
         }

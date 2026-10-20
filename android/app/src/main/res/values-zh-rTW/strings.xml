@@ -644,4 +644,38 @@
     <string name="cloud_snapshot_profiles">%1$d 個檔案</string>
     <string name="cloud_restore_replace_hint">這會取代本機此遊戲的所有個人資料。還原前會儲存本機回復副本。</string>
     <string name="cloud_snapshot_cancel">取消</string>
+
+    <!-- In-app CI updates -->
+    <string name="update_check">檢查更新</string>
+    <string name="update_check_description">檢查 main 分支的最新 CI 建置</string>
+    <string name="update_found">發現新 CI 建置</string>
+    <string name="update_branch_commit">分支與提交</string>
+    <string name="update_author">最新提交作者</string>
+    <string name="update_time">更新時間</string>
+    <string name="update_changes">自目前建置以來的變更</string>
+    <string name="update_changes_incomplete">可能還有更早的提交未顯示。</string>
+    <string name="update_view_changes">在 GitHub 查看全部變更</string>
+    <string name="update_later">稍後</string>
+    <string name="update_download">下載</string>
+    <string name="update_downloading">正在下載…</string>
+    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_verifying">正在驗證安裝套件…</string>
+    <string name="update_ready">下載完成，可以安裝。</string>
+    <string name="update_install">安裝</string>
+    <string name="update_permission">請在系統設定中允許 maimaid 安裝未知應用程式，返回後繼續安裝。</string>
+    <string name="update_allow_install">允許安裝</string>
+    <string name="update_checking">正在檢查更新…</string>
+    <string name="update_latest">已是最新建置</string>
+    <string name="update_latest_description">目前已安裝最新可用的 CI 建置。</string>
+    <string name="update_retry">重試</string>
+    <string name="update_check_again">重新檢查更新</string>
+    <string name="update_error_network">無法檢查更新，請檢查網路後重試。</string>
+    <string name="update_error_manifest">更新資訊無效，請稍後重試。</string>
+    <string name="update_error_device">此建置沒有適用於目前裝置的安裝套件。</string>
+    <string name="update_error_storage">儲存空間不足或下載目錄無法使用。</string>
+    <string name="update_error_download">下載失敗，請重試或重新檢查更新。</string>
+    <string name="update_error_integrity">安裝套件驗證失敗，請重新下載。</string>
+    <string name="update_error_package">此安裝套件無法更新目前應用程式。</string>
+    <string name="update_error_signature">安裝套件與目前應用程式的簽章不相容，無法直接覆蓋更新。</string>
+    <string name="update_error_install">無法開啟系統安裝程式，請重試。</string>
 </resources>

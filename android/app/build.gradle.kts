@@ -13,6 +13,19 @@ val maimaidStaticAssetsUrl = providers.gradleProperty("MAIMAID_STATIC_ASSETS_URL
     .orElse("https://maimaid-assets.rhythmeta.org")
 val maimaidModelAssetsUrl = providers.gradleProperty("MAIMAID_MODEL_ASSETS_URL")
     .orElse("https://models.rhythmeta.org")
+val maimaidUpdateUrl = providers.gradleProperty("MAIMAID_UPDATE_URL")
+    .orElse("https://assets.rhythmeta.org/android/ci/main/latest.json")
+fun gitBuildValue(vararg arguments: String) = providers.exec {
+    workingDir(rootProject.projectDir.parentFile)
+    commandLine("git", *arguments)
+}.standardOutput.asText.map(String::trim)
+val maimaidGitSha = providers.environmentVariable("GITHUB_SHA")
+    .orElse(gitBuildValue("rev-parse", "HEAD"))
+val maimaidGitBranch = providers.environmentVariable("GITHUB_REF_NAME")
+    .orElse(gitBuildValue("rev-parse", "--abbrev-ref", "HEAD"))
+val maimaidBuildTime = providers.environmentVariable("MAIMAID_BUILD_TIME")
+    .orElse(gitBuildValue("show", "-s", "--format=%cI", "HEAD"))
+fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 val maimaidBuildNumber = providers.environmentVariable("MAIMAID_BUILD_NUMBER")
     .orElse(
         providers.exec {
@@ -56,6 +69,10 @@ android {
         buildConfigField("String", "BACKEND_AUTH_URL", "\"${maimaidBackendAuthUrl.get()}\"")
         buildConfigField("String", "STATIC_ASSETS_URL", "\"${maimaidStaticAssetsUrl.get()}\"")
         buildConfigField("String", "MODEL_ASSETS_URL", "\"${maimaidModelAssetsUrl.get()}\"")
+        buildConfigField("String", "UPDATE_URL", buildConfigString(maimaidUpdateUrl.get()))
+        buildConfigField("String", "GIT_SHA", buildConfigString(maimaidGitSha.get()))
+        buildConfigField("String", "GIT_BRANCH", buildConfigString(maimaidGitBranch.get()))
+        buildConfigField("String", "BUILD_TIME", buildConfigString(maimaidBuildTime.get()))
     }
 
     signingConfigs {
