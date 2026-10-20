@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.2.8.1
+
+### 中文
+
+#### 新增
+
+- Android 新增应用内 CI 更新：启动时静默检查 main 分支构建，也可在设置「关于」中手动检查；MIUIX 弹窗显示当前与新构建的提交数、分支、提交作者、构建时间和变更记录，并提供 GitHub 完整变更链接。
+- 支持下载适合设备 ABI 的 APK、显示下载进度、取消与重试，并在后台继续下载及重启后恢复状态；安装前校验文件完整性、包名、版本和签名，提供未知应用安装授权引导。
+- 更新弹窗支持分享 APK 直链，底部改为左侧「分享」、右侧「下载」，点击空白区域关闭。
+- main 分支 CI 将四种 ABI 的裸 APK 发布到 R2，提供免登录下载，仅保留最新 main 构建；其他分支继续使用 GitHub Artifacts。
+
+#### 变更
+
+- Android 歌曲列表、详情、Best 50 和吃分推荐等页面的长文本采用边缘渐隐的跑马灯效果。
+- Android 新增适配系统主题着色的单色启动图标，移除独立的深色启动图标。
+- 移除 Android 吃分推荐页面多余的下拉刷新交互。
+
+#### 修复
+
+- 歌曲 ID 数据改为从 ADX 公开目录生成，避免网站访问限制导致定时构建失败。
+
+### English
+
+#### Added
+
+- Added Android in-app CI updates with silent startup checks for main builds and a manual check in Settings → About. The MIUIX dialog shows current and new commit counts, branch, commit author, build time, changelog, and a link to the full GitHub comparison.
+- Added device-compatible APK downloads with progress, cancellation, retries, background downloading, and restoration after reopening the app. File integrity, package name, version, and signing compatibility are checked before installation, with guidance for granting installation permission.
+- Added APK direct-link sharing to the update dialog, with Share on the left and Download on the right. Tap outside the dialog to dismiss it.
+- Main CI now publishes raw APKs for all four ABIs to R2 for downloads without signing in, retaining only the latest main build. Other branches continue to use GitHub Artifacts.
+
+#### Changed
+
+- Added fading marquee text for long labels across Android song lists, song details, Best 50, rating recommendations, and other screens.
+- Added a monochrome Android launcher icon for system theme tinting and removed the separate dark launcher icon.
+- Removed the redundant pull-to-refresh interaction from Android rating recommendations.
+
+#### Fixed
+
+- Switched song ID generation to the public ADX catalog so website access restrictions no longer break scheduled builds.
+
 ## 1.2.8
 
 ### 中文
