@@ -1093,10 +1093,6 @@ fun MaimaidApp(
                 transition = SettingsDetailTransition,
                 swipeDismiss = NavSwipeDirection.None,
             ) {
-                val rootBackdrop = rememberLayerBackdrop {
-                    drawRect(backgroundColor)
-                    drawContent()
-                }
                 Box(Modifier.fillMaxSize().background(backgroundColor)) {
                     if (destination != RootDestination.Home && navBackStack.size == 1) {
                         RootLayer(
@@ -1109,9 +1105,12 @@ fun MaimaidApp(
                     }
                     AnimatedContent(
                         targetState = destination,
-                        modifier = Modifier.fillMaxSize().graphicsLayer {
-                            translationX = size.width * rootBackProgress.value
-                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(navigationBackdrop)
+                            .graphicsLayer {
+                                translationX = size.width * rootBackProgress.value
+                            },
                         transitionSpec = {
                             if (!animateRootTransition) {
                                 EnterTransition.None togetherWith ExitTransition.None
@@ -1133,7 +1132,7 @@ fun MaimaidApp(
                     ) { activeDestination ->
                         RootLayer(
                             destination = activeDestination,
-                            modifier = Modifier.fillMaxSize().layerBackdrop(rootBackdrop),
+                            modifier = Modifier.fillMaxSize(),
                             showTopBar = activeDestination != RootDestination.Scanner,
                             actions = { rootActions(activeDestination) },
                             bottomContent = { rootBottomContent(activeDestination) },
