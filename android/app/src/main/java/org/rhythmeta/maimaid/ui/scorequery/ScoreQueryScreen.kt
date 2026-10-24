@@ -58,6 +58,7 @@ import org.rhythmeta.maimaid.core.data.ScoreQueryEntry
 import org.rhythmeta.maimaid.core.data.ScoreQueryStats
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
@@ -397,10 +398,18 @@ private fun ScoreQueryListRow(
         brightenDark = true,
     )
     val interactionSource = remember { MutableInteractionSource() }
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = entry.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 9.dp,
+        key = entry.sheetKey,
+        cardColor = MiuixTheme.colorScheme.surfaceContainer,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
+            .then(coverNavigation.cardModifier)
             .squircleSurface(
                 color = MiuixTheme.colorScheme.surfaceContainer,
                 cornerRadius = 12.dp,
@@ -410,7 +419,7 @@ private fun ScoreQueryListRow(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = coverNavigation::open,
             )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -422,7 +431,13 @@ private fun ScoreQueryListRow(
                 .squircleSurface(difficultyColor, 2.dp, extension = SquircleExtension),
         )
         Spacer(Modifier.width(10.dp))
-        SongJacket(entry.imageName, container.coverImageStore, size = 52.dp, cornerRadius = 9.dp)
+        SongJacket(
+            entry.imageName,
+            container.coverImageStore,
+            size = 52.dp,
+            cornerRadius = 9.dp,
+            navigation = coverNavigation,
+        )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(

@@ -45,6 +45,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.RecommendationResult
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
@@ -219,11 +220,19 @@ private fun RecommendationRow(
     )
     val typeColor = SongVisualUtils.chartTypeColor(result.sheet.type, darkTheme, difficultyColor)
     val interactionSource = remember { MutableInteractionSource() }
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = result.song.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 10.dp,
+        key = result.sheet.sheetKey,
+        cardColor = MiuixTheme.colorScheme.surfaceContainer,
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(84.dp)
+            .then(coverNavigation.cardModifier)
             .squircleSurface(
                 color = MiuixTheme.colorScheme.surfaceContainer,
                 cornerRadius = 16.dp,
@@ -233,7 +242,7 @@ private fun RecommendationRow(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = coverNavigation::open,
             )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -254,6 +263,7 @@ private fun RecommendationRow(
             coverImageStore = container.coverImageStore,
             size = 56.dp,
             cornerRadius = 10.dp,
+            navigation = coverNavigation,
         )
         Spacer(Modifier.width(12.dp))
         Column(

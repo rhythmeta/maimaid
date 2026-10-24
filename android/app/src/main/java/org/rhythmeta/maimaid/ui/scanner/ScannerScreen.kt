@@ -76,6 +76,7 @@ import org.rhythmeta.maimaid.core.ml.MaimaiScreenType
 import org.rhythmeta.maimaid.core.ml.RecognizedRegion
 import org.rhythmeta.maimaid.core.ml.ScannerMatch
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.song.ScoreEntrySheet
@@ -269,14 +270,11 @@ fun ScannerScreen(
                         match = scannerMatch,
                         coverImageStore = container.coverImageStore,
                         server = server,
-                        onClick = {
-                            if (scannerMatch.recognition.screenType == MaimaiScreenType.Choose) {
-                                viewModel.reset()
-                                onOpenSong(scannerMatch.song.songIdentifier)
-                            } else {
-                                viewModel.openScoreEntry()
-                            }
+                        onOpenSong = {
+                            viewModel.reset()
+                            onOpenSong(scannerMatch.song.songIdentifier)
                         },
+                        onClick = viewModel::openScoreEntry,
                     )
                 }
             }
@@ -501,6 +499,7 @@ private fun ScannerResultCard(
     match: ScannerMatch,
     coverImageStore: org.rhythmeta.maimaid.core.data.CoverImageStore,
     server: String,
+    onOpenSong: () -> Unit,
     onClick: () -> Unit,
 ) {
     val recognition = match.recognition
@@ -512,10 +511,19 @@ private fun ScannerResultCard(
     val rank = recognition.achievement?.let { org.rhythmeta.maimaid.core.data.ScoreRules.calculateRank(it) }
     val rankColor = rank?.let { org.rhythmeta.maimaid.ui.util.ScoreStatusColors.rank(it) }
     val isScore = recognition.screenType == MaimaiScreenType.Score
+    val isSongChoice = recognition.screenType == MaimaiScreenType.Choose
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = match.song.songIdentifier,
+        onClick = onOpenSong,
+        cornerRadius = 8.dp,
+        key = match.song.imageName,
+        enabled = isSongChoice,
+    )
     Row(
         modifier = Modifier
             .padding(horizontal = 20.dp)
             .fillMaxWidth()
+            .then(coverNavigation.cardModifier)
             .squircleSurface(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f), 16.dp, SquircleExtension)
             .squircleBorder(
                 1.dp,
@@ -528,7 +536,7 @@ private fun ScannerResultCard(
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = if (isSongChoice) coverNavigation::open else onClick,
             )
             .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -547,7 +555,13 @@ private fun ScannerResultCard(
                 .padding(start = if (isScore) 0.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SongJacket(match.song.imageName, coverImageStore, 40.dp, 8.dp)
+            SongJacket(
+                match.song.imageName,
+                coverImageStore,
+                40.dp,
+                8.dp,
+                navigation = coverNavigation.takeIf { isSongChoice },
+            )
             Spacer(Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),

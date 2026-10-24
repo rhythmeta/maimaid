@@ -82,11 +82,19 @@ internal fun SongCard(
         MiuixTheme.colorScheme.surfaceContainer,
         darkTheme,
     )
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = song.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 12.dp,
+        key = song.imageName,
+        cardColor = cardColor,
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp)
+            .then(coverNavigation.cardModifier)
             .squircleSurface(
                 color = cardColor,
                 cornerRadius = 14.dp,
@@ -101,7 +109,7 @@ internal fun SongCard(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
+                onClick = coverNavigation::open,
                 onLongClick = onLongClick,
             )
             .padding(vertical = 12.dp),
@@ -128,6 +136,7 @@ internal fun SongCard(
             SongJacket(
                 imageName = song.imageName,
                 coverImageStore = coverImageStore,
+                navigation = coverNavigation,
             )
             Spacer(Modifier.width(14.dp))
             Column(
@@ -309,6 +318,7 @@ internal fun SongJacket(
     cornerRadius: androidx.compose.ui.unit.Dp = 12.dp,
     borderColor: Color? = null,
     borderWidth: androidx.compose.ui.unit.Dp = 0.5.dp,
+    navigation: SongCoverNavigation? = null,
 ) {
     val context = LocalContext.current
     val cachedCover = remember(imageName) { coverImageStore.fileFor(imageName) }
@@ -321,6 +331,7 @@ internal fun SongJacket(
     Box(
         modifier = Modifier
             .size(size)
+            .then(navigation?.modifier ?: Modifier)
             .clip(squircleShape(cornerRadius))
             .squircleSurface(
                 color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
@@ -333,6 +344,7 @@ internal fun SongJacket(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
+            onSuccess = { result -> navigation?.onPainter(result.painter) },
         )
         Box(
             modifier = Modifier

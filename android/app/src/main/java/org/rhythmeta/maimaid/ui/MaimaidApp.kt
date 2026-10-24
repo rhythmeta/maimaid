@@ -3,8 +3,12 @@ package org.rhythmeta.maimaid.ui
 import android.os.Build
 import android.view.RoundedCorner
 import androidx.activity.BackEventCompat
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.List
@@ -19,15 +23,13 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.WindowInsets
@@ -41,17 +43,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +63,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -75,12 +79,12 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel as composeViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.NonCancellable
-import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+import androidx.navigationevent.NavigationEventDispatcher
+import androidx.navigationevent.NavigationEventDispatcherOwner
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.SongCollectionExport
@@ -91,18 +95,21 @@ import org.rhythmeta.maimaid.ui.catalog.CatalogFilterSettings
 import org.rhythmeta.maimaid.ui.catalog.CatalogSearchBar
 import org.rhythmeta.maimaid.core.data.CatalogSortOption
 import org.rhythmeta.maimaid.ui.catalog.CatalogTopBarActions
+import org.rhythmeta.maimaid.ui.catalog.CatalogContainerTransform
+import org.rhythmeta.maimaid.ui.catalog.CatalogCoverTransition
+import org.rhythmeta.maimaid.ui.catalog.LocalSongNavigationHost
+import org.rhythmeta.maimaid.ui.catalog.SongCoverSource
+import org.rhythmeta.maimaid.ui.catalog.SongNavigationHost
 import org.rhythmeta.maimaid.ui.best.BestTableConstantTopBarAction
 import org.rhythmeta.maimaid.ui.common.DetailScreen
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTab
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTabBar
 import org.rhythmeta.maimaid.ui.components.TopBarBottomShape
-import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.home.HomeScreen
-import org.rhythmeta.maimaid.ui.dan.DanDetailScreen
-import org.rhythmeta.maimaid.ui.dan.DanListScreen
 import org.rhythmeta.maimaid.ui.dan.DanPageSwitcher
 import org.rhythmeta.maimaid.ui.dan.DanRegularPage
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
+import org.rhythmeta.maimaid.ui.navigation.AppRoute
 import org.rhythmeta.maimaid.ui.navigation.RootDestination
 import org.rhythmeta.maimaid.ui.onboarding.InitialCatalogGate
 import org.rhythmeta.maimaid.ui.profile.ProfileEditorSheet
@@ -112,8 +119,6 @@ import org.rhythmeta.maimaid.ui.recommendation.RecommendationPageSwitcher
 import org.rhythmeta.maimaid.ui.scorequery.ScoreQueryTopBarActions
 import org.rhythmeta.maimaid.ui.scorequery.ScoreQueryViewModel
 import org.rhythmeta.maimaid.ui.scanner.ScannerScreen
-import org.rhythmeta.maimaid.ui.settings.OtogameImportScreen
-import org.rhythmeta.maimaid.ui.settings.OtogameLoginScreen
 import org.rhythmeta.maimaid.ui.settings.SettingsScreen
 import org.rhythmeta.maimaid.ui.theme.LocalEnableFloatingBottomBar
 import org.rhythmeta.maimaid.ui.theme.LocalEnableFloatingBottomBarBlur
@@ -136,6 +141,15 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.TopAppBarState
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
+import top.yukonga.miuix.kmp.nav.core.rememberNavSystemCornerRadius
+import top.yukonga.miuix.kmp.nav.transition.NavMotion
+import top.yukonga.miuix.kmp.nav.transition.NavSettleSpec
+import top.yukonga.miuix.kmp.nav.transition.NavSwipeDirection
+import top.yukonga.miuix.kmp.nav.transition.NavTransition
+import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowListPopup
 import top.yukonga.miuix.kmp.window.WindowDialog
@@ -144,6 +158,42 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawPlainBackdrop
 import com.kyant.backdrop.effects.blur
+
+private val SettingsDetailTransition = object : NavTransition by NavTransitions.MiuixDefault {
+    override val motion: NavMotion = NavMotion(
+        commit = NavTransitions.MiuixDefault.motion.commit,
+        cancel = NavTransitions.MiuixDefault.motion.cancel,
+        programmatic = NavSettleSpec.Tween(
+            durationMillis = 400,
+            easing = FastOutSlowInEasing,
+        ),
+    )
+}
+
+@Composable
+private fun NavigationEventGate(
+    enabled: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val parent = LocalNavigationEventDispatcherOwner.current
+    if (parent == null) {
+        content()
+        return
+    }
+    val dispatcher = remember(parent) {
+        NavigationEventDispatcher(parent = parent.navigationEventDispatcher)
+    }
+    SideEffect { dispatcher.isEnabled = enabled }
+    DisposableEffect(dispatcher) {
+        onDispose { dispatcher.dispose() }
+    }
+    val owner = remember(dispatcher) {
+        object : NavigationEventDispatcherOwner {
+            override val navigationEventDispatcher: NavigationEventDispatcher = dispatcher
+        }
+    }
+    CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides owner, content = content)
+}
 
 @Composable
 fun MaimaidApp(
@@ -176,18 +226,17 @@ fun MaimaidApp(
         )
         return
     }
+    val navBackStack = rememberNavBackStack<AppRoute>(AppRoute.Root())
+    val navigationCornerRadius = rememberNavSystemCornerRadius()
+    val songCoverTransitions = remember { mutableStateMapOf<String, CatalogCoverTransition>() }
+    var catalogCoverTransition by remember { mutableStateOf<CatalogCoverTransition?>(null) }
+    var navigationOrigin by remember { mutableStateOf(Offset.Zero) }
     var destination by rememberSaveable { mutableStateOf(RootDestination.Home) }
+    var animateRootTransition by remember { mutableStateOf(true) }
+    val rootBackProgress = remember { Animatable(0f) }
     val appUpdateViewModel: org.rhythmeta.maimaid.ui.update.AppUpdateViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = org.rhythmeta.maimaid.ui.update.AppUpdateViewModel.Factory(container.appUpdateRepository),
     )
-    var displayedNonHomeDestination by rememberSaveable {
-        mutableStateOf(destination.takeUnless { it == RootDestination.Home })
-    }
-    var animateRootDestinationChange by remember { mutableStateOf(false) }
-    var homeTabTransitionActive by remember { mutableStateOf(false) }
-    var homeTabTransitionJob by remember { mutableStateOf<Job?>(null) }
-    var detailBackTransitionJob by remember { mutableStateOf<Job?>(null) }
-    var detailEntranceTransitionJob by remember { mutableStateOf<Job?>(null) }
     var detail by rememberSaveable { mutableStateOf<AppDetail?>(null) }
     var selectedSongId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedDanCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -233,12 +282,27 @@ fun MaimaidApp(
     LaunchedEffect(initialDetail, resetToHome) {
         when {
             resetToHome -> {
+                navBackStack.clear()
+                navBackStack.add(AppRoute.Root())
                 destination = RootDestination.Home
                 detail = null
             }
             initialDetail != null -> {
+                navBackStack.clear()
+                navBackStack.add(AppRoute.Root())
+                navBackStack.add(AppRoute.Detail(initialDetail))
                 destination = RootDestination.Home
                 detail = initialDetail
+            }
+            else -> {
+                val rootIndices = navBackStack.indices.filter { navBackStack[it] is AppRoute.Root }
+                if (rootIndices.size > 1) {
+                    destination = (navBackStack[rootIndices.last()] as AppRoute.Root).destination
+                    rootIndices.drop(1).asReversed().forEach(navBackStack::removeAt)
+                    if ((navBackStack.firstOrNull() as? AppRoute.Root)?.destination != RootDestination.Home) {
+                        navBackStack[0] = AppRoute.Root()
+                    }
+                }
             }
         }
     }
@@ -260,11 +324,6 @@ fun MaimaidApp(
     var communityAliasesSourceSongId by rememberSaveable { mutableStateOf<String?>(null) }
     var communityAliasesSourceReturnDetail by rememberSaveable { mutableStateOf<AppDetail?>(null) }
     val randomSongSessionState = remember { RandomSongSessionState() }
-    val backProgress = remember { Animatable(0f) }
-    val detailEntranceProgress = remember { Animatable(0f) }
-    val homeTabTransitionProgress = remember {
-        Animatable(if (destination == RootDestination.Home) 0f else 1f)
-    }
     val catalogSearchInteractionSource = remember { MutableInteractionSource() }
     val catalogSearchFocused by catalogSearchInteractionSource.collectIsFocusedAsState()
     val scoreQuerySearchInteractionSource = remember { MutableInteractionSource() }
@@ -272,8 +331,6 @@ fun MaimaidApp(
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val density = LocalDensity.current
-    val coroutineScope = rememberCoroutineScope()
-    val canHandleBack = detail != null || destination != RootDestination.Home
     val catalogSearchShowThreshold = with(density) { 56.dp.toPx() }
     val catalogSearchHideThreshold = with(density) { 36.dp.toPx() }
     val catalogSearchScrollConnection = remember(
@@ -522,86 +579,8 @@ fun MaimaidApp(
         }
     }
 
-    PredictiveBackHandler(
-        enabled = canHandleBack && LocalEnablePredictiveBack.current,
-    ) { progress: Flow<BackEventCompat> ->
-        try {
-            detailBackTransitionJob?.cancel()
-            detailEntranceTransitionJob?.cancel()
-            detailEntranceProgress.stop()
-            detailEntranceProgress.snapTo(0f)
-            progress.collect { event ->
-                backProgress.snapTo(event.progress.coerceIn(0f, 1f))
-            }
-            val completionDuration = ((1f - backProgress.value) * 180f)
-                .roundToInt()
-                .coerceIn(100, 180)
-            backProgress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(completionDuration, easing = FastOutSlowInEasing),
-            )
-            if (detail != null) {
-                if (detail == AppDetail.RandomSong) {
-                    randomSongFilterActive = false
-                    randomSongFilterRequested = false
-                }
-                val returnDetail = when (detail) {
-                    AppDetail.CommunityAliases if communityAliasesFromSong -> AppDetail.Song
-                    AppDetail.Song -> songReturnDetail
-                    AppDetail.DanDetail -> AppDetail.Dan
-                    AppDetail.CollectionDetail -> AppDetail.Collections
-                    AppDetail.OtogameLogin -> AppDetail.OtogameImport
-                    else -> null
-                }
-                val currentDetail = detail
-                detail = returnDetail
-                val returningToCommunityAliasesFromSong = currentDetail == AppDetail.Song &&
-                    returnDetail == AppDetail.CommunityAliases &&
-                    communityAliasesFromSong &&
-                    communityAliasesSourceSongId != null
-                if (returningToCommunityAliasesFromSong) {
-                    selectedSongId = communityAliasesSourceSongId
-                    songReturnDetail = communityAliasesSourceReturnDetail
-                } else if (returnDetail != AppDetail.Song) {
-                    selectedSongId = null
-                }
-                if (currentDetail == AppDetail.Song) {
-                    if (!returningToCommunityAliasesFromSong) {
-                        songReturnDetail = null
-                    }
-                }
-                if (currentDetail == AppDetail.CommunityAliases) {
-                    communityAliasesFromSong = false
-                    communityAliasesSourceSongId = null
-                    communityAliasesSourceReturnDetail = null
-                }
-                if (currentDetail == AppDetail.CollectionDetail) {
-                    selectedCollectionId = null
-                    collectionsRenameRequested = false
-                }
-            } else if (destination != RootDestination.Home) {
-                animateRootDestinationChange = false
-                homeTabTransitionJob?.cancel()
-                homeTabTransitionProgress.snapTo(0f)
-                homeTabTransitionActive = false
-                displayedNonHomeDestination = null
-                destination = RootDestination.Home
-            }
-            backProgress.snapTo(0f)
-        } catch (cancelled: CancellationException) {
-            withContext(NonCancellable) {
-                backProgress.animateTo(
-                    targetValue = 0f,
-                    animationSpec = spring(dampingRatio = 1f, stiffness = 146f),
-                )
-            }
-            throw cancelled
-        }
-    }
-
     val openDetail: (AppDetail) -> Unit = { next ->
-        detailBackTransitionJob?.cancel()
-        detailEntranceTransitionJob?.cancel()
+        catalogCoverTransition = null
         if (next == AppDetail.CommunityAliases && detail != AppDetail.Song) {
             communityAliasesFromSong = false
             communityAliasesSourceSongId = null
@@ -613,16 +592,65 @@ fun MaimaidApp(
         if (next == AppDetail.ScoreQuery) {
             scoreQuerySearchVisible = true
         }
-        detailEntranceTransitionJob = coroutineScope.launch {
-            detailEntranceProgress.stop()
-            detailEntranceProgress.snapTo(1f)
-            detail = next
-            detailEntranceProgress.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
-            )
-            detailEntranceProgress.snapTo(0f)
+        val route = AppRoute.Detail(
+            detail = next,
+            songId = selectedSongId.takeIf { next == AppDetail.Song },
+            danCategoryId = selectedDanCategoryId.takeIf { next == AppDetail.DanDetail },
+            collectionId = selectedCollectionId.takeIf { next == AppDetail.CollectionDetail },
+        )
+        if (navBackStack.lastOrNull() != route) {
+            navBackStack.add(route)
         }
+        detail = next
+    }
+    val pushSongRoute: (String) -> Unit = { songId ->
+        val route = AppRoute.Song(songId)
+        selectedSongId = songId
+        if (navBackStack.lastOrNull() != route) navBackStack.add(route)
+        detail = AppDetail.Song
+    }
+    fun openSongWithCover(source: SongCoverSource) {
+        val bounds = source.bounds ?: return
+        val painter = source.painter ?: return
+        if (catalogSearchFocused) {
+            restoreCatalogSearchFocus = true
+            focusManager.clearFocus()
+            softwareKeyboardController?.hide()
+        }
+        if (detail == AppDetail.ScoreQuery && scoreQuerySearchFocused) {
+            restoreScoreQuerySearchFocus = true
+            focusManager.clearFocus()
+            softwareKeyboardController?.hide()
+        }
+        val current = navBackStack.lastOrNull()
+        if (current is AppRoute.Song) return
+        val transitionId = java.util.UUID.randomUUID().toString()
+        val route = AppRoute.Song(source.songId, transitionId)
+        selectedSongId = source.songId
+        songReturnDetail = detail.takeIf {
+            it == AppDetail.RandomSong ||
+                it == AppDetail.BestTable ||
+                it == AppDetail.Recommendations ||
+                it == AppDetail.ScoreQuery ||
+                it == AppDetail.ConstantTable ||
+                it == AppDetail.PlateProgress ||
+                it == AppDetail.DanDetail ||
+                it == AppDetail.Collections ||
+                it == AppDetail.CollectionDetail ||
+                it == AppDetail.CommunityAliases
+        }
+        val transition = CatalogCoverTransition(
+            songId = source.songId,
+            source = bounds.translate(-navigationOrigin),
+            coverPainter = painter,
+            deviceCornerRadius = navigationCornerRadius,
+            isReturning = { navBackStack.lastOrNull() != route },
+            navigationOrigin = { navigationOrigin },
+        ).also { it.genericSource = source }
+        songCoverTransitions[transitionId] = transition
+        catalogCoverTransition = transition
+        if (navBackStack.lastOrNull() != route) navBackStack.add(route)
+        detail = AppDetail.Song
     }
     val openSong: (String) -> Unit = { songId ->
         if (catalogSearchFocused) {
@@ -631,8 +659,8 @@ fun MaimaidApp(
             softwareKeyboardController?.hide()
         }
         songReturnDetail = null
-        selectedSongId = songId
-        openDetail(AppDetail.Song)
+        catalogCoverTransition = null
+        pushSongRoute(songId)
     }
     val openSongFromDetail: (String) -> Unit = { songId ->
         if (detail == AppDetail.ScoreQuery && scoreQuerySearchFocused) {
@@ -652,22 +680,12 @@ fun MaimaidApp(
                 it == AppDetail.CollectionDetail ||
                 it == AppDetail.CommunityAliases
         }
-        selectedSongId = songId
-        openDetail(AppDetail.Song)
+        catalogCoverTransition = null
+        pushSongRoute(songId)
     }
     val openCollection: (String) -> Unit = { collectionId ->
-        detailEntranceTransitionJob?.cancel()
-        detailEntranceTransitionJob = coroutineScope.launch {
-            detailEntranceProgress.stop()
-            detailEntranceProgress.snapTo(1f)
-            selectedCollectionId = collectionId
-            detail = AppDetail.CollectionDetail
-            detailEntranceProgress.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
-            )
-            detailEntranceProgress.snapTo(0f)
-        }
+        selectedCollectionId = collectionId
+        openDetail(AppDetail.CollectionDetail)
     }
     val openCommunityAliasesFromSong: () -> Unit = {
         communityAliasesFromSong = true
@@ -747,87 +765,38 @@ fun MaimaidApp(
     val selectedCollectionTitle = selectedCollectionId
         ?.let { id -> collections.firstOrNull { it.id == id }?.name }
     val closeDetail: () -> Unit = {
-        if (detail != null && detailBackTransitionJob?.isActive != true) {
-            detailBackTransitionJob = coroutineScope.launch {
-                detailEntranceTransitionJob?.cancel()
-                detailEntranceProgress.stop()
-                val initialBackProgress = detailEntranceProgress.value.coerceIn(0f, 1f)
-                backProgress.stop()
-                backProgress.snapTo(initialBackProgress)
-                detailEntranceProgress.snapTo(0f)
-                backProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = ((1f - initialBackProgress) * 360f)
-                            .roundToInt()
-                            .coerceIn(120, 360),
-                        easing = FastOutSlowInEasing,
-                    ),
-                )
-                if (detail == AppDetail.RandomSong) {
-                    randomSongFilterActive = false
-                    randomSongFilterRequested = false
-                }
-                val returnDetail = when (detail) {
-                    AppDetail.CommunityAliases if communityAliasesFromSong -> AppDetail.Song
-                    AppDetail.Song -> songReturnDetail
-                    AppDetail.DanDetail -> AppDetail.Dan
-                    AppDetail.CollectionDetail -> AppDetail.Collections
-                    AppDetail.OtogameLogin -> AppDetail.OtogameImport
-                    else -> null
-                }
-                val currentDetail = detail
-                detail = returnDetail
-                val returningToCommunityAliasesFromSong = currentDetail == AppDetail.Song &&
-                    returnDetail == AppDetail.CommunityAliases &&
-                    communityAliasesFromSong &&
-                    communityAliasesSourceSongId != null
-                if (returningToCommunityAliasesFromSong) {
-                    selectedSongId = communityAliasesSourceSongId
-                    songReturnDetail = communityAliasesSourceReturnDetail
-                } else if (returnDetail != AppDetail.Song) {
-                    selectedSongId = null
-                }
-                if (currentDetail == AppDetail.Song) {
-                    if (!returningToCommunityAliasesFromSong) {
-                        songReturnDetail = null
-                    }
-                }
-                if (currentDetail == AppDetail.CommunityAliases) {
-                    communityAliasesFromSong = false
-                    communityAliasesSourceSongId = null
-                    communityAliasesSourceReturnDetail = null
-                }
-                if (currentDetail == AppDetail.CollectionDetail) {
-                    selectedCollectionId = null
-                    collectionsRenameRequested = false
-                }
-                backProgress.snapTo(0f)
+        if (navBackStack.size > 1) {
+            val currentDetail = detail
+            if (currentDetail == AppDetail.RandomSong) {
+                randomSongFilterActive = false
+                randomSongFilterRequested = false
             }
-        }
-    }
-    if (!LocalEnablePredictiveBack.current) {
-        BackHandler(enabled = canHandleBack) {
-            if (detail != null) {
-                closeDetail()
-            } else if (destination != RootDestination.Home) {
-                animateRootDestinationChange = false
-                homeTabTransitionJob?.cancel()
-                homeTabTransitionActive = true
-                destination = RootDestination.Home
-                homeTabTransitionJob = coroutineScope.launch {
-                    homeTabTransitionProgress.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(
-                            durationMillis = 360,
-                            easing = FastOutSlowInEasing,
-                        ),
-                    )
-                    if (destination == RootDestination.Home) {
-                        displayedNonHomeDestination = null
-                        homeTabTransitionActive = false
-                    }
-                }
+            if (currentDetail == AppDetail.CommunityAliases) {
+                communityAliasesFromSong = false
+                communityAliasesSourceSongId = null
+                communityAliasesSourceReturnDetail = null
+            }
+            if (currentDetail == AppDetail.CollectionDetail) {
+                selectedCollectionId = null
+                collectionsRenameRequested = false
+            }
+            navBackStack.removeLastOrNull()
+            val previous = navBackStack.lastOrNull()
+            if (previous is AppRoute.Detail) {
+                detail = previous.detail
+                selectedSongId = previous.songId
+                selectedDanCategoryId = previous.danCategoryId
+                selectedCollectionId = previous.collectionId
+            } else if (previous is AppRoute.Song) {
+                detail = AppDetail.Song
+                selectedSongId = previous.songId
+                selectedDanCategoryId = null
+                selectedCollectionId = null
+            } else {
+                detail = null
+                selectedSongId = null
+                selectedDanCategoryId = null
+                selectedCollectionId = null
             }
         }
     }
@@ -840,17 +809,18 @@ fun MaimaidApp(
             }
         }
     }
-    val detailActions: @Composable RowScope.(AppDetail) -> Unit = { activeDetail ->
-        if (activeDetail == AppDetail.Song && selectedSong != null) {
+    val detailActionsForRoute: @Composable RowScope.(AppDetail, String?) -> Unit = { activeDetail, songId ->
+        val actionSong = songId?.let { id -> uiState.songs.firstOrNull { it.songIdentifier == id } }
+        if (activeDetail == AppDetail.Song && actionSong != null) {
             IconButton(onClick = {
-                viewModel.setSongFavorite(selectedSong.songIdentifier, !selectedSong.isFavorite)
+                viewModel.setSongFavorite(actionSong.songIdentifier, !actionSong.isFavorite)
             }) {
                 Icon(
-                    imageVector = if (selectedSong.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    imageVector = if (actionSong.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = stringResource(
-                        if (selectedSong.isFavorite) R.string.song_remove_favorite else R.string.song_add_favorite,
+                        if (actionSong.isFavorite) R.string.song_remove_favorite else R.string.song_add_favorite,
                     ),
-                    tint = if (selectedSong.isFavorite) Color(0xFFE85D5D) else MiuixTheme.colorScheme.onSurface,
+                    tint = if (actionSong.isFavorite) Color(0xFFE85D5D) else MiuixTheme.colorScheme.onSurface,
                 )
             }
         } else if (activeDetail == AppDetail.Collections) {
@@ -940,6 +910,257 @@ fun MaimaidApp(
             }
         }
     }
+    @Composable
+    fun DetailEntry(route: AppRoute.Detail) {
+        val activeDetail = route.detail
+        val backgroundColor = MiuixTheme.colorScheme.surface
+        val routeSongId = route.songId ?: selectedSongId
+        val routeDanCategoryId = route.danCategoryId ?: selectedDanCategoryId
+        val routeCollectionId = route.collectionId ?: selectedCollectionId
+        val routeCollectionTitle = routeCollectionId
+            ?.let { id -> collections.firstOrNull { it.id == id }?.name }
+        val routeSong = routeSongId?.let { id -> uiState.songs.firstOrNull { it.songIdentifier == id } }
+        val detailScrollBehavior = when (activeDetail) {
+            AppDetail.CommunityAliases -> communityAliasScrollBehavior
+            AppDetail.ConstantTable -> constantTableScrollBehavior
+            else -> MiuixScrollBehavior()
+        }
+        val scoreQueryViewModel = if (activeDetail == AppDetail.ScoreQuery) {
+            composeViewModel<ScoreQueryViewModel>(factory = ScoreQueryViewModel.Factory(container))
+        } else {
+            null
+        }
+        val scoreQueryState = scoreQueryViewModel?.state?.collectAsStateWithLifecycle()?.value
+        val scoreQueryText = scoreQueryViewModel?.query?.collectAsStateWithLifecycle()?.value.orEmpty()
+        val pageBackdrop = rememberLayerBackdrop()
+        val pageBackground = if (activeDetail == AppDetail.Song) {
+            songDetailBackground?.takeIf { it.first == routeSongId }?.second ?: backgroundColor
+        } else {
+            backgroundColor
+        }
+        val detailTitleText = when (activeDetail) {
+            AppDetail.CollectionDetail -> routeCollectionTitle ?: detailTitle(AppDetail.Collections)
+            AppDetail.DanDetail -> selectedDanCategoryTitle ?: detailTitle(AppDetail.Dan)
+            else -> detailTitle(activeDetail)
+        }
+        val needsScrollConnection = activeDetail in setOf(
+            AppDetail.BestTable,
+            AppDetail.Recommendations,
+            AppDetail.ScoreQuery,
+            AppDetail.ConstantTable,
+            AppDetail.PlateProgress,
+            AppDetail.Dan,
+            AppDetail.DanDetail,
+            AppDetail.CommunityAliases,
+            AppDetail.Collections,
+            AppDetail.CollectionDetail,
+            AppDetail.DivingFishImport,
+            AppDetail.LxnsImport,
+            AppDetail.OtogameImport,
+            AppDetail.Appearance,
+        )
+        val detailModifier = Modifier.fillMaxSize().then(
+            if (needsScrollConnection) {
+                Modifier.nestedScroll(detailScrollBehavior.nestedScrollConnection)
+                    .then(
+                        when (activeDetail) {
+                            AppDetail.Recommendations -> Modifier.nestedScroll(recommendationSwitcherScrollConnection)
+                            AppDetail.ScoreQuery -> Modifier.nestedScroll(scoreQuerySearchScrollConnection)
+                            else -> Modifier
+                        },
+                    )
+            } else {
+                Modifier
+            },
+        )
+
+        CatalogContainerTransform(
+            state = catalogCoverTransition.takeIf { activeDetail == AppDetail.Song },
+            background = pageBackground,
+        ) {
+        Scaffold(
+            modifier = detailModifier,
+            containerColor = Color.Transparent,
+            topBar = {
+                when (activeDetail) {
+                    AppDetail.Song -> SmallTopAppBar(
+                        title = songDetailTitle?.takeIf { it.first == routeSongId }?.second
+                            ?: routeSong?.title.orEmpty(),
+                        modifier = Modifier.drawPlainBackdrop(
+                            backdrop = pageBackdrop,
+                            shape = { TopBarBottomShape },
+                            effects = { blur(24.dp.toPx()) },
+                        ).clip(TopBarBottomShape),
+                        color = Color.Transparent,
+                        navigationIcon = detailNavigationIcon,
+                        actions = { detailActionsForRoute(activeDetail, routeSongId) },
+                        defaultWindowInsetsPadding = true,
+                    )
+                    AppDetail.StaticData, AppDetail.OtogameLogin, AppDetail.ConstantTable -> SmallTopAppBar(
+                        title = detailTitleText,
+                        modifier = Modifier.drawPlainBackdrop(
+                            backdrop = pageBackdrop,
+                            shape = { TopBarBottomShape },
+                            effects = { if (enableBlur) blur(24.dp.toPx()) },
+                            onDrawSurface = { drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f)) },
+                        ).clip(TopBarBottomShape),
+                        color = Color.Transparent,
+                        navigationIcon = detailNavigationIcon,
+                        actions = {
+                            if (activeDetail == AppDetail.ConstantTable) {
+                                IconButton(onClick = { showConstantTableFilter = true }) {
+                                    Icon(Icons.Rounded.FilterList, contentDescription = stringResource(R.string.catalog_filter_title))
+                                }
+                            } else {
+                                detailActionsForRoute(activeDetail, routeSongId)
+                            }
+                        },
+                        defaultWindowInsetsPadding = true,
+                    )
+                    else -> TopAppBar(
+                        title = detailTitleText,
+                        largeTitle = detailTitleText,
+                        modifier = Modifier.drawPlainBackdrop(
+                            backdrop = pageBackdrop,
+                            shape = { TopBarBottomShape },
+                            effects = { if (enableBlur) blur(24.dp.toPx()) },
+                            onDrawSurface = { drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f)) },
+                        ).clip(TopBarBottomShape),
+                        color = Color.Transparent,
+                        navigationIcon = detailNavigationIcon,
+                        actions = {
+                            when {
+                                activeDetail == AppDetail.ScoreQuery && scoreQueryState != null -> ScoreQueryTopBarActions(
+                                    displayMode = scoreQueryState.displayMode,
+                                    sortMode = scoreQueryState.sortMode,
+                                    sortAscending = scoreQueryState.sortAscending,
+                                    filterActive = !scoreQueryState.filterSettings.isEmpty,
+                                    onDisplayModeChange = { mode -> scoreQueryViewModel?.setDisplayMode(mode) },
+                                    onSortModeChange = { mode -> scoreQueryViewModel?.setSortMode(mode) },
+                                    onSortAscendingChange = { ascending -> scoreQueryViewModel?.setSortAscending(ascending) },
+                                    onShowFilter = { showScoreQueryFilter = true },
+                                )
+                                else -> detailActionsForRoute(activeDetail, routeSongId)
+                            }
+                        },
+                        scrollBehavior = detailScrollBehavior,
+                        defaultWindowInsetsPadding = true,
+                        bottomContent = {
+                            when (activeDetail) {
+                                AppDetail.Recommendations -> RecommendationPageSwitcher(
+                                    selectedPage = recommendationSelectedPage,
+                                    visible = recommendationSwitcherVisible,
+                                    onSelectedPageChange = { recommendationSelectedPage = it },
+                                )
+                                AppDetail.DanDetail -> if (danHasTruePage) {
+                                    DanPageSwitcher(
+                                        selectedPage = danSelectedPage,
+                                        visible = danSwitcherVisible,
+                                        onSelectedPageChange = { danSelectedPage = it },
+                                    )
+                                }
+                                AppDetail.ScoreQuery -> if (scoreQueryViewModel != null) {
+                                    CatalogSearchBar(
+                                        query = scoreQueryText,
+                                        onQueryChange = scoreQueryViewModel::setQuery,
+                                        expanded = scoreQuerySearchExpanded,
+                                        onExpandedChange = { scoreQuerySearchExpanded = it },
+                                        visible = scoreQuerySearchVisible || scoreQuerySearchFocused || restoreScoreQuerySearchFocus,
+                                        focusRequestToken = scoreQuerySearchFocusRequestToken,
+                                        backEnabled = detail == AppDetail.ScoreQuery && scoreQuerySearchFocused,
+                                        interactionSource = scoreQuerySearchInteractionSource,
+                                        labelResource = R.string.score_query_search_hint,
+                                    )
+                                }
+                                else -> Unit
+                            }
+                        },
+                    )
+                }
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier.fillMaxSize().then(
+                    when (activeDetail) {
+                        AppDetail.StaticData, AppDetail.Collections, AppDetail.CollectionDetail ->
+                            Modifier.padding(paddingValues).layerBackdrop(pageBackdrop)
+                        else -> Modifier.layerBackdrop(pageBackdrop).background(pageBackground)
+                    },
+                ),
+            ) {
+                DetailScreen(
+                    detail = activeDetail,
+                    state = uiState,
+                    selectedSongId = routeSongId,
+                    selectedDanCategoryId = routeDanCategoryId,
+                    container = container,
+                    songContentTopPadding = paddingValues.calculateTopPadding(),
+                    communityAliasListState = communityAliasListState,
+                    constantTableListState = constantTableListState,
+                    recommendationSelectedPage = recommendationSelectedPage,
+                    danSelectedPage = danSelectedPage,
+                    scoreQueryViewModel = scoreQueryViewModel,
+                    showScoreQueryFilter = showScoreQueryFilter,
+                    showConstantTableFilter = showConstantTableFilter,
+                    profileCreateRequested = profileCreateRequested,
+                    bestTableExportRequested = bestTableExportRequested,
+                    randomSongFilterRequested = randomSongFilterRequested,
+                    randomSongSessionState = randomSongSessionState,
+                    onProfileCreateRequestHandled = { profileCreateRequested = false },
+                    onBestTableExportRequestHandled = { bestTableExportRequested = false },
+                    onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
+                    onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
+                    onDismissScoreQueryFilter = { showScoreQueryFilter = false },
+                    onDismissConstantTableFilter = { showConstantTableFilter = false },
+                    onOpenSong = openSongFromDetail,
+                    onOpenDanCategory = { categoryId, categoryTitle ->
+                        selectedDanCategoryId = categoryId
+                        selectedDanCategoryTitle = categoryTitle
+                        danSelectedPage = DanRegularPage
+                        danSwitcherVisible = true
+                        danHasTruePage = false
+                        openDetail(AppDetail.DanDetail)
+                    },
+                    onOpenCommunityAliases = openCommunityAliasesFromSong,
+                    onOpenOtogameLogin = { openDetail(AppDetail.OtogameLogin) },
+                    onSongDetailBackgroundChanged = { color ->
+                        if (activeDetail == AppDetail.Song && routeSongId != null) {
+                            songDetailBackground = color?.let { routeSongId to it }
+                        }
+                    },
+                    onSongDetailTitleChanged = { title ->
+                        if (activeDetail == AppDetail.Song && routeSongId != null) {
+                            songDetailTitle = routeSongId to title
+                        }
+                    },
+                    themeSettings = themeSettings,
+                    onColorModeChange = viewModel::setColorMode,
+                    onKeyColorChange = viewModel::setKeyColor,
+                    onPaletteStyleChange = viewModel::setPaletteStyle,
+                    onColorSpecChange = viewModel::setColorSpec,
+                    onEnableBlurChange = viewModel::setEnableBlur,
+                    onEnableFloatingBottomBarChange = viewModel::setEnableFloatingBottomBar,
+                    onEnableFloatingBottomBarBlurChange = viewModel::setEnableFloatingBottomBarBlur,
+                    onEnablePredictiveBackChange = viewModel::setEnablePredictiveBack,
+                    onPageScaleChange = viewModel::setPageScale,
+                    collectionsDisplayMode = collectionsDisplayMode,
+                    collectionsSortOption = collectionsSortOption,
+                    collectionsSortAscending = collectionsSortAscending,
+                    selectedCollectionId = routeCollectionId,
+                    collectionsRenameRequested = collectionsRenameRequested,
+                    onSelectedCollectionIdChange = { id -> id?.let(openCollection) },
+                    collectionsCreateRequested = collectionsCreateRequested,
+                    collectionsImportRequested = collectionsImportRequested,
+                    onCollectionsCreateRequestHandled = { collectionsCreateRequested = false },
+                    onCollectionsImportRequestHandled = { collectionsImportRequested = false },
+                    onCollectionsRenameRequestHandled = { collectionsRenameRequested = false },
+                    coverTransition = catalogCoverTransition.takeIf { activeDetail == AppDetail.Song },
+                )
+            }
+        }
+        }
+    }
     val rootActions: @Composable RowScope.(RootDestination) -> Unit = { page ->
         if (page == RootDestination.Catalog) {
             CatalogTopBarActions(
@@ -971,1257 +1192,206 @@ fun MaimaidApp(
         }
     }
 
-    val gestureInProgress = backProgress.value > 0f
-    val collectionNestedNavigation = detail == AppDetail.CollectionDetail
-    val detailSourceProgress = when {
-        collectionNestedNavigation -> 0f
-        gestureInProgress -> backProgress.value
-        detail != null -> detailEntranceProgress.value
-        else -> 0f
-    }
-    val collectionSourceProgress = when {
-        collectionNestedNavigation && gestureInProgress -> backProgress.value
-        collectionNestedNavigation -> detailEntranceProgress.value
-        else -> detailSourceProgress
-    }
-    val rootTabTransitionProgress = if (
-        detail == null &&
-        destination != RootDestination.Home &&
-        gestureInProgress
-    ) {
-        1f - backProgress.value
-    } else {
-        homeTabTransitionProgress.value
-    }
-    val detailIsMoving = gestureInProgress || detailEntranceProgress.value > 0f
-    val foregroundShape = squircleShape(rememberDeviceCornerRadius())
     // KernelSU's Miuix scaffolds use the surface role as the page canvas:
     // #F7F7F7 in light mode and #000000 in dark mode. Cards remain on the
     // surfaceContainer role, preserving the intended contrast.
     val backgroundColor = MiuixTheme.colorScheme.surface
-    val songTopBarColor = songDetailBackground
-        ?.takeIf { it.first == selectedSongId }
-        ?.second
-        ?: backgroundColor
     val navigationBackdrop = rememberLayerBackdrop {
         drawRect(backgroundColor)
         drawContent()
     }
-    val detailBackdrop = rememberLayerBackdrop()
-    val nonHomeSourceDimAlpha = if (detail != null && destination != RootDestination.Home) {
-        0.1f * (1f - detailSourceProgress)
-    } else {
-        0f
+    val predictiveBackEnabled = LocalEnablePredictiveBack.current
+    val rootBackEnabled = navBackStack.size == 1 && detail == null && destination != RootDestination.Home
+    fun returnToHomeWithoutSecondTransition() {
+        animateRootTransition = false
+        destination = RootDestination.Home
     }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor),
-    ) {
-        Box(
+    if (predictiveBackEnabled) {
+        PredictiveBackHandler(enabled = rootBackEnabled) { progress: Flow<BackEventCompat> ->
+            try {
+                progress.collect { event ->
+                    rootBackProgress.snapTo(event.progress.coerceIn(0f, 1f))
+                }
+                rootBackProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(180, easing = FastOutSlowInEasing),
+                )
+                returnToHomeWithoutSecondTransition()
+                rootBackProgress.snapTo(0f)
+                withFrameNanos { }
+                animateRootTransition = true
+            } catch (cancelled: CancellationException) {
+                withContext(NonCancellable) {
+                    rootBackProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(dampingRatio = 1f, stiffness = 146f),
+                    )
+                }
+                throw cancelled
+            }
+        }
+    } else {
+        BackHandler(enabled = navBackStack.size > 1 || rootBackEnabled) {
+            if (navBackStack.size > 1) {
+                closeDetail()
+            } else {
+                destination = RootDestination.Home
+            }
+        }
+    }
+    val songNavigationHost = remember(catalogCoverTransition) {
+        SongNavigationHost(
+            active = catalogCoverTransition,
+            openCover = ::openSongWithCover,
+        )
+    }
+    CompositionLocalProvider(LocalSongNavigationHost provides songNavigationHost) {
+    NavigationEventGate(LocalEnablePredictiveBack.current) {
+        NavDisplay(
+            backStack = navBackStack,
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(navigationBackdrop),
+                .zIndex(2f)
+                .onGloballyPositioned { navigationOrigin = it.positionInRoot() },
+            transition = NavTransitions.MiuixDefault,
+            effects = NavDisplayEffects(cornerClipRadius = navigationCornerRadius),
+            onBack = {
+                if (navBackStack.size > 1) {
+                    closeDetail()
+                } else if (destination != RootDestination.Home) {
+                    animateRootTransition = true
+                    destination = RootDestination.Home
+                }
+            },
         ) {
-            RootLayer(
-                destination = RootDestination.Home,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        when {
-                            detail != null && destination == RootDestination.Home -> {
-                                translationX = -size.width * 0.25f *
-                                    (1f - detailSourceProgress)
-                                alpha = 0.9f + 0.1f * detailSourceProgress
-                            }
-                            else -> {
-                                translationX = -size.width * rootTabTransitionProgress
-                                alpha = 1f
-                            }
-                        }
-                    },
-                actions = { rootActions(RootDestination.Home) },
-                bottomContent = { rootBottomContent(RootDestination.Home) },
-                content = rootPage,
-            )
-
-            AnimatedContent(
-                targetState = displayedNonHomeDestination,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-											translationX = if (detail != null && destination != RootDestination.Home) {
-												-size.width * 0.25f * (1f - detailSourceProgress)
-											} else {
-												size.width * (1f - rootTabTransitionProgress)
-											}
-                    },
-                transitionSpec = {
-                    if (!animateRootDestinationChange) {
-                        EnterTransition.None togetherWith ExitTransition.None
-                    } else {
-                        val initialIndex = initialState?.ordinal ?: RootDestination.Home.ordinal
-                        val targetIndex = targetState?.ordinal ?: RootDestination.Home.ordinal
-                        val animationSpec = tween<IntOffset>(
-                            durationMillis = 360,
-                            easing = FastOutSlowInEasing,
-                        )
-                        if (targetIndex > initialIndex) {
-                            slideInHorizontally(
-                                animationSpec = animationSpec,
-                                initialOffsetX = { width -> width },
-                            ) togetherWith slideOutHorizontally(
-                                animationSpec = animationSpec,
-                                targetOffsetX = { width -> -width },
-                            )
-                        } else {
-                            slideInHorizontally(
-                                animationSpec = animationSpec,
-                                initialOffsetX = { width -> -width },
-                            ) togetherWith slideOutHorizontally(
-                                animationSpec = animationSpec,
-                                targetOffsetX = { width -> width },
-                            )
-                        }
-                    }
-                },
-                label = "root-page-transition",
-            ) { page ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (page != null) {
+            entry<AppRoute.Root>(
+                transition = SettingsDetailTransition,
+                swipeDismiss = NavSwipeDirection.None,
+            ) {
+                val rootBackdrop = rememberLayerBackdrop {
+                    drawRect(backgroundColor)
+                    drawContent()
+                }
+                Box(Modifier.fillMaxSize().background(backgroundColor)) {
+                    if (destination != RootDestination.Home && navBackStack.size == 1) {
                         RootLayer(
-                            destination = page,
-                            modifier = Modifier.fillMaxSize(),
-                            showTopBar = page != RootDestination.Scanner,
-                            actions = { rootActions(page) },
-                            bottomContent = { rootBottomContent(page) },
-                            scrollObserver = catalogSearchScrollConnection.takeIf {
-                                page == RootDestination.Catalog
+                            destination = RootDestination.Home,
+                            modifier = Modifier.fillMaxSize().graphicsLayer {
+                                translationX = -size.width * (1f - rootBackProgress.value)
                             },
                             content = rootPage,
                         )
-                        if (nonHomeSourceDimAlpha > 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = nonHomeSourceDimAlpha)),
-                            )
-                        }
                     }
-                }
-            }
-        }
-
-        AppNavigationBar(
-            destination = destination,
-            backdrop = navigationBackdrop,
-            onDestinationSelected = { nextDestination ->
-                if (nextDestination != destination) {
-                    homeTabTransitionJob?.cancel()
-                    destination = nextDestination
-                    when {
-                        nextDestination == RootDestination.Home -> {
-                            animateRootDestinationChange = false
-                            homeTabTransitionActive = true
-                            homeTabTransitionJob = coroutineScope.launch {
-                                homeTabTransitionProgress.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = tween(
-                                        durationMillis = 360,
-                                        easing = FastOutSlowInEasing,
-                                    ),
+                    AnimatedContent(
+                        targetState = destination,
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            translationX = size.width * rootBackProgress.value
+                        },
+                        transitionSpec = {
+                            if (!animateRootTransition) {
+                                EnterTransition.None togetherWith ExitTransition.None
+                            } else {
+                                val animationSpec = tween<IntOffset>(
+                                    durationMillis = 360,
+                                    easing = FastOutSlowInEasing,
                                 )
-                                if (destination == RootDestination.Home) {
-                                    displayedNonHomeDestination = null
-                                    homeTabTransitionActive = false
+                                if (targetState.ordinal > initialState.ordinal) {
+                                    slideInHorizontally(animationSpec) { it } togetherWith
+                                        slideOutHorizontally(animationSpec) { -it }
+                                } else {
+                                    slideInHorizontally(animationSpec) { -it } togetherWith
+                                        slideOutHorizontally(animationSpec) { it }
                                 }
                             }
-                        }
-                        displayedNonHomeDestination == null || homeTabTransitionProgress.value < 1f -> {
-                            animateRootDestinationChange = false
-                            homeTabTransitionActive = true
-                            displayedNonHomeDestination = nextDestination
-                            homeTabTransitionJob = coroutineScope.launch {
-                                homeTabTransitionProgress.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = tween(
-                                        durationMillis = 360,
-                                        easing = FastOutSlowInEasing,
-                                    ),
-                                )
-                                if (destination == nextDestination) {
-                                    homeTabTransitionActive = false
-                                }
-                            }
-                        }
-                        else -> {
-                            homeTabTransitionActive = false
-                            animateRootDestinationChange = true
-                            displayedNonHomeDestination = nextDestination
-                        }
-                    }
-                }
-            },
-            modifier = Modifier
-                .align(androidx.compose.ui.Alignment.BottomCenter)
-                .then(
-                    if (LocalEnableFloatingBottomBar.current) {
-                        Modifier.navigationBarsPadding().padding(bottom = 8.dp)
-                    } else {
-                        Modifier
-                    },
-                ),
-        )
-
-        if (detail == AppDetail.RandomSong || songReturnDetail == AppDetail.RandomSong) {
-            val randomSongIsForeground = detail == AppDetail.RandomSong
-            val randomSongSourceDimAlpha = if (randomSongIsForeground) {
-                0f
-            } else {
-                0.1f * (1f - detailSourceProgress)
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    )
-                    .graphicsLayer {
-                        if (randomSongIsForeground) {
-                            translationX = when {
-                                songReturnDetail == AppDetail.RandomSong -> 0f
-                                gestureInProgress -> size.width * backProgress.value
-                                else -> size.width * detailEntranceProgress.value
-                            }
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        } else {
-                            translationX = -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                    }
-                    .background(backgroundColor),
-            ) {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
-                        val title = detailTitle(AppDetail.RandomSong)
-                        TopAppBar(
-                            title = title,
-                            largeTitle = title,
-                            modifier = Modifier.clip(TopBarBottomShape),
-                            navigationIcon = detailNavigationIcon,
-                            actions = { detailActions(AppDetail.RandomSong) },
-                            defaultWindowInsetsPadding = true,
-                        )
-                    },
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                ) { paddingValues ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                    ) {
-                        DetailScreen(
-                            detail = AppDetail.RandomSong,
-                            state = uiState,
-                            selectedSongId = null,
-                            selectedDanCategoryId = selectedDanCategoryId,
-                            container = container,
-                            songContentTopPadding = paddingValues.calculateTopPadding(),
-                            communityAliasListState = communityAliasListState,
-                            constantTableListState = constantTableListState,
-                            recommendationSelectedPage = recommendationSelectedPage,
-                            danSelectedPage = danSelectedPage,
-                            scoreQueryViewModel = null,
-                            showScoreQueryFilter = false,
-                            profileCreateRequested = false,
-                            bestTableExportRequested = false,
-                            randomSongFilterRequested = randomSongFilterRequested,
-                            randomSongSessionState = randomSongSessionState,
-                            onProfileCreateRequestHandled = {},
-                            onBestTableExportRequestHandled = {},
-                            onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
-                            onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
-                            onDismissScoreQueryFilter = {},
-                            onOpenSong = openSongFromDetail,
-                            onOpenDanCategory = { _, _ -> },
-                            onOpenCommunityAliases = {},
-                            onOpenOtogameLogin = {},
-                            onSongDetailBackgroundChanged = {},
-                            onSongDetailTitleChanged = {},
-                        )
-                        if (randomSongSourceDimAlpha > 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = randomSongSourceDimAlpha)),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        val communityAliasesFromDanSong = detail == AppDetail.CommunityAliases &&
-            communityAliasesFromSong &&
-            songReturnDetail == AppDetail.DanDetail
-        val showDanListLayer = detail == AppDetail.Dan ||
-            detail == AppDetail.DanDetail ||
-            (detail == AppDetail.Song && songReturnDetail == AppDetail.DanDetail) ||
-            communityAliasesFromDanSong
-        val showDanDetailLayer = detail == AppDetail.DanDetail ||
-            (detail == AppDetail.Song && songReturnDetail == AppDetail.DanDetail) ||
-            communityAliasesFromDanSong
-
-        if (showDanListLayer) {
-            val isForeground = detail == AppDetail.Dan
-            val isImmediateSource = detail == AppDetail.DanDetail
-            val sourceDimAlpha = when {
-                isForeground -> 0f
-                isImmediateSource -> 0.1f * (1f - detailSourceProgress)
-                else -> 0.1f
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = when {
-                            isForeground && gestureInProgress -> size.width * backProgress.value
-                            isForeground -> size.width * detailEntranceProgress.value
-                            isImmediateSource -> -size.width * 0.25f * (1f - detailSourceProgress)
-                            else -> -size.width * 0.25f
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = detailTitle(AppDetail.Dan),
-                    onBack = closeDetail,
-                ) { contentTopPadding ->
-                    DanListScreen(
-                        container = container,
-                        contentTopPadding = contentTopPadding,
-                        onOpenCategory = { category ->
-                            selectedDanCategoryId = category.id
-                            selectedDanCategoryTitle = category.title
-                            danSelectedPage = DanRegularPage
-                            danSwitcherVisible = true
-                            danHasTruePage = false
-                            openDetail(AppDetail.DanDetail)
                         },
-                    )
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        if (showDanDetailLayer) {
-            val isForeground = detail == AppDetail.DanDetail
-            val sourceDimAlpha = if (isForeground) 0f else 0.1f * (1f - detailSourceProgress)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = selectedDanCategoryTitle ?: detailTitle(AppDetail.Dan),
-                    onBack = closeDetail,
-                    scrollObserver = danSwitcherScrollConnection,
-                    bottomContent = {
-                        if (danHasTruePage) {
-                            DanPageSwitcher(
-                                selectedPage = danSelectedPage,
-                                visible = danSwitcherVisible,
-                                onSelectedPageChange = { danSelectedPage = it },
-                            )
-                        }
-                    },
-                ) { contentTopPadding ->
-                    selectedDanCategoryId?.let { categoryId ->
-                        DanDetailScreen(
-                            categoryId = categoryId,
-                            container = container,
-                            contentTopPadding = contentTopPadding,
-                            selectedPage = danSelectedPage,
-                            server = uiState.activeProfile?.server ?: "jp",
-                            onTrueDanAvailabilityChanged = { hasTruePage ->
-                                danHasTruePage = hasTruePage
-                                if (!hasTruePage) danSelectedPage = DanRegularPage
+                        label = "root-page-transition",
+                    ) { activeDestination ->
+                        RootLayer(
+                            destination = activeDestination,
+                            modifier = Modifier.fillMaxSize().layerBackdrop(rootBackdrop),
+                            showTopBar = activeDestination != RootDestination.Scanner,
+                            actions = { rootActions(activeDestination) },
+                            bottomContent = { rootBottomContent(activeDestination) },
+                            scrollObserver = catalogSearchScrollConnection.takeIf {
+                                activeDestination == RootDestination.Catalog
                             },
-                            onOpenSong = openSongFromDetail,
+                            content = rootPage,
                         )
                     }
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        val showOtogameImportLayer = detail == AppDetail.OtogameImport ||
-            detail == AppDetail.OtogameLogin
-        if (showOtogameImportLayer) {
-            val isForeground = detail == AppDetail.OtogameImport
-            val sourceDimAlpha = if (isForeground) 0f else 0.1f * (1f - detailSourceProgress)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = detailTitle(AppDetail.OtogameImport),
-                    onBack = closeDetail,
-                ) { contentTopPadding ->
-                    OtogameImportScreen(
-                        container = container,
-                        contentTopPadding = contentTopPadding,
-                        onOpenLogin = { openDetail(AppDetail.OtogameLogin) },
-                    )
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        if (detail == AppDetail.OtogameLogin) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = if (gestureInProgress) {
-                            size.width * backProgress.value
-                        } else {
-                            size.width * detailEntranceProgress.value
-                        }
-                        shape = foregroundShape
-                        clip = detailIsMoving
-                        shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                    },
-            ) {
-                SongNavigationLayer(
-                    title = detailTitle(AppDetail.OtogameLogin),
-                    backgroundColor = backgroundColor,
-                    onBack = closeDetail,
-                ) { contentTopPadding ->
-                    OtogameLoginScreen(
-                        container = container,
-                        contentTopPadding = contentTopPadding,
-                    )
-                }
-            }
-        }
-
-        val retainedSongSourceDetail = when (detail) {
-						AppDetail.BestTable, AppDetail.Recommendations, AppDetail.ScoreQuery, AppDetail.ConstantTable, AppDetail.PlateProgress -> detail
-						AppDetail.Song if (
-										songReturnDetail == AppDetail.BestTable ||
-											songReturnDetail == AppDetail.Recommendations ||
-											songReturnDetail == AppDetail.ScoreQuery ||
-											songReturnDetail == AppDetail.ConstantTable ||
-											songReturnDetail == AppDetail.PlateProgress ||
-											songReturnDetail == AppDetail.CommunityAliases
-										) -> songReturnDetail
-						AppDetail.CommunityAliases if communityAliasesFromSong && (
-										songReturnDetail == AppDetail.BestTable ||
-											songReturnDetail == AppDetail.Recommendations ||
-											songReturnDetail == AppDetail.ScoreQuery ||
-											songReturnDetail == AppDetail.PlateProgress
-										) -> songReturnDetail
-						else -> null
-				}
-
-        retainedSongSourceDetail?.let { sourceDetail ->
-            val isForeground = detail == sourceDetail
-            val sourceDimAlpha = if (isForeground) 0f else 0.1f * (1f - detailSourceProgress)
-            val scoreQueryViewModel = if (sourceDetail == AppDetail.ScoreQuery) {
-                composeViewModel<ScoreQueryViewModel>(factory = ScoreQueryViewModel.Factory(container))
-            } else {
-                null
-            }
-            val scoreQueryState = scoreQueryViewModel?.state?.collectAsStateWithLifecycle()?.value
-            val scoreQueryText = scoreQueryViewModel?.query?.collectAsStateWithLifecycle()?.value.orEmpty()
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = detailTitle(sourceDetail),
-                    onBack = closeDetail,
-                    scrollBehavior = when (sourceDetail) {
-                        AppDetail.CommunityAliases -> communityAliasScrollBehavior
-                        AppDetail.ConstantTable -> constantTableScrollBehavior
-                        else -> null
-                    },
-                    actions = {
-                        if (sourceDetail == AppDetail.BestTable) {
-                            detailActions(AppDetail.BestTable)
-                        } else if (sourceDetail == AppDetail.ConstantTable) {
-                            IconButton(onClick = { showConstantTableFilter = true }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.FilterList,
-                                    contentDescription = stringResource(R.string.catalog_filter_title),
-                                )
-                            }
-                        }
-                        scoreQueryViewModel?.let { queryViewModel ->
-                            val queryState = scoreQueryState ?: return@let
-                            ScoreQueryTopBarActions(
-                                displayMode = queryState.displayMode,
-                                sortMode = queryState.sortMode,
-                                sortAscending = queryState.sortAscending,
-                                filterActive = !queryState.filterSettings.isEmpty,
-                                onDisplayModeChange = queryViewModel::setDisplayMode,
-                                onSortModeChange = queryViewModel::setSortMode,
-                                onSortAscendingChange = queryViewModel::setSortAscending,
-                                onShowFilter = { showScoreQueryFilter = true },
-                            )
-                        }
-                    },
-                    scrollObserver = when (sourceDetail) {
-                        AppDetail.Recommendations -> recommendationSwitcherScrollConnection
-                        AppDetail.ScoreQuery -> scoreQuerySearchScrollConnection
-                        else -> null
-                    },
-                    bottomContent = {
-                        when (sourceDetail) {
-                            AppDetail.Recommendations -> RecommendationPageSwitcher(
-                                selectedPage = recommendationSelectedPage,
-                                visible = recommendationSwitcherVisible,
-                                onSelectedPageChange = { recommendationSelectedPage = it },
-                            )
-                            AppDetail.ScoreQuery -> if (scoreQueryViewModel != null) {
-                                CatalogSearchBar(
-                                    query = scoreQueryText,
-                                    onQueryChange = scoreQueryViewModel::setQuery,
-                                    expanded = scoreQuerySearchExpanded,
-                                    onExpandedChange = { scoreQuerySearchExpanded = it },
-                                    visible = scoreQuerySearchVisible ||
-                                        scoreQuerySearchFocused ||
-                                        restoreScoreQuerySearchFocus,
-                                    focusRequestToken = scoreQuerySearchFocusRequestToken,
-                                    backEnabled = detail == AppDetail.ScoreQuery &&
-                                        scoreQuerySearchFocused,
-                                    interactionSource = scoreQuerySearchInteractionSource,
-                                    labelResource = R.string.score_query_search_hint,
-                                )
-                            }
-                            else -> Unit
-                        }
-                    },
-                ) { contentTopPadding ->
-                    DetailScreen(
-                        detail = sourceDetail,
-                        state = uiState,
-                        selectedSongId = null,
-                        selectedDanCategoryId = selectedDanCategoryId,
-                        container = container,
-                        songContentTopPadding = contentTopPadding,
-                        communityAliasListState = communityAliasListState,
-                        constantTableListState = constantTableListState,
-                        recommendationSelectedPage = recommendationSelectedPage,
-                        danSelectedPage = danSelectedPage,
-                        scoreQueryViewModel = scoreQueryViewModel,
-                        showScoreQueryFilter = showScoreQueryFilter,
-                        showConstantTableFilter = showConstantTableFilter,
-                        profileCreateRequested = false,
-                        bestTableExportRequested = sourceDetail == AppDetail.BestTable &&
-                            bestTableExportRequested,
-                        randomSongFilterRequested = false,
-                        randomSongSessionState = randomSongSessionState,
-                        onProfileCreateRequestHandled = {},
-                        onBestTableExportRequestHandled = { bestTableExportRequested = false },
-                        onRandomSongFilterRequestHandled = {},
-                        onRandomSongFilterActiveChanged = {},
-                        onDismissScoreQueryFilter = { showScoreQueryFilter = false },
-                        onDismissConstantTableFilter = { showConstantTableFilter = false },
-                        onOpenSong = openSongFromDetail,
-                        onOpenDanCategory = { _, _ -> },
-                        onOpenCommunityAliases = {},
-                        onOpenOtogameLogin = {},
-                        onSongDetailBackgroundChanged = {},
-                        onSongDetailTitleChanged = {},
-                    )
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        val showSongLayer = detail == AppDetail.Song ||
-            (detail == AppDetail.CommunityAliases && communityAliasesFromSong)
-        if (showSongLayer) {
-            val isForeground = detail == AppDetail.Song
-            val sourceDimAlpha = if (isForeground) 0f else 0.1f * (1f - detailSourceProgress)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(if (isForeground) 1f else 0f)
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                SongNavigationLayer(
-                    title = songDetailTitle
-                        ?.takeIf { it.first == selectedSongId }
-                        ?.second
-                        ?: selectedSong?.title.orEmpty(),
-                    backgroundColor = songTopBarColor,
-                    onBack = closeDetail,
-                    actions = { detailActions(AppDetail.Song) },
-                ) { contentTopPadding ->
-                    DetailScreen(
-                        detail = AppDetail.Song,
-                        state = uiState,
-                        selectedSongId = selectedSongId,
-                        selectedDanCategoryId = selectedDanCategoryId,
-                        container = container,
-                        songContentTopPadding = contentTopPadding,
-                        communityAliasListState = communityAliasListState,
-                        constantTableListState = constantTableListState,
-                        recommendationSelectedPage = recommendationSelectedPage,
-                        danSelectedPage = danSelectedPage,
-                        scoreQueryViewModel = null,
-                        showScoreQueryFilter = false,
-                        profileCreateRequested = false,
-                        bestTableExportRequested = false,
-                        randomSongFilterRequested = false,
-                        randomSongSessionState = randomSongSessionState,
-                        onProfileCreateRequestHandled = {},
-                        onBestTableExportRequestHandled = {},
-                        onRandomSongFilterRequestHandled = {},
-                        onRandomSongFilterActiveChanged = {},
-                        onDismissScoreQueryFilter = {},
-                        onOpenSong = openSongFromDetail,
-                        onOpenDanCategory = { _, _ -> },
-                        onOpenCommunityAliases = openCommunityAliasesFromSong,
-                        onOpenOtogameLogin = {},
-                        onSongDetailBackgroundChanged = { color ->
-                            selectedSongId?.let { songId ->
-                                songDetailBackground = color?.let { songId to it }
+                    AppNavigationBar(
+                        destination = destination,
+                        backdrop = navigationBackdrop,
+                        onDestinationSelected = { nextDestination ->
+                            if (nextDestination != destination) {
+                                animateRootTransition = true
+                                destination = nextDestination
                             }
                         },
-                        onSongDetailTitleChanged = { title ->
-                            selectedSongId?.let { songId ->
-                                songDetailTitle = songId to title
-                            }
-                        },
-                    )
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        val showCollectionListLayer = detail == AppDetail.Collections || detail == AppDetail.CollectionDetail
-        if (showCollectionListLayer) {
-            val isForeground = detail == AppDetail.Collections
-            val sourceDimAlpha = if (isForeground) 0f else 0.1f * (1f - collectionSourceProgress)
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(if (isForeground) 1f else 0f)
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - collectionSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = detailTitle(AppDetail.Collections),
-                    onBack = closeDetail,
-                    scrollBehavior = MiuixScrollBehavior(),
-                    actions = { detailActions(AppDetail.Collections) },
-                ) { contentTopPadding ->
-                    DetailScreen(
-                        detail = AppDetail.Collections,
-                        state = uiState,
-                        selectedSongId = selectedSongId,
-                        selectedDanCategoryId = selectedDanCategoryId,
-                        container = container,
-                        songContentTopPadding = contentTopPadding,
-                        communityAliasListState = communityAliasListState,
-                        constantTableListState = constantTableListState,
-                        recommendationSelectedPage = recommendationSelectedPage,
-                        danSelectedPage = danSelectedPage,
-                        scoreQueryViewModel = null,
-                        showScoreQueryFilter = false,
-                        profileCreateRequested = false,
-                        bestTableExportRequested = false,
-                        randomSongFilterRequested = false,
-                        randomSongSessionState = randomSongSessionState,
-                        onProfileCreateRequestHandled = {},
-                        onBestTableExportRequestHandled = {},
-                        onRandomSongFilterRequestHandled = {},
-                        onRandomSongFilterActiveChanged = {},
-                        onDismissScoreQueryFilter = {},
-                        onOpenSong = openSongFromDetail,
-                        onOpenDanCategory = { _, _ -> },
-                        onOpenCommunityAliases = {},
-                        onOpenOtogameLogin = {},
-                        onSongDetailBackgroundChanged = {},
-                        onSongDetailTitleChanged = {},
-                        collectionsDisplayMode = collectionsDisplayMode,
-                        collectionsSortOption = collectionsSortOption,
-                        collectionsSortAscending = collectionsSortAscending,
-                        selectedCollectionId = selectedCollectionId,
-                        collectionsRenameRequested = collectionsRenameRequested,
-											onSelectedCollectionIdChange = { id -> id?.let(openCollection) },
-											collectionsCreateRequested = collectionsCreateRequested,
-                        collectionsImportRequested = collectionsImportRequested,
-                        onCollectionsCreateRequestHandled = { collectionsCreateRequested = false },
-                        onCollectionsImportRequestHandled = { collectionsImportRequested = false },
-                        onCollectionsRenameRequestHandled = { collectionsRenameRequested = false },
-                    )
-                }
-                if (sourceDimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = sourceDimAlpha)),
-                    )
-                }
-            }
-        }
-
-        val showCollectionDetailLayer = detail == AppDetail.CollectionDetail ||
-            (detail == AppDetail.Song && songReturnDetail == AppDetail.CollectionDetail)
-        if (showCollectionDetailLayer) {
-            val isForeground = detail == AppDetail.CollectionDetail
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(if (isForeground) 1f else 0f)
-                    .graphicsLayer {
-                        translationX = if (isForeground) {
-                            if (gestureInProgress) {
-                                size.width * backProgress.value
-                            } else {
-                                size.width * detailEntranceProgress.value
-                            }
-                        } else {
-                            -size.width * 0.25f * (1f - detailSourceProgress)
-                        }
-                        if (isForeground) {
-                            shape = foregroundShape
-                            clip = detailIsMoving
-                            shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                        }
-                    },
-            ) {
-                DetailNavigationLayer(
-                    title = selectedCollectionTitle ?: detailTitle(AppDetail.Collections),
-                    onBack = closeDetail,
-                    scrollBehavior = MiuixScrollBehavior(),
-                    actions = { detailActions(AppDetail.CollectionDetail) },
-                ) { contentTopPadding ->
-                    DetailScreen(
-                        detail = AppDetail.CollectionDetail,
-                        state = uiState,
-                        selectedSongId = selectedSongId,
-                        selectedDanCategoryId = selectedDanCategoryId,
-                        container = container,
-                        songContentTopPadding = contentTopPadding,
-                        communityAliasListState = communityAliasListState,
-                        constantTableListState = constantTableListState,
-                        recommendationSelectedPage = recommendationSelectedPage,
-                        danSelectedPage = danSelectedPage,
-                        scoreQueryViewModel = null,
-                        showScoreQueryFilter = false,
-                        profileCreateRequested = false,
-                        bestTableExportRequested = false,
-                        randomSongFilterRequested = false,
-                        randomSongSessionState = randomSongSessionState,
-                        onProfileCreateRequestHandled = {},
-                        onBestTableExportRequestHandled = {},
-                        onRandomSongFilterRequestHandled = {},
-                        onRandomSongFilterActiveChanged = {},
-                        onDismissScoreQueryFilter = {},
-                        onOpenSong = openSongFromDetail,
-                        onOpenDanCategory = { _, _ -> },
-                        onOpenCommunityAliases = {},
-                        onOpenOtogameLogin = {},
-                        onSongDetailBackgroundChanged = {},
-                        onSongDetailTitleChanged = {},
-                        collectionsDisplayMode = collectionsDisplayMode,
-                        collectionsSortOption = collectionsSortOption,
-                        collectionsSortAscending = collectionsSortAscending,
-                        selectedCollectionId = selectedCollectionId,
-                        collectionsRenameRequested = collectionsRenameRequested,
-											onSelectedCollectionIdChange = {},
-											collectionsCreateRequested = false,
-                        collectionsImportRequested = false,
-                        onCollectionsCreateRequestHandled = {},
-                        onCollectionsImportRequestHandled = {},
-                        onCollectionsRenameRequestHandled = { collectionsRenameRequested = false },
-                    )
-                }
-            }
-        }
-
-        detail?.takeUnless {
-            it == AppDetail.Collections ||
-            it == AppDetail.CollectionDetail ||
-            it == AppDetail.RandomSong ||
-                it == AppDetail.BestTable ||
-                it == AppDetail.Recommendations ||
-                it == AppDetail.ScoreQuery ||
-                it == AppDetail.ConstantTable ||
-                it == AppDetail.PlateProgress ||
-                it == AppDetail.Dan ||
-                it == AppDetail.DanDetail ||
-                it == AppDetail.OtogameImport ||
-                it == AppDetail.OtogameLogin ||
-                it == AppDetail.Song
-        }?.let { activeDetail ->
-            val detailScrollBehavior = when (activeDetail) {
-                AppDetail.CommunityAliases -> communityAliasScrollBehavior
-                else -> MiuixScrollBehavior()
-            }
-            val scoreQueryViewModel = if (activeDetail == AppDetail.ScoreQuery) {
-                composeViewModel<ScoreQueryViewModel>(factory = ScoreQueryViewModel.Factory(container))
-            } else {
-                null
-            }
-            val scoreQueryState = scoreQueryViewModel?.state?.collectAsStateWithLifecycle()?.value
-            val scoreQueryText = scoreQueryViewModel?.query?.collectAsStateWithLifecycle()?.value.orEmpty()
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = if (gestureInProgress) {
-                            size.width * backProgress.value
-                        } else {
-                            size.width * detailEntranceProgress.value
-                        }
-                        shape = foregroundShape
-                        clip = detailIsMoving
-                        shadowElevation = if (detailIsMoving) 12.dp.toPx() else 0f
-                    },
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        // Detail pages use the app theme surface. The song artwork
-                        // background is scoped to the song detail layer above.
-                        .background(backgroundColor),
-                )
-                Scaffold(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (
-                                activeDetail == AppDetail.BestTable ||
-                                activeDetail == AppDetail.Recommendations ||
-                                activeDetail == AppDetail.ScoreQuery ||
-                                activeDetail == AppDetail.ConstantTable ||
-                                activeDetail == AppDetail.PlateProgress ||
-                                activeDetail == AppDetail.Dan ||
-                                activeDetail == AppDetail.DanDetail ||
-                                activeDetail == AppDetail.CommunityAliases ||
-                                activeDetail == AppDetail.Collections ||
-                                activeDetail == AppDetail.CollectionDetail ||
-                                activeDetail == AppDetail.DivingFishImport ||
-                                activeDetail == AppDetail.LxnsImport ||
-                                activeDetail == AppDetail.OtogameImport ||
-                                activeDetail == AppDetail.Appearance
-                            ) {
-                                Modifier
-                                    .nestedScroll(detailScrollBehavior.nestedScrollConnection)
-                                    .then(
-                                        when (activeDetail) {
-                                            AppDetail.Recommendations -> Modifier.nestedScroll(
-                                                recommendationSwitcherScrollConnection,
-                                            )
-                                            AppDetail.ScoreQuery -> Modifier.nestedScroll(
-                                                scoreQuerySearchScrollConnection,
-                                            )
-                                            else -> Modifier
-                                        },
-                                    )
-                            } else {
-                                Modifier
-                            },
-                        ),
-                    topBar = {
-											when (activeDetail) {
-												AppDetail.Song -> {
-													SmallTopAppBar(
-														title = songDetailTitle
-															?.takeIf { it.first == selectedSongId }
-															?.second
-															?: selectedSong?.title.orEmpty(),
-														modifier = Modifier.drawPlainBackdrop(
-															backdrop = detailBackdrop,
-															shape = { TopBarBottomShape },
-															effects = {
-																blur(24.dp.toPx())
-															},
-														).clip(TopBarBottomShape),
-														color = Color.Transparent,
-														navigationIcon = detailNavigationIcon,
-														actions = { detailActions(activeDetail) },
-														defaultWindowInsetsPadding = true,
-													)
-												}
-
-								AppDetail.StaticData, AppDetail.OtogameLogin
-									-> {
-													val detailTitle = detailTitle(activeDetail)
-													SmallTopAppBar(
-														title = detailTitle,
-														modifier = Modifier.drawPlainBackdrop(
-															backdrop = detailBackdrop,
-															shape = { TopBarBottomShape },
-															effects = { if (enableBlur) blur(24.dp.toPx()) },
-															onDrawSurface = {
-																drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
-															},
-														).clip(TopBarBottomShape),
-														color = Color.Transparent,
-														navigationIcon = detailNavigationIcon,
-														actions = { detailActions(activeDetail) },
-														defaultWindowInsetsPadding = true,
-								)
-								}
-
-								AppDetail.ConstantTable -> {
-									SmallTopAppBar(
-										title = detailTitle(AppDetail.ConstantTable),
-										modifier = Modifier.drawPlainBackdrop(
-											backdrop = detailBackdrop,
-											shape = { TopBarBottomShape },
-											effects = { if (enableBlur) blur(24.dp.toPx()) },
-											onDrawSurface = {
-												drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
-											},
-										).clip(TopBarBottomShape),
-										color = Color.Transparent,
-										navigationIcon = detailNavigationIcon,
-										actions = {
-											IconButton(onClick = { showConstantTableFilter = true }) {
-												Icon(
-													imageVector = Icons.Rounded.FilterList,
-													contentDescription = stringResource(R.string.catalog_filter_title),
-												)
-											}
-										},
-									defaultWindowInsetsPadding = true,
-									)
-								}
-
-								AppDetail.BestTable, AppDetail.Recommendations, AppDetail.ScoreQuery, AppDetail.PlateProgress, AppDetail.Dan, AppDetail.DanDetail, AppDetail.CommunityAliases, AppDetail.Collections, AppDetail.CollectionDetail, AppDetail.DivingFishImport, AppDetail.LxnsImport, AppDetail.OtogameImport, AppDetail.Appearance,
-													-> {
-													val detailTitle = when (activeDetail) {
-															AppDetail.CollectionDetail if selectedCollectionTitle != null -> {
-																selectedCollectionTitle
-															}
-															AppDetail.DanDetail -> {
-																selectedDanCategoryTitle ?: detailTitle(AppDetail.Dan)
-															}
-															else -> {
-																detailTitle(activeDetail)
-															}
-													}
-													TopAppBar(
-														title = detailTitle,
-														largeTitle = detailTitle,
-														modifier = Modifier.drawPlainBackdrop(
-															backdrop = detailBackdrop,
-															shape = { TopBarBottomShape },
-															effects = { if (enableBlur) blur(24.dp.toPx()) },
-															onDrawSurface = {
-																drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
-															},
-														).clip(TopBarBottomShape),
-														color = Color.Transparent,
-														navigationIcon = detailNavigationIcon,
-						actions = {
-							when (activeDetail) {
-									AppDetail.ConstantTable -> {
-										IconButton(onClick = { showConstantTableFilter = true }) {
-											Icon(
-												imageVector = Icons.Rounded.FilterList,
-												contentDescription = stringResource(R.string.catalog_filter_title),
-											)
-										}
-									}
-									AppDetail.ScoreQuery if scoreQueryState != null -> {
-										ScoreQueryTopBarActions(
-											displayMode = scoreQueryState.displayMode,
-											sortMode = scoreQueryState.sortMode,
-											sortAscending = scoreQueryState.sortAscending,
-											filterActive = !scoreQueryState.filterSettings.isEmpty,
-											onDisplayModeChange = scoreQueryViewModel::setDisplayMode,
-											onSortModeChange = scoreQueryViewModel::setSortMode,
-											onSortAscendingChange = scoreQueryViewModel::setSortAscending,
-											onShowFilter = { showScoreQueryFilter = true },
-										)
-									}
-									else -> {
-										detailActions(activeDetail)
-									}
-							}
-														},
-														scrollBehavior = detailScrollBehavior,
-														defaultWindowInsetsPadding = true,
-														bottomContent = {
-															if (activeDetail == AppDetail.Recommendations) {
-																RecommendationPageSwitcher(
-																	selectedPage = recommendationSelectedPage,
-																	visible = recommendationSwitcherVisible,
-																	onSelectedPageChange = {
-																		recommendationSelectedPage = it
-																	},
-																)
-															} else if (
-																activeDetail == AppDetail.ScoreQuery &&
-																scoreQueryViewModel != null
-															) {
-																CatalogSearchBar(
-																	query = scoreQueryText,
-																	onQueryChange = scoreQueryViewModel::setQuery,
-																	expanded = scoreQuerySearchExpanded,
-																	onExpandedChange = { scoreQuerySearchExpanded = it },
-																	visible = scoreQuerySearchVisible ||
-																		scoreQuerySearchFocused ||
-																		restoreScoreQuerySearchFocus,
-																	focusRequestToken = scoreQuerySearchFocusRequestToken,
-																	backEnabled = detail == AppDetail.ScoreQuery &&
-																		scoreQuerySearchFocused,
-																	interactionSource = scoreQuerySearchInteractionSource,
-																	labelResource = R.string.score_query_search_hint,
-																)
-															}
-														},
-													)
-												}
-
-												else -> {
-													val detailTitle = detailTitle(activeDetail)
-													TopAppBar(
-														title = detailTitle,
-														largeTitle = detailTitle,
-														modifier = Modifier.clip(TopBarBottomShape),
-														navigationIcon = detailNavigationIcon,
-														actions = { detailActions(activeDetail) },
-														defaultWindowInsetsPadding = true,
-													)
-												}
-											}
-                    },
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                ) { paddingValues ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
+                            .align(androidx.compose.ui.Alignment.BottomCenter)
                             .then(
-                                when (activeDetail) {
-                                    AppDetail.Song,
-                                    AppDetail.BestTable,
-                                    AppDetail.Recommendations,
-                                    AppDetail.ScoreQuery,
-                                    AppDetail.ConstantTable,
-                                    AppDetail.PlateProgress,
-                                    AppDetail.Dan,
-                                    AppDetail.DanDetail,
-                                    AppDetail.CommunityAliases,
-                                    AppDetail.DivingFishImport,
-                                    AppDetail.LxnsImport,
-                                    AppDetail.OtogameImport,
-                                    AppDetail.OtogameLogin,
-                                    AppDetail.Appearance,
-                                    -> Modifier
-                                        .layerBackdrop(detailBackdrop)
-                                        .background(backgroundColor)
-                                    AppDetail.StaticData,
-                                    AppDetail.Collections,
-                                    AppDetail.CollectionDetail,
-                                    -> Modifier
-                                        .padding(paddingValues)
-                                        .layerBackdrop(detailBackdrop)
-                                    else -> Modifier.padding(paddingValues)
+                                if (LocalEnableFloatingBottomBar.current) {
+                                    Modifier.navigationBarsPadding().padding(bottom = 8.dp)
+                                } else {
+                                    Modifier
                                 },
                             ),
-                    ) {
-                        DetailScreen(
-                            detail = activeDetail,
-                            state = uiState,
-                            selectedSongId = selectedSongId,
-                            selectedDanCategoryId = selectedDanCategoryId,
-                            container = container,
-                            songContentTopPadding = paddingValues.calculateTopPadding(),
-                            communityAliasListState = communityAliasListState,
-                            constantTableListState = constantTableListState,
-                            recommendationSelectedPage = recommendationSelectedPage,
-                            danSelectedPage = danSelectedPage,
-                            scoreQueryViewModel = scoreQueryViewModel,
-                            showScoreQueryFilter = showScoreQueryFilter,
-                            showConstantTableFilter = showConstantTableFilter,
-                            profileCreateRequested = profileCreateRequested,
-                            bestTableExportRequested = bestTableExportRequested,
-                            randomSongFilterRequested = randomSongFilterRequested,
-                            randomSongSessionState = randomSongSessionState,
-                            onProfileCreateRequestHandled = { profileCreateRequested = false },
-                            onBestTableExportRequestHandled = { bestTableExportRequested = false },
-                            onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
-                            onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
-                            onDismissScoreQueryFilter = { showScoreQueryFilter = false },
-                            onDismissConstantTableFilter = { showConstantTableFilter = false },
-                            onOpenSong = openSongFromDetail,
-                            onOpenDanCategory = { categoryId, categoryTitle ->
-                                selectedDanCategoryId = categoryId
-                                selectedDanCategoryTitle = categoryTitle
-                                openDetail(AppDetail.DanDetail)
-                            },
-                            onOpenCommunityAliases = openCommunityAliasesFromSong,
-                            onOpenOtogameLogin = { openDetail(AppDetail.OtogameLogin) },
-                            onSongDetailBackgroundChanged = { color ->
-                                val currentSongId = selectedSongId
-                                if (detail == AppDetail.Song && currentSongId != null) {
-                                    songDetailBackground = color?.let { currentSongId to it }
-                                }
-                            },
-                            onSongDetailTitleChanged = { title ->
-                                val currentSongId = selectedSongId
-                                if (detail == AppDetail.Song && currentSongId != null) {
-                                    songDetailTitle = currentSongId to title
-                                }
-                            },
-                            themeSettings = themeSettings,
-                            onColorModeChange = viewModel::setColorMode,
-                            onKeyColorChange = viewModel::setKeyColor,
-                            onPaletteStyleChange = viewModel::setPaletteStyle,
-                            onColorSpecChange = viewModel::setColorSpec,
-                            onEnableBlurChange = viewModel::setEnableBlur,
-                            onEnableFloatingBottomBarChange = viewModel::setEnableFloatingBottomBar,
-                            onEnableFloatingBottomBarBlurChange = viewModel::setEnableFloatingBottomBarBlur,
-                            onEnablePredictiveBackChange = viewModel::setEnablePredictiveBack,
-                            onPageScaleChange = viewModel::setPageScale,
-                            collectionsDisplayMode = collectionsDisplayMode,
-                            collectionsSortOption = collectionsSortOption,
-                            collectionsSortAscending = collectionsSortAscending,
-                            selectedCollectionId = selectedCollectionId,
-                            collectionsRenameRequested = collectionsRenameRequested,
-													onSelectedCollectionIdChange = { id -> id?.let(openCollection) },
-													collectionsCreateRequested = collectionsCreateRequested,
-                            collectionsImportRequested = collectionsImportRequested,
-                            onCollectionsCreateRequestHandled = { collectionsCreateRequested = false },
-                            onCollectionsImportRequestHandled = { collectionsImportRequested = false },
-                            onCollectionsRenameRequestHandled = { collectionsRenameRequested = false },
-                        )
-                    }
+                    )
                 }
             }
+            entry<AppRoute.Detail>(
+                transition = SettingsDetailTransition,
+                swipeDismiss = if (predictiveBackEnabled) {
+                    NavSwipeDirection.LeftToRight
+                } else {
+                    NavSwipeDirection.None
+                },
+            ) { route ->
+                LaunchedEffect(route) {
+                    detail = route.detail
+                    selectedSongId = route.songId
+                    selectedDanCategoryId = route.danCategoryId
+                    selectedCollectionId = route.collectionId
+                }
+                DetailEntry(route)
+            }
+            entry<AppRoute.Song>(
+                transition = catalogCoverTransition?.transition ?: SettingsDetailTransition,
+                swipeDismiss = if (predictiveBackEnabled) {
+                    NavSwipeDirection.LeftToRight
+                } else {
+                    NavSwipeDirection.None
+                },
+            ) { route ->
+                val routeTransition = route.transitionId?.let(songCoverTransitions::get)
+                DisposableEffect(route, routeTransition) {
+                    onDispose {
+                        if (route !in navBackStack) {
+                            route.transitionId?.let(songCoverTransitions::remove)
+                            if (catalogCoverTransition === routeTransition) {
+                                catalogCoverTransition = navBackStack.asReversed()
+                                    .filterIsInstance<AppRoute.Song>()
+                                    .firstNotNullOfOrNull { it.transitionId?.let(songCoverTransitions::get) }
+                            }
+                        }
+                    }
+                }
+                LaunchedEffect(route) {
+                    detail = AppDetail.Song
+                    selectedSongId = route.songId
+                    selectedDanCategoryId = null
+                    selectedCollectionId = null
+                }
+                DetailEntry(AppRoute.Detail(AppDetail.Song, songId = route.songId))
+            }
         }
-
+    }
+    }
         org.rhythmeta.maimaid.ui.update.AppUpdateHost(
             viewModel = appUpdateViewModel,
             blocked = detail != null || destination == RootDestination.Scanner || showHomeProfileEditor ||
                 showCatalogFilter || showConstantTableFilter || showScoreQueryFilter ||
-                pendingCollectionImport != null || homeTabTransitionActive,
+                pendingCollectionImport != null,
         )
 
         ProfileEditorSheet(
@@ -2254,143 +1424,6 @@ fun MaimaidApp(
             }
         }
     }
-}
-
-@Composable
-private fun DetailNavigationLayer(
-    title: String,
-    onBack: () -> Unit,
-    scrollBehavior: ScrollBehavior? = null,
-    actions: @Composable RowScope.() -> Unit = {},
-    scrollObserver: NestedScrollConnection? = null,
-    bottomContent: @Composable () -> Unit = {},
-    content: @Composable (Dp) -> Unit,
-) {
-    val resolvedScrollBehavior = scrollBehavior ?: MiuixScrollBehavior()
-    val enableBlur = LocalEnableBlur.current
-    val backgroundColor = MiuixTheme.colorScheme.surface
-    val pageBackdrop = rememberLayerBackdrop()
-    val scrollConnection = remember(resolvedScrollBehavior, scrollObserver) {
-        val topBarConnection = resolvedScrollBehavior.nestedScrollConnection
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                scrollObserver?.onPreScroll(available, source)
-                return topBarConnection.onPreScroll(available, source)
-            }
-
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource,
-            ): Offset {
-                scrollObserver?.onPostScroll(consumed, available, source)
-                return topBarConnection.onPostScroll(consumed, available, source)
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity =
-                topBarConnection.onPreFling(available)
-
-            override suspend fun onPostFling(
-                consumed: Velocity,
-                available: Velocity,
-            ): Velocity = topBarConnection.onPostFling(consumed, available)
-        }
-    }
-
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollConnection),
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = title,
-                largeTitle = title,
-                modifier = Modifier.drawPlainBackdrop(
-                    backdrop = pageBackdrop,
-                    shape = { TopBarBottomShape },
-                    effects = { if (enableBlur) blur(24.dp.toPx()) },
-                    onDrawSurface = {
-                        drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
-                    },
-                ).clip(TopBarBottomShape),
-                color = Color.Transparent,
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                actions = actions,
-                scrollBehavior = resolvedScrollBehavior,
-                defaultWindowInsetsPadding = true,
-                bottomContent = bottomContent,
-            )
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(pageBackdrop)
-                .background(backgroundColor),
-        ) {
-            content(paddingValues.calculateTopPadding())
-        }
-    }
-}
-
-@Composable
-private fun SongNavigationLayer(
-    title: String,
-    backgroundColor: Color,
-    onBack: () -> Unit,
-    actions: @Composable RowScope.() -> Unit = {},
-    content: @Composable (Dp) -> Unit,
-) {
-    val enableBlur = LocalEnableBlur.current
-    val pageBackdrop = rememberLayerBackdrop()
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
-        topBar = {
-            SmallTopAppBar(
-                title = title,
-                modifier = Modifier.drawPlainBackdrop(
-                    backdrop = pageBackdrop,
-                    shape = { TopBarBottomShape },
-                    effects = { if (enableBlur) blur(24.dp.toPx()) },
-                    onDrawSurface = {
-                        drawRect(backgroundColor.copy(alpha = if (enableBlur) 0.52f else 1f))
-                    },
-                ).clip(TopBarBottomShape),
-                color = Color.Transparent,
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                actions = actions,
-                defaultWindowInsetsPadding = true,
-            )
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(pageBackdrop)
-                .background(backgroundColor),
-        ) {
-            content(paddingValues.calculateTopPadding())
-        }
-    }
-}
 
 @Composable
 private fun RootLayer(

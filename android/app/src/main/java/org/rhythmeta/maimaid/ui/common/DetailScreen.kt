@@ -85,6 +85,7 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import org.rhythmeta.maimaid.ui.collections.SongCollectionsScreen
 import org.rhythmeta.maimaid.ui.catalog.CatalogDisplayMode
+import org.rhythmeta.maimaid.ui.catalog.CatalogCoverTransition
 import org.rhythmeta.maimaid.core.data.CatalogSortOption
 
 @Composable
@@ -139,6 +140,7 @@ internal fun DetailScreen(
     onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit = {},
     onEnablePredictiveBackChange: (Boolean) -> Unit = {},
     onPageScaleChange: (Float) -> Unit = {},
+    coverTransition: CatalogCoverTransition? = null,
 ) {
     val constantTableVersions = remember(state.songs, state.gameVersions) {
         val versionMetadata = state.gameVersions.associateBy(GameVersionEntity::name)
@@ -160,6 +162,7 @@ internal fun DetailScreen(
             onBackgroundChanged = onSongDetailBackgroundChanged,
             onTitleChanged = onSongDetailTitleChanged,
             onOpenCommunityAliases = onOpenCommunityAliases,
+            coverTransition = coverTransition,
         )
         AppDetail.Collections -> SongCollectionsScreen(
             container = container,

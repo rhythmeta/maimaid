@@ -43,6 +43,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
@@ -184,9 +185,17 @@ private fun CommunityAliasSongHeader(
     container: AppContainer,
     onOpenSong: (String) -> Unit,
 ) {
+    val coverNavigation = song?.let { currentSong ->
+        rememberSongCoverNavigation(
+            songId = currentSong.songIdentifier,
+            onClick = { onOpenSong(currentSong.songIdentifier) },
+            cornerRadius = 9.dp,
+            key = currentSong.imageName,
+        )
+    }
     val navigationModifier = song?.let { currentSong ->
         Modifier.clickable(role = Role.Button) {
-            onOpenSong(currentSong.songIdentifier)
+            coverNavigation?.open() ?: onOpenSong(currentSong.songIdentifier)
         }
     } ?: Modifier
 
@@ -204,6 +213,7 @@ private fun CommunityAliasSongHeader(
                 coverImageStore = container.coverImageStore,
                 size = 46.dp,
                 cornerRadius = 9.dp,
+                navigation = coverNavigation,
             )
         } else {
             Box(

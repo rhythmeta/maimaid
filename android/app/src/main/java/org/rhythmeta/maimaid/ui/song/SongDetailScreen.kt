@@ -87,6 +87,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -127,6 +128,7 @@ import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.SongCollectionEntity
 import org.rhythmeta.maimaid.ui.catalog.ScoreEntrySongCard
+import org.rhythmeta.maimaid.ui.catalog.CatalogCoverTransition
 import org.rhythmeta.maimaid.ui.common.openExternalApp
 import org.rhythmeta.maimaid.ui.components.ExpandableBottomSheet
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
@@ -143,6 +145,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -249,13 +252,14 @@ private val LockNotRequiredLightColor = Color(0xFF5F916B)
 private val LockNotRequiredDarkColor = Color(0xFF8FBC98)
 
 @Composable
-fun SongDetailScreen(
+internal fun SongDetailScreen(
     song: SongEntity?,
     container: AppContainer,
     contentTopPadding: androidx.compose.ui.unit.Dp,
     onBackgroundChanged: (Color?) -> Unit,
     onTitleChanged: (String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
+    coverTransition: CatalogCoverTransition? = null,
 ) {
     if (song == null) {
         EmptySongState()
@@ -384,6 +388,7 @@ fun SongDetailScreen(
                     onJacketColor = { jacketColor = it },
                     onCopied = showCopiedSnackbar,
                     onMessage = showSnackbar,
+                    coverTransition = coverTransition,
                 )
             }
             item {
@@ -580,6 +585,7 @@ private fun SongHeader(
     onJacketColor: (Color) -> Unit,
     onCopied: () -> Unit,
     onMessage: (String) -> Unit,
+    coverTransition: CatalogCoverTransition? = null,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -615,6 +621,8 @@ private fun SongHeader(
             Box(
                 modifier = Modifier
                     .size(220.dp)
+                    .onGloballyPositioned { coverTransition?.updateDetailCover(it) }
+                    .graphicsLayer { alpha = if (coverTransition?.hidesDetailCover == true) 0f else 1f }
                     .shadow(
                         elevation = 18.dp,
                         shape = jacketShape,

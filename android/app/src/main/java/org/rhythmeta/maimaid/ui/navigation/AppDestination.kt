@@ -1,5 +1,8 @@
 package org.rhythmeta.maimaid.ui.navigation
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class RootDestination {
     Home,
     Scanner,
@@ -7,6 +10,7 @@ enum class RootDestination {
     Settings,
 }
 
+@Serializable
 enum class AppDetail {
     BestTable,
     RandomSong,

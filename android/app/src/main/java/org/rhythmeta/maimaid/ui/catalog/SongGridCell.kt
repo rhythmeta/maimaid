@@ -70,10 +70,17 @@ internal fun SongGridCell(
     val isUtage = sheets.any { it.type.contains("utage", ignoreCase = true) } ||
         song.category.contains("utage", ignoreCase = true) ||
         song.category.contains("宴")
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = song.songIdentifier,
+        onClick = onClick,
+        cornerRadius = cornerRadius,
+        key = song.imageName,
+    )
 
     Box(
         modifier = modifier
             .aspectRatio(1f)
+            .then(coverNavigation.modifier)
             .clip(squircleShape(cornerRadius))
             .squircleSurface(
                 color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
@@ -88,7 +95,7 @@ internal fun SongGridCell(
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
+                onClick = coverNavigation::open,
                 onLongClick = onLongClick,
             ),
     ) {
@@ -97,6 +104,7 @@ internal fun SongGridCell(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
+            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
         )
 
         if (showActualDifficultyIndicator) actualSheet?.let { sheet ->

@@ -47,6 +47,7 @@ import org.rhythmeta.maimaid.core.data.DanChartEntry
 import org.rhythmeta.maimaid.core.data.DanSectionDetail
 import org.rhythmeta.maimaid.core.data.ServerChartPolicy
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
@@ -278,8 +279,16 @@ private fun DanSongRow(
         fallbackColor = difficultyColor,
     )
     val song = entry.song
+    val coverNavigation = song?.let { currentSong ->
+        rememberSongCoverNavigation(
+            songId = currentSong.songIdentifier,
+            onClick = { onOpenSong(currentSong.songIdentifier) },
+            cornerRadius = 12.dp,
+            key = entry.reference.title + entry.reference.type + entry.reference.difficulty,
+        )
+    }
     val rowModifier = if (song != null) {
-        Modifier.clickable { onOpenSong(song.songIdentifier) }
+        Modifier.clickable { coverNavigation?.open() ?: onOpenSong(song.songIdentifier) }
     } else {
         Modifier
     }
@@ -287,6 +296,7 @@ private fun DanSongRow(
     Row(
         modifier = rowModifier
             .fillMaxWidth()
+            .then(coverNavigation?.cardModifier ?: Modifier)
             .height(76.dp)
             .squircleSurface(
                 color = MiuixTheme.colorScheme.surfaceContainerHigh,
@@ -320,6 +330,7 @@ private fun DanSongRow(
                 coverImageStore = container.coverImageStore,
                 size = 50.dp,
                 cornerRadius = 12.dp,
+                navigation = coverNavigation,
             )
         } else {
             Box(

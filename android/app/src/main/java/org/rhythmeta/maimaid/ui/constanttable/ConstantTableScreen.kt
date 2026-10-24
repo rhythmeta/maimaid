@@ -53,6 +53,7 @@ import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.catalog.CatalogFilterDialog
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Button
@@ -342,19 +343,27 @@ private fun ConstantTableJacket(
             .data(cachedCover ?: StaticAssetUrls.coverUrl(entry.imageName))
             .build()
     }
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = entry.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 9.dp,
+        key = entry.songIdentifier,
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .then(coverNavigation.modifier)
             .semantics { contentDescription = entry.songTitle }
             .clip(squircleShape(9.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = coverNavigation::open),
     ) {
         AsyncImage(
             model = coverModel,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
+            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
         )
         if (includeScores) {
             Column(

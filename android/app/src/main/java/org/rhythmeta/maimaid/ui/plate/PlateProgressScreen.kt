@@ -48,6 +48,7 @@ import org.rhythmeta.maimaid.core.data.PlateType
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.core.data.VersionPlateGroup
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
@@ -355,16 +356,23 @@ private fun PlateJacket(
         difficultyName(chart.sheet.difficulty),
         status,
     )
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = chart.song.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 10.dp,
+        key = chart.sheet.sheetKey,
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .then(coverNavigation.modifier)
             .semantics {
                 contentDescription = accessibilityDescription
             }
             .clip(squircleShape(10.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = coverNavigation::open),
     ) {
         AsyncImage(
             model = model,
@@ -373,6 +381,7 @@ private fun PlateJacket(
             colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
             alpha = if (chart.achieved) 0.92f else 0.62f,
             modifier = Modifier.fillMaxSize(),
+            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
         )
         if (chart.achieved) {
             Box(

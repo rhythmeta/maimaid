@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -113,8 +116,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    tasks.withType<KotlinJvmCompile>().configureEach {
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
     }
     buildFeatures {
         compose = true
@@ -149,6 +155,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.miuix.ui)
+    implementation(libs.miuix.nav)
     implementation(libs.miuix.preference)
     implementation(libs.onnxruntime.android)
     implementation(libs.backdrop)

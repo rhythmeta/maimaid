@@ -68,6 +68,8 @@ import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
+import org.rhythmeta.maimaid.ui.catalog.SongCoverNavigation
+import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.appTextFieldColors
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.components.squircleShape
@@ -478,16 +480,24 @@ private fun BestEntryCard(
     coverImageStore: CoverImageStore,
     onClick: () -> Unit,
 ) {
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = entry.songIdentifier,
+        onClick = onClick,
+        cornerRadius = 10.dp,
+        key = entry.sheetKey,
+        cardColor = MiuixTheme.colorScheme.surfaceContainer,
+    )
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .then(coverNavigation.cardModifier)
             .clip(squircleShape(16.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = coverNavigation::open),
         cornerRadius = 16.dp,
         insideMargin = PaddingValues(start = 8.dp),
         colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
     ) {
-        BestEntryRow(entry = entry, coverImageStore = coverImageStore)
+        BestEntryRow(entry = entry, coverImageStore = coverImageStore, coverNavigation = coverNavigation)
     }
 }
 
@@ -495,6 +505,7 @@ private fun BestEntryCard(
 private fun BestEntryRow(
     entry: RatingUtils.Entry,
     coverImageStore: CoverImageStore,
+    coverNavigation: SongCoverNavigation,
 ) {
     val darkTheme = SongVisualUtils.isDarkTheme(MiuixTheme.colorScheme.background)
     val difficultyColor = SongVisualUtils.difficultyColor(
@@ -523,7 +534,7 @@ private fun BestEntryRow(
                 ),
         )
         Spacer(Modifier.width(10.dp))
-        BestJacket(entry.imageName, coverImageStore)
+        BestJacket(entry.imageName, coverImageStore, coverNavigation)
         Spacer(Modifier.width(12.dp))
         Column(
             modifier = Modifier.weight(1f),
@@ -608,7 +619,11 @@ private fun BestEntryRow(
 }
 
 @Composable
-private fun BestJacket(imageName: String, coverImageStore: CoverImageStore) {
+private fun BestJacket(
+    imageName: String,
+    coverImageStore: CoverImageStore,
+    coverNavigation: SongCoverNavigation? = null,
+) {
     val model = remember(imageName) {
         coverImageStore.fileFor(imageName)
             ?: StaticAssetUrls.coverUrl(imageName)
@@ -616,6 +631,7 @@ private fun BestJacket(imageName: String, coverImageStore: CoverImageStore) {
     Box(
         modifier = Modifier
             .size(56.dp)
+            .then(coverNavigation?.modifier ?: Modifier)
             .squircleSurface(
                 color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                 cornerRadius = 10.dp,
@@ -627,6 +643,7 @@ private fun BestJacket(imageName: String, coverImageStore: CoverImageStore) {
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
+            onSuccess = { result -> coverNavigation?.onPainter(result.painter) },
         )
     }
 }

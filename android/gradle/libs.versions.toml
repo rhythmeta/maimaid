@@ -15,6 +15,7 @@ dataStore = "1.2.1"
 serialization = "1.11.0"
 coroutines = "1.11.0"
 miuix = "0.9.3"
+miuixNav = "0.9.4"
 onnxRuntime = "1.29.0"
 backdrop = "2.0.1"
 camerax = "1.6.2"
@@ -52,6 +53,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 miuix-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-ui", version.ref = "miuix" }
+miuix-nav = { group = "top.yukonga.miuix.kmp", name = "miuix-nav", version.ref = "miuixNav" }
 miuix-preference = { group = "top.yukonga.miuix.kmp", name = "miuix-preference", version.ref = "miuix" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxRuntime" }
 backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
