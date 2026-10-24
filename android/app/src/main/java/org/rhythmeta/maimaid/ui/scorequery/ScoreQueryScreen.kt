@@ -308,7 +308,7 @@ private fun ScoreQueryGridCell(
         Box(
             modifier = Modifier
                 .aspectRatio(1f)
-                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .then(if (showCover) coverNavigation.modifier else Modifier)
                 .squircleSurface(
                     color = if (showCover) cardColor else Color.Transparent,
                     cornerRadius = cornerRadius,
