@@ -823,6 +823,7 @@ private fun SongHeader(
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             modifier = Modifier
+                                .clip(squircleShape(50.dp))
                                 .clickable {
                                     if (copyToClipboard(
                                             context,
