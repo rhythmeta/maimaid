@@ -84,7 +84,9 @@ internal fun ScannerCameraPreview(
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
-            implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+            // TextureView keeps the camera frame in the Compose-rendered layer so
+            // the liquid-glass navigation bar can sample and refract it.
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
