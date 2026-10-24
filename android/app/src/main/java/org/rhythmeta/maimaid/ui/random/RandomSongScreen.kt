@@ -90,6 +90,7 @@ internal fun RandomSongScreen(
     coverImageStore: CoverImageStore,
     server: String,
     sessionState: RandomSongSessionState,
+    contentTopPadding: Dp,
     filterRequested: Boolean,
     onFilterRequestHandled: () -> Unit,
     onFilterActiveChanged: (Boolean) -> Unit,
@@ -191,7 +192,11 @@ internal fun RandomSongScreen(
             )
         }
     } else {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = contentTopPadding),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

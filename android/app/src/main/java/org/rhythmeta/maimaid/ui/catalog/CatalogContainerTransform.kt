@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
@@ -39,15 +40,13 @@ internal fun CatalogContainerTransform(
     }
     val navigation = LocalNavTransitionScope.current
     SideEffect { state.attach(navigation) }
-    DisposableEffect(state) { onDispose { state.detach() } }
+    DisposableEffect(state) {
+        onDispose { state.detach() }
+    }
     Box(Modifier.fillMaxSize().drawBehind {
         val progress = catalogContainerProgress(navigation.relativeDepth)
         val sourceColor = state.genericSource?.takeIf { state.usesListMotion }?.cardColor
-        val color = if (sourceColor != null) {
-            lerp(sourceColor, background, (progress / 0.56f).coerceIn(0f, 1f))
-        } else {
-            background
-        }
+        val color = sourceColor?.let { lerp(it, background, (progress / 0.56f).coerceIn(0f, 1f)) } ?: background
         drawRect(color)
     }) {
         Box(Modifier.fillMaxSize().graphicsLayer {
@@ -56,6 +55,9 @@ internal fun CatalogContainerTransform(
             alpha = if (state.usesListMotion) catalogDetailAlpha(progress) else 1f
             transformOrigin = TransformOrigin(0f, 0f)
             if (state.usesListMotion) {
+                scaleX = 1f
+                scaleY = 1f
+                translationX = 0f
                 translationY = state.listContentTranslation(progress)
             } else {
                 val scale = max(bounds.width / size.width.coerceAtLeast(1f), bounds.height / size.height.coerceAtLeast(1f))
@@ -74,31 +76,64 @@ internal fun CatalogContainerTransform(
         Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
             val progress = catalogContainerProgress(navigation.relativeDepth)
             val target = state.detailBounds
-            val bounds = if (target != null) state.sharedCoverBounds(target, progress)
-            else state.fallbackCoverBounds(Size(size.width, size.height), progress)
+            val shared = target != null
+            val coverAlpha = if (shared) {
+                if (progress < 1f) 1f else 0f
+            } else {
+                catalogCoverAlpha(progress)
+            }
             val painter = state.coverPainter
             val intrinsic = painter.intrinsicSize
             val imageSize = if (intrinsic.isSpecified && intrinsic.width.isFinite() && intrinsic.height.isFinite() &&
                 intrinsic.width > 0f && intrinsic.height > 0f
             ) intrinsic else Size(1f, 1f)
-            val scale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
-            val drawSize = Size(imageSize.width * scale, imageSize.height * scale)
-            val radius = interpolate(state.coverCornerRadiusPx(this), 26.dp.toPx(), progress)
-            val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
-            val alpha = if (target == null) {
-                1f - ((progress - 0.1f) / 0.2f).coerceIn(0f, 1f)
-            } else {
-                if (progress < 1f) 1f else 0f
-            }
-            if (alpha > 0f) {
-                clipRect(bounds.left, bounds.top, bounds.right, bounds.bottom) {
+            if (coverAlpha > 0f) {
+                val bounds = if (target != null) state.sharedCoverBounds(target, progress)
+                    else state.fallbackCoverBounds(Size(size.width, size.height), progress)
+                val drawScale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
+                val drawSize = Size(imageSize.width * drawScale, imageSize.height * drawScale)
+                val visible = if (shared) {
+                    state.sharedCoverBounds(state.detailClip ?: target, progress)
+                } else {
+                    bounds
+                }
+                val sourceRadius = state.coverCornerRadiusPx(this)
+                val radius = if (shared) interpolate(sourceRadius, 26.dp.toPx(), progress) else sourceRadius
+                val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
+                clipRect(visible.left, visible.top, visible.right, visible.bottom) {
                     clipPath(path) {
+                        if (!state.usesListMotion) {
+                            state.genericSource?.cardColor?.let { surface ->
+                                drawRect(surface, topLeft = bounds.topLeft, size = bounds.size, alpha = coverAlpha)
+                            }
+                        }
                         translate(bounds.center.x - drawSize.width / 2f, bounds.center.y - drawSize.height / 2f) {
-                            with(painter) { draw(drawSize, alpha = alpha) }
+                            with(painter) { draw(drawSize, alpha = coverAlpha) }
                         }
                     }
                 }
             }
+            state.genericSource?.cardBorderColor?.let { borderColor ->
+                val borderAlpha = catalogListContentAlpha(progress)
+                if (borderAlpha > 0f) {
+                    val borderWidth = 1.dp.toPx()
+                    val bounds = state.containerBounds(Size(size.width, size.height), progress)
+                    val inset = borderWidth / 2f
+                    drawRoundRect(
+                        color = borderColor.copy(alpha = borderColor.alpha * borderAlpha),
+                        topLeft = androidx.compose.ui.geometry.Offset(bounds.left + inset, bounds.top + inset),
+                        size = Size(
+                            (bounds.width - borderWidth).coerceAtLeast(0f),
+                            (bounds.height - borderWidth).coerceAtLeast(0f),
+                        ),
+                        cornerRadius = CornerRadius(
+                            state.containerCornerRadiusPx(this, progress),
+                        ),
+                        style = Stroke(width = borderWidth),
+                    )
+                }
+            }
         }
+        SongCardContentOverlay(state, { catalogContainerProgress(navigation.relativeDepth) })
     }
 }

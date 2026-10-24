@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
@@ -69,6 +70,7 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -76,6 +78,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -109,6 +113,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.data.StaticAssetUrls
 import org.rhythmeta.maimaid.core.AppContainer
@@ -260,6 +265,7 @@ internal fun SongDetailScreen(
     onTitleChanged: (String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
     coverTransition: CatalogCoverTransition? = null,
+    onHeaderTitleHiddenChange: (Boolean) -> Unit = {},
 ) {
     if (song == null) {
         EmptySongState()
@@ -270,6 +276,27 @@ internal fun SongDetailScreen(
         key = "song-detail-${song.songIdentifier}",
         factory = SongDetailViewModel.Factory(song.songIdentifier, container),
     )
+    val listState = rememberLazyListState()
+    val titleBounds = remember(song.songIdentifier) { SongDetailTitleBounds() }
+    val topBarHeightPx = with(LocalDensity.current) { contentTopPadding.toPx() }
+    val latestTitleHiddenChange by rememberUpdatedState(onHeaderTitleHiddenChange)
+    LaunchedEffect(song.songIdentifier, listState, titleBounds, topBarHeightPx) {
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            val header = layout.visibleItemsInfo.firstOrNull { it.index == 0 }
+            val titleBottom = titleBounds.bottom
+            when {
+                header == null -> listState.firstVisibleItemIndex > 0
+                titleBottom == null -> false
+                else -> header.offset + titleBottom <= layout.viewportStartOffset + topBarHeightPx
+            }
+        }
+            .distinctUntilChanged()
+            .collect { latestTitleHiddenChange(it) }
+    }
+    DisposableEffect(titleBounds) {
+        onDispose { titleBounds.clear() }
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gameVersions by container.catalogRepository.versions.collectAsStateWithLifecycle(initialValue = emptyList())
     val collections by container.songCollectionRepository.collections.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -368,6 +395,7 @@ internal fun SongDetailScreen(
             .background(detailColors?.background ?: MiuixTheme.colorScheme.background),
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 16.dp,
@@ -389,6 +417,8 @@ internal fun SongDetailScreen(
                     onCopied = showCopiedSnackbar,
                     onMessage = showSnackbar,
                     coverTransition = coverTransition,
+                    coverViewportTop = contentTopPadding,
+                    titleBounds = titleBounds,
                 )
             }
             item {
@@ -586,6 +616,8 @@ private fun SongHeader(
     onCopied: () -> Unit,
     onMessage: (String) -> Unit,
     coverTransition: CatalogCoverTransition? = null,
+    coverViewportTop: androidx.compose.ui.unit.Dp,
+    titleBounds: SongDetailTitleBounds,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -594,8 +626,12 @@ private fun SongHeader(
     val titleInteractionSource = remember { MutableInteractionSource() }
     val artistInteractionSource = remember { MutableInteractionSource() }
     val density = LocalDensity.current
+    val viewportTop = with(density) { coverViewportTop.toPx() }
     var artistLineStartPx by remember(song.songIdentifier) { mutableStateOf<Float?>(null) }
     val jacketShape = remember { squircleShape(26.dp) }
+    DisposableEffect(coverTransition) {
+        onDispose { coverTransition?.updateDetailCover(null, 0f) }
+    }
     val aliasCopyLabel = stringResource(R.string.song_alias_copy_label)
     var jacketMenuExpanded by remember { mutableStateOf(false) }
     var actionSourceFile by remember(cachedCover, song.imageName) { mutableStateOf(cachedCover) }
@@ -610,7 +646,7 @@ private fun SongHeader(
             .build()
     }
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().onGloballyPositioned(titleBounds::updateHeader),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
@@ -621,7 +657,7 @@ private fun SongHeader(
             Box(
                 modifier = Modifier
                     .size(220.dp)
-                    .onGloballyPositioned { coverTransition?.updateDetailCover(it) }
+                    .onGloballyPositioned { coverTransition?.updateDetailCover(it, viewportTop) }
                     .graphicsLayer { alpha = if (coverTransition?.hidesDetailCover == true) 0f else 1f }
                     .shadow(
                         elevation = 18.dp,
@@ -736,7 +772,9 @@ private fun SongHeader(
             text = song.title,
             style = MiuixTheme.textStyles.title1,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.clickable(
+            modifier = Modifier
+                .onGloballyPositioned(titleBounds::updateTitle)
+                .clickable(
                 interactionSource = titleInteractionSource,
                 indication = null,
                 onClick = {

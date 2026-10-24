@@ -119,6 +119,7 @@ internal fun DetailScreen(
     onOpenOtogameLogin: () -> Unit,
     onSongDetailBackgroundChanged: (androidx.compose.ui.graphics.Color?) -> Unit,
     onSongDetailTitleChanged: (String) -> Unit,
+    onSongDetailHeaderTitleHiddenChange: (Boolean) -> Unit = {},
     collectionsDisplayMode: CatalogDisplayMode = CatalogDisplayMode.List,
     collectionsSortOption: CatalogSortOption = CatalogSortOption.DefaultOrder,
     collectionsSortAscending: Boolean = true,
@@ -161,6 +162,7 @@ internal fun DetailScreen(
             contentTopPadding = songContentTopPadding,
             onBackgroundChanged = onSongDetailBackgroundChanged,
             onTitleChanged = onSongDetailTitleChanged,
+            onHeaderTitleHiddenChange = onSongDetailHeaderTitleHiddenChange,
             onOpenCommunityAliases = onOpenCommunityAliases,
             coverTransition = coverTransition,
         )
@@ -236,6 +238,7 @@ internal fun DetailScreen(
             coverImageStore = container.coverImageStore,
             server = state.activeProfile?.server ?: "jp",
             sessionState = randomSongSessionState,
+            contentTopPadding = songContentTopPadding,
             filterRequested = randomSongFilterRequested,
             onFilterRequestHandled = onRandomSongFilterRequestHandled,
             onFilterActiveChanged = onRandomSongFilterActiveChanged,
@@ -310,6 +313,7 @@ internal fun DetailScreen(
             versions = state.gameVersions,
             songs = state.songs,
             sheets = state.sheets,
+            contentTopPadding = songContentTopPadding,
             createRequested = profileCreateRequested,
             onCreateRequestHandled = onProfileCreateRequestHandled,
         )

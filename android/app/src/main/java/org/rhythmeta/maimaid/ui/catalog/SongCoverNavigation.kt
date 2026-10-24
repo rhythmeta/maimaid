@@ -6,8 +6,11 @@ import androidx.compose.runtime.currentCompositeKeyHashCode
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -15,7 +18,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 
 internal class SongCoverSource(
     val songId: String,
@@ -28,6 +35,11 @@ internal class SongCoverSource(
     var layoutHeight by mutableStateOf(0)
     var painter by mutableStateOf<Painter?>(null)
     var cardColor by mutableStateOf<Color?>(null)
+    var cardBorderColor by mutableStateOf<Color?>(null)
+    var cardCornerRadius by mutableStateOf(0.dp)
+    var bodyBounds by mutableStateOf<Rect?>(null)
+    var bodySize by mutableStateOf(IntSize.Zero)
+    var bodyContent by mutableStateOf<(@Composable (Boolean) -> Unit)?>(null)
 }
 
 internal class SongNavigationHost(
@@ -90,11 +102,70 @@ internal fun rememberSongCoverNavigation(
     key: Any? = songId,
     enabled: Boolean = true,
     cardColor: Color? = null,
+    cardBorderColor: Color? = null,
+    cardCornerRadius: Dp = 14.dp,
 ): SongCoverNavigation {
     val host = LocalSongNavigationHost.current.takeIf { enabled }
     val identity = "${currentCompositeKeyHashCode}:$songId:$key"
     val localSource = remember(identity) { SongCoverSource(songId, identity, cornerRadius) }
     val source = host?.active?.genericSource?.takeIf { it.identity == identity } ?: localSource
-    SideEffect { source.cardColor = cardColor }
+    SideEffect {
+        source.cardColor = cardColor
+        source.cardBorderColor = cardBorderColor
+        source.cardCornerRadius = cardCornerRadius
+    }
     return remember(source, host, onClick) { SongCoverNavigation(source, host, onClick) }
+}
+
+/** Retains the card layout so non-cover content can be drawn during the return handoff. */
+@Composable
+internal fun SongCardTransitionContent(
+    navigation: SongCoverNavigation,
+    content: @Composable (Boolean) -> Unit,
+) {
+    val latest by rememberUpdatedState(content)
+    val retained: @Composable (Boolean) -> Unit = remember { { showCover -> latest(showCover) } }
+    SideEffect { navigation.source.bodyContent = retained }
+    Box(
+        modifier = Modifier.onGloballyPositioned { coordinates ->
+            navigation.source.bodyBounds = Rect(
+                coordinates.localToRoot(Offset.Zero),
+                coordinates.localToRoot(Offset(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())),
+            )
+            navigation.source.bodySize = coordinates.size
+        },
+    ) {
+        content(true)
+    }
+}
+
+@Composable
+internal fun SongCardContentOverlay(
+    state: CatalogCoverTransition,
+    progress: () -> Float,
+) {
+    val source = state.genericSource ?: return
+    val body = source.bodyContent ?: return
+    if (source.bodySize.width <= 0 || source.bodySize.height <= 0) return
+    val density = LocalDensity.current
+    Box(
+        modifier = Modifier
+            .requiredSize(
+                with(density) { source.bodySize.width.toDp() },
+                with(density) { source.bodySize.height.toDp() },
+            )
+            .clearAndSetSemantics {}
+            .graphicsLayer {
+                val fraction = progress()
+                val bounds = state.genericBodyBounds()
+                alpha = if (bounds == null) 0f else catalogListContentAlpha(fraction)
+                if (bounds != null) {
+                    translationX = bounds.left
+                    translationY = bounds.top + state.listContentTranslation(fraction) -
+                        state.listContentTranslation(0f)
+                }
+            },
+    ) {
+        body(false)
+    }
 }

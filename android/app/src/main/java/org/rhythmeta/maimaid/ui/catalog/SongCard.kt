@@ -88,32 +88,40 @@ internal fun SongCard(
         cornerRadius = 12.dp,
         key = song.imageName,
         cardColor = cardColor,
+        cardBorderColor = accentColor.copy(alpha = 0.12f),
     )
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(76.dp)
-            .then(coverNavigation.cardModifier)
-            .squircleSurface(
-                color = cardColor,
-                cornerRadius = 14.dp,
-                extension = SquircleExtension,
-            )
-            .squircleBorder(
-                width = 1.dp,
-                color = accentColor.copy(alpha = 0.12f),
-                cornerRadius = 14.dp,
-                extension = SquircleExtension,
-            )
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = coverNavigation::open,
-                onLongClick = onLongClick,
-            )
-            .padding(vertical = 12.dp),
-    ) {
+    SongCardTransitionContent(coverNavigation) { showCover ->
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .squircleSurface(
+                    color = if (showCover) cardColor else Color.Transparent,
+                    cornerRadius = 14.dp,
+                    extension = SquircleExtension,
+                )
+                .squircleBorder(
+                    width = if (showCover) 1.dp else 0.dp,
+                    color = if (showCover) accentColor.copy(alpha = 0.12f) else Color.Transparent,
+                    cornerRadius = 14.dp,
+                    extension = SquircleExtension,
+                )
+                .then(
+                    if (showCover) {
+                        Modifier.combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = coverNavigation::open,
+                            onLongClick = onLongClick,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 12.dp),
+        ) {
         Box(
             modifier = Modifier
                 .padding(vertical = 8.dp)
@@ -133,11 +141,15 @@ internal fun SongCard(
                 .padding(start = 10.dp, end = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SongJacket(
-                imageName = song.imageName,
-                coverImageStore = coverImageStore,
-                navigation = coverNavigation,
-            )
+            if (showCover) {
+                SongJacket(
+                    imageName = song.imageName,
+                    coverImageStore = coverImageStore,
+                    navigation = coverNavigation,
+                )
+            } else {
+                Spacer(Modifier.size(52.dp))
+            }
             Spacer(Modifier.width(14.dp))
             Column(
                 modifier = Modifier.weight(1f),
@@ -194,6 +206,7 @@ internal fun SongCard(
                     }
                 }
             }
+        }
         }
     }
 }
