@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.2.9
+
+### 中文
+
+#### 变更与修复
+
+- `4fb6038a` 修复 Android 备份恢复流程，保留备份 protobuf 中未被当前版本识别的字段。
+- `7ad1ffe7` 统一 iOS 与 Android 的国服版本识别逻辑，并补充版本计算测试。
+- `9cadfcc4` 移除 Android 歌曲详情中不再使用的 `displaySyncStatus` 函数。
+- `59ddff29` 修复 iOS 服务截止时间使用错误时区的问题，改用本地时区计算。
+- `9eeed947` 修复 Android 容错计算器评级标签的背景颜色。
+- `29703d14` Android 导航改用 `miui-nav`，重组应用页面入口和根页面转场。
+- `44f917e1` Android 重构导航和页面构建逻辑，引入 chunithmd 风格的歌曲详情封面转场。
+- `b8cc602f` 微调 Android 历史成绩卡片的文字字号和徽章布局。
+- `1bb0c65e` 优化 Android 牌子进度从歌曲详情返回曲绘时的封面转场，并同步调整定数表和社区别名页面的转场内容。
+- `e5fff217` 调整 Android 谱面类型和版本标签的圆角与字体粗细。
+- `9d7c4f7f` Android 移植 chunithmd 的网格模式，新增可缩放封面网格、网格列数记忆、滚动定位和网格状态管理。
+- `6ace5804` 修复 Android 底部栏的 Backdrop 背景处理。
+- `d6ef9163` iOS 移植 chunithmd 的网格模式，歌曲、收藏夹和成绩查询支持封面网格及歌曲详情转场。
+- `b83e6643` 调整 Android `ScannerCameraPreview` 的实现方式，使扫描相机预览支持液态玻璃导航栏效果。
+- `c6b45d05` 修复 Android 歌曲详情中指示标签的形状，使其使用正确的圆角形状。
+- `0efc39ad` Android 移植 chunithmd 的头像裁剪编辑器，改善全屏布局、缩放、旋转、拖动和裁剪预览交互。
+
+### English
+
+#### Changes and Fixes
+
+- `4fb6038a` Fixed Android backup restores dropping protobuf fields unknown to the current app version.
+- `7ad1ffe7` Unified CN-version detection between iOS and Android and added version-calculation coverage.
+- `9cadfcc4` Removed the unused `displaySyncStatus` function from Android song details.
+- `59ddff29` Fixed the iOS server cutoff using the wrong time zone by calculating it in the local time zone.
+- `9eeed947` Fixed the rank-chip background color in the Android tolerance calculator.
+- `29703d14` Switched Android navigation to `miui-nav` and reorganized root-page entry and transitions.
+- `44f917e1` Reworked Android navigation and page construction, adding chunithmd-style cover transitions into song details.
+- `b8cc602f` Fine-tuned Android play-history card typography and badge layout.
+- `1bb0c65e` Improved the Android transition from song details back to jacket artwork in Plate Progress, along with related transition content in Constant Table and Community Alias.
+- `e5fff217` Adjusted the Android chart-type/version badge corner radius and font weight.
+- `9d7c4f7f` Transplanted chunithmd's grid mode to Android with zoomable cover grids, remembered column counts, scroll positioning, and grid state management.
+- `6ace5804` Fixed the Android bottom-bar Backdrop handling.
+- `d6ef9163` Transplanted chunithmd's grid mode to iOS, adding cover grids and song-detail transitions to Songs, Collections, and Score Query.
+- `b83e6643` Changed Android `ScannerCameraPreview` implementation so the scanner preview works with the Liquid Glass navigation bar.
+- `c6b45d05` Fixed the Android song-detail indication label to use the correct rounded shape.
+- `0efc39ad` Transplanted chunithmd's avatar crop editor to Android with improved full-screen layout, zoom, rotation, panning, and crop preview interactions.
+
 ## 1.2.8.1
 
 ### 中文
