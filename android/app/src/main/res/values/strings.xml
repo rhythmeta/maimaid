@@ -475,12 +475,12 @@
 	<string name="profile_preset_avatar_loading">Loading avatars</string>
 	<string name="profile_preset_avatar_empty">No preset avatars found</string>
 	<string name="profile_clear_avatar">Clear</string>
-	<string name="avatar_editor_title">Adjust Avatar</string>
-	<string name="avatar_editor_hint">Drag to position, pinch to zoom, or rotate with two fingers.</string>
+	<string name="avatar_editor_title">Crop Avatar</string>
+	<string name="avatar_editor_hint">Drag and zoom to adjust your avatar.</string>
 	<string name="grid_zoom_in">Zoom in covers</string>
 	<string name="grid_zoom_out">Zoom out covers</string>
 	<string name="avatar_editor_reset">Reset</string>
-	<string name="avatar_editor_apply">Apply Crop</string>
+	<string name="avatar_editor_apply">Use Avatar</string>
 	<string name="profile_sheet_expand">Expand profile editor</string>
 	<string name="profile_sheet_collapse">Collapse profile editor</string>
 	<string name="profile_sheet_expanded">Profile editor expanded</string>

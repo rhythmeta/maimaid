@@ -4,8 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animate
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -13,15 +12,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -39,34 +39,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import kotlin.math.cos
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.R
-import org.rhythmeta.maimaid.ui.components.squircleShape
-import org.rhythmeta.maimaid.ui.components.TopBarBottomShape
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.withTranslation
 
 @Composable
 internal fun AvatarCropEditor(
@@ -81,84 +73,74 @@ internal fun AvatarCropEditor(
             decorFitsSystemWindows = false,
         ),
     ) {
-        Scaffold(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MiuixTheme.colorScheme.background),
-            topBar = {
-                SmallTopAppBar(
-                    title = stringResource(R.string.avatar_editor_title),
-                    modifier = Modifier.clip(TopBarBottomShape),
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = stringResource(R.string.action_cancel),
-                            )
-                        }
-                    },
-                    defaultWindowInsetsPadding = true,
+        ) {
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, start = 12.dp),
+            ) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.action_cancel),
                 )
-            },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        ) { paddingValues ->
-            AvatarCropEditorContent(
+            }
+            Text(
+                text = stringResource(R.string.avatar_editor_title),
+                style = MiuixTheme.textStyles.title3,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 18.dp),
+            )
+            AvatarCropContent(
                 bitmap = bitmap,
                 onApply = onApply,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .navigationBarsPadding(),
+                    .navigationBarsPadding()
+                    .padding(top = 76.dp),
             )
         }
     }
 }
 
 @Composable
-private fun AvatarCropEditorContent(
+private fun AvatarCropContent(
     bitmap: Bitmap,
     onApply: (Bitmap) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
     var scale by remember(bitmap) { mutableFloatStateOf(1f) }
     var rotation by remember(bitmap) { mutableFloatStateOf(0f) }
     var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
-    var cropCanvasSize by remember { mutableStateOf(IntSize.Zero) }
-    val coveragePadding = with(density) { CoveragePadding.toPx() }
-    val transformState = rememberTransformableState { _, zoomChange, panChange, rotationChange ->
-        val guideDiameter = cropCanvasSize.width - with(density) { GuideInset.toPx() * 2f }
-        if (guideDiameter <= 0f) return@rememberTransformableState
-        val baseSize = baseDisplaySize(bitmap, guideDiameter)
-        val nextScale = normalizedScale(scale * zoomChange, baseSize, guideDiameter, coveragePadding)
-        scale = nextScale
-        rotation += rotationChange
-        offset = clampedOffset(
-            proposed = offset + panChange,
-            baseSize = baseSize,
-            guideDiameter = guideDiameter,
-            scale = nextScale,
-            rotationDegrees = rotation,
-            coveragePadding = coveragePadding,
-        )
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val transformState = rememberTransformableState { zoom, pan, rotationChange ->
+        val diameter = canvasSize.width.toFloat().coerceAtLeast(1f)
+        val base = baseSize(bitmap, diameter)
+        scale = (scale * zoom).coerceIn(minScale(base, diameter), MaximumScale)
+        offset = clampOffset(offset + pan, base, diameter, scale)
+        rotation = (rotation + rotationChange) % 360f
     }
-    LaunchedEffect(bitmap, cropCanvasSize) {
-        val guideDiameter = cropCanvasSize.width - with(density) { GuideInset.toPx() * 2f }
-        if (guideDiameter > 0f) {
-            scale = normalizedScale(
-                proposed = 1f,
-                baseSize = baseDisplaySize(bitmap, guideDiameter),
-                guideDiameter = guideDiameter,
-                coveragePadding = coveragePadding,
-            )
-            rotation = 0f
+    LaunchedEffect(bitmap, canvasSize) {
+        if (canvasSize.width > 0) {
+            val diameter = canvasSize.width.toFloat().coerceAtLeast(1f)
+            scale = minScale(baseSize(bitmap, diameter), diameter)
             offset = Offset.Zero
+            rotation = 0f
         }
     }
-
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val cropSize = minOf(maxWidth - 32.dp, maxHeight * 0.55f)
+    BoxWithConstraints(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        val cropSize = minOf(maxWidth - 32.dp, maxHeight * 0.58f)
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -166,203 +148,131 @@ private fun AvatarCropEditorContent(
         ) {
             Text(
                 text = stringResource(R.string.avatar_editor_hint),
-                style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(horizontal = 24.dp),
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(18.dp))
             Box(
                 modifier = Modifier
                     .size(cropSize)
-                    .onSizeChanged { cropCanvasSize = it }
-                    .clip(squircleShape(28.dp))
+                    .clip(CircleShape)
                     .background(Color.Black)
-                    .transformable(transformState)
-                    .then(
-                        Modifier.graphicsLayer {
-                            clip = true
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
+                    .onSizeChanged { canvasSize = it }
+                    .transformable(transformState),
             ) {
-                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                    val guideDiameter = size.minDimension - GuideInset.toPx() * 2f
-                    drawIntoCanvas { composeCanvas ->
-                        drawAvatarBitmap(
-                            canvas = composeCanvas.nativeCanvas,
-                            bitmap = bitmap,
-                            baseSize = baseDisplaySize(bitmap, guideDiameter),
-                            center = center,
-                            scale = scale,
-                            offset = offset,
-                            rotationDegrees = rotation,
-                        )
+                Canvas(Modifier.fillMaxSize()) {
+                    val diameter = size.minDimension
+                    val base = baseSize(bitmap, diameter)
+                    drawIntoCanvas { canvas ->
+                        canvas.nativeCanvas.withTranslation(
+                            size.width / 2f + offset.x,
+                            size.height / 2f + offset.y,
+                        ) {
+                            rotate(rotation)
+                            scale(scale, scale)
+                            drawBitmap(
+                                bitmap,
+                                null,
+                                RectF(-base.x / 2f, -base.y / 2f, base.x / 2f, base.y / 2f),
+                                Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG),
+                            )
+                        }
                     }
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.9f),
-                        radius = guideDiameter / 2f,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+                        Color.White.copy(alpha = 0.85f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()),
                     )
                 }
             }
-            Spacer(Modifier.height(20.dp))
-            TextButton(
-                text = stringResource(R.string.avatar_editor_reset),
-                onClick = {
-                    scope.launch {
-                        val guideDiameter = cropCanvasSize.width - with(density) { GuideInset.toPx() * 2f }
-                        if (guideDiameter <= 0f) return@launch
-                        val targetScale = normalizedScale(
-                            proposed = 1f,
-                            baseSize = baseDisplaySize(bitmap, guideDiameter),
-                            guideDiameter = guideDiameter,
-                            coveragePadding = coveragePadding,
-                        )
-                        val startScale = scale
-                        val startRotation = rotation
-                        val startOffset = offset
-                        animate(
-                            initialValue = 0f,
-                            targetValue = 1f,
-                            animationSpec = androidx.compose.animation.core.tween(
-                                durationMillis = 280,
-                                easing = FastOutSlowInEasing,
-                            ),
-                        ) { progress, _ ->
-                            scale = startScale + (targetScale - startScale) * progress
-                            rotation = startRotation * (1f - progress)
-                            offset = startOffset * (1f - progress)
-                        }
-                    }
-                },
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = {
-                    val guideDiameter = cropCanvasSize.width - with(density) { GuideInset.toPx() * 2f }
-                    if (guideDiameter > 0f) {
-                        onApply(
-                            renderCroppedAvatar(
-                                original = bitmap,
-                                previewBaseSize = baseDisplaySize(bitmap, guideDiameter),
-                                scale = scale,
-                                offset = offset,
-                                rotationDegrees = rotation,
-                                guideDiameter = guideDiameter,
-                            ),
-                        )
-                    }
-                },
+            Spacer(Modifier.height(18.dp))
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 32.dp),
-                colors = ButtonDefaults.buttonColorsPrimary(),
-                insideMargin = PaddingValues(vertical = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.avatar_editor_apply))
+                TextButton(
+                    text = stringResource(R.string.avatar_editor_reset),
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        scope.launch {
+                            val diameter = canvasSize.width.toFloat()
+                            if (diameter > 0f) {
+                                scale = minScale(baseSize(bitmap, diameter), diameter)
+                                offset = Offset.Zero
+                                rotation = 0f
+                            }
+                        }
+                    },
+                )
+                Button(
+                    onClick = {
+                        val diameter = canvasSize.width.toFloat()
+                        if (diameter > 0f) {
+                            onApply(
+                                renderAvatar(
+                                    bitmap,
+                                    baseSize(bitmap, diameter),
+                                    scale,
+                                    rotation,
+                                    offset,
+                                    diameter,
+                                ),
+                            )
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColorsPrimary(),
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.avatar_editor_apply),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
         }
     }
 }
 
-private fun baseDisplaySize(bitmap: Bitmap, cropTargetSize: Float): Offset {
-    val aspectRatio = bitmap.width.toFloat() / bitmap.height.coerceAtLeast(1)
-    return if (aspectRatio >= 1f) {
-        Offset(cropTargetSize * aspectRatio, cropTargetSize)
-    } else {
-        Offset(cropTargetSize, cropTargetSize / aspectRatio)
-    }
+private fun baseSize(bitmap: Bitmap, diameter: Float): Offset {
+    val ratio = bitmap.width.toFloat() / bitmap.height.coerceAtLeast(1)
+    return if (ratio >= 1f) Offset(diameter * ratio, diameter) else Offset(diameter, diameter / ratio)
 }
 
-private fun normalizedScale(
-    proposed: Float,
-    baseSize: Offset,
-    guideDiameter: Float,
-    coveragePadding: Float,
-): Float {
-    val minimumScale = ((guideDiameter + coveragePadding * 2f) / min(baseSize.x, baseSize.y))
-        .coerceIn(1f, MaximumScale)
-    return proposed.coerceIn(minimumScale, MaximumScale)
+private fun minScale(base: Offset, diameter: Float): Float = (diameter / min(base.x, base.y)).coerceAtLeast(1f)
+
+private fun clampOffset(value: Offset, base: Offset, diameter: Float, scale: Float): Offset {
+    val x = max(base.x * scale / 2f - diameter / 2f, 0f)
+    val y = max(base.y * scale / 2f - diameter / 2f, 0f)
+    return Offset(value.x.coerceIn(-x, x), value.y.coerceIn(-y, y))
 }
 
-private fun clampedOffset(
-    proposed: Offset,
-    baseSize: Offset,
-    guideDiameter: Float,
+private fun renderAvatar(
+    bitmap: Bitmap,
+    base: Offset,
     scale: Float,
-    rotationDegrees: Float,
-    coveragePadding: Float,
-): Offset {
-    val radians = Math.toRadians(rotationDegrees.toDouble()).toFloat()
-    val cosine = cos(radians)
-    val sine = sin(radians)
-    val localX = proposed.x * cosine + proposed.y * sine
-    val localY = -proposed.x * sine + proposed.y * cosine
-    val guideRadius = guideDiameter / 2f + coveragePadding
-    val horizontalLimit = max(baseSize.x * scale / 2f - guideRadius, 0f)
-    val verticalLimit = max(baseSize.y * scale / 2f - guideRadius, 0f)
-    val clampedX = localX.coerceIn(-horizontalLimit, horizontalLimit)
-    val clampedY = localY.coerceIn(-verticalLimit, verticalLimit)
-    return Offset(
-        x = clampedX * cosine - clampedY * sine,
-        y = clampedX * sine + clampedY * cosine,
-    )
-}
-
-private fun renderCroppedAvatar(
-    original: Bitmap,
-    previewBaseSize: Offset,
-    scale: Float,
+    rotation: Float,
     offset: Offset,
-    rotationDegrees: Float,
-    guideDiameter: Float,
+    diameter: Float,
 ): Bitmap {
     val output = createBitmap(AvatarExportSize, AvatarExportSize)
     val canvas = Canvas(output)
-    val exportSize = AvatarExportSize.toFloat()
-    val exportRatio = exportSize / guideDiameter
-    val exportBaseSize = previewBaseSize * exportRatio
-    drawAvatarBitmap(
-        canvas = canvas,
-        bitmap = original,
-        baseSize = exportBaseSize,
-        center = Offset(exportSize / 2f, exportSize / 2f),
-        scale = scale,
-        offset = offset * exportRatio,
-        rotationDegrees = rotationDegrees,
-    )
+    val ratio = AvatarExportSize.toFloat() / diameter
+    canvas.withTranslation(
+        AvatarExportSize / 2f + offset.x * ratio,
+        AvatarExportSize / 2f + offset.y * ratio,
+    ) {
+        rotate(rotation)
+        scale(scale * ratio, scale * ratio)
+        drawBitmap(
+            bitmap,
+            null,
+            RectF(-base.x / 2f, -base.y / 2f, base.x / 2f, base.y / 2f),
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG),
+        )
+    }
     return output
 }
 
-private fun drawAvatarBitmap(
-    canvas: Canvas,
-    bitmap: Bitmap,
-    baseSize: Offset,
-    center: Offset,
-    scale: Float,
-    offset: Offset,
-    rotationDegrees: Float,
-) {
-    canvas.withTranslation(center.x + offset.x, center.y + offset.y) {
-			rotate(rotationDegrees)
-			scale(scale, scale)
-			drawBitmap(
-				bitmap,
-				null,
-				RectF(
-					-baseSize.x / 2f,
-					-baseSize.y / 2f,
-					baseSize.x / 2f,
-					baseSize.y / 2f,
-				),
-				Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG),
-			)
-		}
-}
-
-private val GuideInset = 12.dp
-private val CoveragePadding = 8.dp
 private const val MaximumScale = 4f
-private const val AvatarExportSize = 1024
+private const val AvatarExportSize = 512

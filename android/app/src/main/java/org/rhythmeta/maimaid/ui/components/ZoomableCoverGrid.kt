@@ -11,6 +11,8 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -54,6 +56,7 @@ internal fun <T> ZoomableCoverGrid(
     val scope = rememberCoroutineScope()
     val motion = remember(state, scope) { CatalogGridMotion(state, scope) }
     val scrollState = rememberScrollableState(state::scrollBy)
+    val overscrollEffect = rememberOverscrollEffect()
     val layoutState = remember { SubcomposeLayoutState(SubcomposeSlotReusePolicy(10)) }
     val zoomIn = stringResource(R.string.grid_zoom_in)
     val zoomOut = stringResource(R.string.grid_zoom_out)
@@ -66,6 +69,7 @@ internal fun <T> ZoomableCoverGrid(
     SubcomposeLayout(
         state = layoutState,
         modifier = modifier.fillMaxSize().clipToBounds()
+            .overscroll(overscrollEffect)
             .semantics {
                 verticalScrollAxisRange = ScrollAxisRange({ state.scrollOffset }, { state.maxScroll })
                 val count = catalogGridColumns(state.zoom)
@@ -116,7 +120,12 @@ internal fun <T> ZoomableCoverGrid(
                     motion.settle(anchor ?: state.anchorAt(focus, centerOnCover = true))
                 }
             }
-            .scrollable(scrollState, Orientation.Vertical, enabled = !state.transforming),
+            .scrollable(
+                state = scrollState,
+                orientation = Orientation.Vertical,
+                overscrollEffect = overscrollEffect,
+                enabled = !state.transforming,
+            ),
     ) { constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight

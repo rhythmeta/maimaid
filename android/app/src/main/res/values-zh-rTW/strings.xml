@@ -459,10 +459,10 @@
 	<string name="profile_preset_avatar_loading">正在載入頭像</string>
 	<string name="profile_preset_avatar_empty">沒有找到預設頭像</string>
 	<string name="profile_clear_avatar">清除</string>
-	<string name="avatar_editor_title">調整頭像</string>
-	<string name="avatar_editor_hint">拖動調整位置，雙指縮放或旋轉。</string>
+	<string name="avatar_editor_title">裁剪頭像</string>
+	<string name="avatar_editor_hint">拖曳及縮放以調整頭像</string>
 	<string name="avatar_editor_reset">重置</string>
-	<string name="avatar_editor_apply">應用裁剪</string>
+	<string name="avatar_editor_apply">使用頭像</string>
 	<string name="profile_sheet_expand">展開檔案編輯</string>
 	<string name="profile_sheet_collapse">收起檔案編輯</string>
 	<string name="profile_sheet_expanded">檔案編輯已全螢幕展開</string>
