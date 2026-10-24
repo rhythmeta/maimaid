@@ -41,8 +41,7 @@ internal fun ChartTypeVersionBadge(
                 color = backgroundColor,
                 cornerRadius = 4.dp,
                 extension = SquircleExtension,
-            )
-            .clip(squircleShape(4.dp)),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (colors.size > 1) {
@@ -61,7 +60,7 @@ internal fun ChartTypeVersionBadge(
             text = text,
             style = MiuixTheme.textStyles.footnote2.copy(
                 fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Black,
             ),
             color = if (darkTheme) Color.White else BadgeContrast.foreground(colors.ifEmpty { listOf(backgroundColor) }),
             maxLines = 1,
