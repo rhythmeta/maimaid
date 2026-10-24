@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items as columnItems
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,8 +61,11 @@ import org.rhythmeta.maimaid.ui.catalog.SongCard
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.catalog.SongGridCell
 import org.rhythmeta.maimaid.ui.catalog.CatalogDisplayMode
+import org.rhythmeta.maimaid.ui.catalog.CoverGridPage
+import org.rhythmeta.maimaid.ui.catalog.rememberCatalogPhotoGridState
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
+import org.rhythmeta.maimaid.ui.components.ZoomableCoverGrid
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -176,20 +177,22 @@ fun SongCollectionsScreen(
                 collections.firstOrNull { it.id == id }?.let { activeCollection ->
                     val entries = items.filter { it.collectionId == activeCollection.id && it.deletedAt == null }
                         .sortedBy(SongCollectionItemEntity::position)
-                    CollectionDetail(
-                        entries = entries,
-                        songs = songs,
-                        sheets = sheets,
-                        coverImageStore = coverImageStore,
-                        contentTopPadding = contentTopPadding,
-                        gameVersions = gameVersions,
-                        sortOption = sortOption,
-                        sortAscending = sortAscending,
-                        server = server,
-                        displayMode = displayMode,
-                        onOpenSong = onOpenSong,
-                        onDelete = { scope.launch { container.songCollectionRepository.deleteItem(it) } },
-                    )
+                    key(id) {
+                        CollectionDetail(
+                            entries = entries,
+                            songs = songs,
+                            sheets = sheets,
+                            coverImageStore = coverImageStore,
+                            contentTopPadding = contentTopPadding,
+                            gameVersions = gameVersions,
+                            sortOption = sortOption,
+                            sortAscending = sortAscending,
+                            server = server,
+                            displayMode = displayMode,
+                            onOpenSong = onOpenSong,
+                            onDelete = { scope.launch { container.songCollectionRepository.deleteItem(it) } },
+                        )
+                    }
                 }
             }
         }
@@ -625,10 +628,16 @@ private fun CollectionDetail(
             server = server,
         )
     }
+    val gridState = rememberCatalogPhotoGridState(CoverGridPage.Collections)
     if (displayMode == CatalogDisplayMode.Grid) {
-        LazyVerticalGrid(GridCells.Fixed(3), Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 12.dp, top = contentTopPadding + 12.dp, end = 12.dp, bottom = 96.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            gridItems(cards, key = { it.item.id }) { card -> CollectionGridCard(card, coverImageStore, onOpenSong, onDelete) }
-        }
+        CollectionChartGrid(
+            cards = cards,
+            state = gridState,
+            contentTopPadding = contentTopPadding,
+            coverImageStore = coverImageStore,
+            onOpenSong = onOpenSong,
+            onDelete = onDelete,
+        )
     } else {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, top = contentTopPadding + 8.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             columnItems(cards, key = { it.item.id }) { card ->
@@ -668,11 +677,75 @@ private fun CollectionListCard(
 }
 
 @Composable
-private fun CollectionGridCard(card: CollectionCard, coverImageStore: CoverImageStore, onOpenSong: (String) -> Unit, onDelete: (SongCollectionItemEntity) -> Unit) {
+private fun CollectionChartGrid(
+    cards: List<CollectionCard>,
+    state: org.rhythmeta.maimaid.ui.catalog.CatalogPhotoGridState,
+    contentTopPadding: androidx.compose.ui.unit.Dp,
+    coverImageStore: CoverImageStore,
+    onOpenSong: (String) -> Unit,
+    onDelete: (SongCollectionItemEntity) -> Unit,
+) {
+    val progressScale = remember(state) {
+        {
+            state.zoom
+            state.geometry?.let { it.maxCellSize / it.cellSize } ?: 1f
+        }
+    }
+    ZoomableCoverGrid(
+        modifier = Modifier.fillMaxSize(),
+        contentTopPadding = contentTopPadding,
+        contentBottomPadding = 96.dp,
+        items = cards,
+        state = state,
+        itemKey = { it.item.id },
+    ) { card, columns, imageSize, filler ->
+        CollectionGridCard(
+            card = card,
+            coverImageStore = coverImageStore,
+            columns = columns,
+            imageSize = imageSize,
+            animateCoverChanges = state.transforming,
+            progressScale = progressScale,
+            filler = filler,
+            onOpenSong = onOpenSong,
+            onDelete = onDelete,
+        )
+    }
+}
+
+@Composable
+private fun CollectionGridCard(
+    card: CollectionCard,
+    coverImageStore: CoverImageStore,
+    columns: Int,
+    imageSize: Int,
+    animateCoverChanges: Boolean,
+    progressScale: () -> Float,
+    filler: Boolean,
+    onOpenSong: (String) -> Unit,
+    onDelete: (SongCollectionItemEntity) -> Unit,
+) {
     if (card.song == null || card.sheet == null) return MissingCard(card)
     var menuExpanded by remember(card.item.id) { mutableStateOf(false) }
     Box(Modifier.fillMaxWidth()) {
-        SongGridCell(song = card.song, sheets = listOf(card.sheet), scoresBySheetKey = emptyMap(), coverImageStore = coverImageStore, columnCount = 3, cornerRadius = 8.dp, showDots = true, actualSheet = card.sheet, showActualDifficultyIndicator = false, onLongClick = { menuExpanded = true }, onClick = { onOpenSong(card.song.songIdentifier) })
+        SongGridCell(
+            song = card.song,
+            sheets = listOf(card.sheet),
+            scoresBySheetKey = emptyMap(),
+            coverImageStore = coverImageStore,
+            columnCount = columns,
+            cornerRadius = if (columns == 3) 10.dp else 6.dp,
+            showDots = true,
+            actualSheet = card.sheet,
+            showActualDifficultyIndicator = false,
+            imageSize = imageSize,
+            animateCoverChanges = animateCoverChanges,
+            progressScale = progressScale,
+            filler = filler,
+            enabled = !animateCoverChanges,
+            onLongClick = { if (!filler) menuExpanded = true },
+            onClick = { onOpenSong(card.song.songIdentifier) },
+        )
         CollectionItemDeletePopup(
             expanded = menuExpanded,
             onDismiss = { menuExpanded = false },

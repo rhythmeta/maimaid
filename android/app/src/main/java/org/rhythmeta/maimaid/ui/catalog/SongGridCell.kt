@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -31,6 +33,7 @@ import org.rhythmeta.maimaid.core.database.ScoreEntity
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.ZoomableCoverImage
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Text
@@ -54,6 +57,11 @@ internal fun SongGridCell(
     onLongClick: (() -> Unit)? = null,
     showActualDifficultyIndicator: Boolean = true,
     actualSheet: SheetEntity? = null,
+    imageSize: Int? = null,
+    animateCoverChanges: Boolean = false,
+    progressScale: (() -> Float)? = null,
+    filler: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val context = LocalContext.current
     val darkTheme = SongVisualUtils.isDarkTheme(MiuixTheme.colorScheme.background)
@@ -82,6 +90,7 @@ internal fun SongGridCell(
         cardBorderColor = cardBorderColor,
         cardBorderWidth = if (actualSheet != null) 1.5.dp else 0.5.dp,
         cardCornerRadius = cornerRadius,
+        enabled = enabled && !filler,
     )
 
     SongCardTransitionContent(coverNavigation) { showCover ->
@@ -100,7 +109,7 @@ internal fun SongGridCell(
                     extension = SquircleExtension,
                 )
                 .then(
-                    if (showCover) {
+                    if (showCover && !filler && enabled) {
                         Modifier
                             .semantics(mergeDescendants = true) {
                                 contentDescription = listOf(song.title, song.artist)
@@ -119,13 +128,26 @@ internal fun SongGridCell(
                 ),
         ) {
             if (showCover) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    onSuccess = { result -> coverNavigation.onPainter(result.painter) },
-                )
+                if (imageSize != null) {
+                    ZoomableCoverImage(
+                        model = cachedCover ?: StaticAssetUrls.coverUrl(song.imageName),
+                        imageSize = imageSize,
+                        animateCoverChanges = animateCoverChanges,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(squircleShape(cornerRadius)),
+                        onPainterChanged = coverNavigation::onPainter,
+                        fallbackPainter = coverNavigation.source.painter,
+                    )
+                } else {
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        onSuccess = { result -> coverNavigation.onPainter(result.painter) },
+                    )
+                }
             }
 
             if (showActualDifficultyIndicator) actualSheet?.let { sheet ->
@@ -147,6 +169,12 @@ internal fun SongGridCell(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(if (columnCount <= 3) 6.dp else 4.dp)
+                        .graphicsLayer {
+                            val scale = progressScale?.invoke() ?: 1f
+                            scaleX = scale
+                            scaleY = scale
+                            transformOrigin = TransformOrigin(1f, 1f)
+                        }
                         .squircleSurface(
                             color = if (isUtage) {
                                 SongVisualUtils.utageColor(darkTheme).copy(alpha = 0.68f)

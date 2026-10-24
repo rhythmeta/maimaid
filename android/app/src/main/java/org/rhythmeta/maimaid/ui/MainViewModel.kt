@@ -60,7 +60,7 @@ class MainViewModel(
     val catalogGridColumns = container.appPreferencesRepository.catalogGridColumns.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = 4,
+        initialValue = 5,
     )
 
     val catalogHideUnavailableSongs = container.appPreferencesRepository.catalogHideUnavailableSongs.stateIn(

@@ -83,7 +83,7 @@ private enum class CloudOperation {
 }
 
 @Composable
-fun BackendAuthScreen(container: AppContainer) {
+fun BackendAuthScreen(container: AppContainer, contentTopPadding: androidx.compose.ui.unit.Dp) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val sessionState by container.backendSessionManager.state.collectAsStateWithLifecycle()
@@ -112,7 +112,7 @@ fun BackendAuthScreen(container: AppContainer) {
         }
     }
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(contentPadding = PaddingValues(16.dp, contentTopPadding + 12.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { AccountSummaryCard(sessionState.user) }
             if (sessionState.user == null) {
                 item { CloudSection("Rhythmeta") {

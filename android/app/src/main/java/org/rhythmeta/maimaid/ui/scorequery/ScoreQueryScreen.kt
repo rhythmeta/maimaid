@@ -1,8 +1,7 @@
 package org.rhythmeta.maimaid.ui.scorequery
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,22 +18,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -47,10 +40,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import java.util.Locale
-import kotlin.math.roundToInt
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.data.StaticAssetUrls
 import org.rhythmeta.maimaid.core.AppContainer
@@ -60,9 +51,13 @@ import org.rhythmeta.maimaid.core.data.ScoreQueryStats
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
+import org.rhythmeta.maimaid.ui.catalog.CoverGridPage
+import org.rhythmeta.maimaid.ui.catalog.rememberCatalogPhotoGridState
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
+import org.rhythmeta.maimaid.ui.components.ZoomableCoverGrid
+import org.rhythmeta.maimaid.ui.components.ZoomableCoverImage
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
@@ -84,6 +79,7 @@ internal fun ScoreQueryScreen(
     onOpenSong: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val gridState = rememberCatalogPhotoGridState(CoverGridPage.ScoreQuery)
 
     when {
         state.isLoading -> ScoreQueryLoading(contentTopPadding)
@@ -91,9 +87,8 @@ internal fun ScoreQueryScreen(
             entries = state.entries,
             stats = state.stats,
             container = container,
-            committedColumns = state.gridColumns,
+            gridState = gridState,
             contentTopPadding = contentTopPadding,
-            onColumnsChange = viewModel::setGridColumns,
             onOpenSong = onOpenSong,
         )
         else -> ScoreQueryList(
@@ -113,76 +108,56 @@ internal fun ScoreQueryScreen(
         onDismiss = onDismissFilter,
     )
 }
-
 @Composable
 private fun ScoreQueryGrid(
     entries: List<ScoreQueryEntry>,
     stats: ScoreQueryStats,
     container: AppContainer,
-    committedColumns: Int,
+    gridState: org.rhythmeta.maimaid.ui.catalog.CatalogPhotoGridState,
     contentTopPadding: Dp,
-    onColumnsChange: (Int) -> Unit,
     onOpenSong: (String) -> Unit,
 ) {
-    var liveColumns by remember(committedColumns) {
-        mutableFloatStateOf(committedColumns.coerceIn(MinGridColumns, MaxGridColumns).toFloat())
+    if (entries.isEmpty()) {
+        ScoreQueryList(entries, stats, container, contentTopPadding, onOpenSong)
+        return
     }
-    val transformState = rememberTransformableState { _, zoomChange, _, _ ->
-        liveColumns = (liveColumns / zoomChange).coerceIn(
-            MinGridColumns.toFloat(),
-            MaxGridColumns.toFloat(),
+    val badgeScale = remember(gridState) {
+        {
+            gridState.zoom
+            gridState.geometry?.let { it.maxCellSize / it.cellSize } ?: 1f
+        }
+    }
+    ZoomableCoverGrid(
+        modifier = Modifier.fillMaxSize(),
+        contentTopPadding = contentTopPadding,
+        contentBottomPadding = 28.dp,
+        items = entries,
+        state = gridState,
+        itemKey = ScoreQueryEntry::sheetKey,
+        header = {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MiuixTheme.colorScheme.background)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                ScoreQueryStatsHeader(stats = stats, resultCount = entries.size)
+            }
+        },
+    ) { entry, columns, imageSize, filler ->
+        ScoreQueryGridCell(
+            entry = entry,
+            container = container,
+            columns = columns,
+            imageSize = imageSize,
+            filler = filler,
+            animateCoverChanges = gridState.transforming,
+            badgeScale = badgeScale,
+            enabled = !gridState.transforming && !filler,
+            onClick = { onOpenSong(entry.songIdentifier) },
         )
     }
-    val columns = if (transformState.isTransformInProgress) {
-        liveColumns.roundToInt().coerceIn(MinGridColumns, MaxGridColumns)
-    } else {
-        committedColumns.coerceIn(MinGridColumns, MaxGridColumns)
-    }
-
-    LaunchedEffect(transformState.isTransformInProgress) {
-        if (!transformState.isTransformInProgress) {
-            val target = liveColumns.roundToInt().coerceIn(MinGridColumns, MaxGridColumns)
-            liveColumns = target.toFloat()
-            if (target != committedColumns) onColumnsChange(target)
-        }
-    }
-
-    val spacing = scoreGridSpacing(columns)
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
-        modifier = Modifier
-            .fillMaxSize()
-            .transformable(transformState),
-        contentPadding = PaddingValues(
-            start = 12.dp,
-            top = contentTopPadding + 8.dp,
-            end = 12.dp,
-            bottom = 28.dp,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(spacing),
-        verticalArrangement = Arrangement.spacedBy(spacing),
-    ) {
-        item(key = "stats", span = { GridItemSpan(maxLineSpan) }) {
-            ScoreQueryStatsHeader(stats = stats, resultCount = entries.size)
-        }
-        if (entries.isEmpty()) {
-            item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                ScoreQueryEmpty()
-            }
-        } else {
-            gridItems(entries, key = ScoreQueryEntry::sheetKey) { entry ->
-                ScoreQueryGridCell(
-                    entry = entry,
-                    container = container,
-                    columns = columns,
-                    enabled = !transformState.isTransformInProgress,
-                    onClick = { onOpenSong(entry.songIdentifier) },
-                )
-            }
-        }
-    }
 }
-
 @Composable
 private fun ScoreQueryList(
     entries: List<ScoreQueryEntry>,
@@ -293,6 +268,10 @@ private fun ScoreQueryGridCell(
     entry: ScoreQueryEntry,
     container: AppContainer,
     columns: Int,
+    imageSize: Int,
+    filler: Boolean,
+    animateCoverChanges: Boolean,
+    badgeScale: () -> Float,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -311,17 +290,17 @@ private fun ScoreQueryGridCell(
             .data(cachedCover ?: StaticAssetUrls.coverUrl(entry.imageName))
             .build()
     }
-    val cornerRadius = scoreGridCornerRadius(columns)
+    val cornerRadius = if (columns == 3) 10.dp else 6.dp
     val cardColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f)
     val coverNavigation = rememberSongCoverNavigation(
         songId = entry.songIdentifier,
         onClick = onClick,
         cornerRadius = cornerRadius,
         key = entry.sheetKey,
-        enabled = enabled,
+        enabled = enabled && !filler,
         cardColor = cardColor,
         cardBorderColor = difficultyColor,
-        cardBorderWidth = if (columns > 5) 1.5.dp else 2.dp,
+        cardBorderWidth = if (columns == 3) 2.dp else 1.dp,
         cardCornerRadius = cornerRadius,
     )
 
@@ -335,11 +314,11 @@ private fun ScoreQueryGridCell(
                     cornerRadius = cornerRadius,
                     extension = SquircleExtension,
                 )
-                .semantics(mergeDescendants = true) {
+                .then(if (filler) Modifier else Modifier.semantics(mergeDescendants = true) {
                     contentDescription = "${entry.songTitle}, ${entry.rank}"
-                }
+                })
                 .then(
-                    if (showCover) {
+                    if (showCover && !filler) {
                         Modifier.clickable(
                             enabled = enabled,
                             interactionSource = interactionSource,
@@ -353,14 +332,15 @@ private fun ScoreQueryGridCell(
                 ),
         ) {
             if (showCover) {
-                AsyncImage(
-                    model = model,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                ZoomableCoverImage(
+                    model = cachedCover ?: StaticAssetUrls.coverUrl(entry.imageName),
+                    imageSize = imageSize,
+                    animateCoverChanges = animateCoverChanges,
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(squircleShape(cornerRadius)),
-                    onSuccess = { result -> coverNavigation.onPainter(result.painter) },
+                    onPainterChanged = coverNavigation::onPainter,
+                    fallbackPainter = coverNavigation.source.painter,
                 )
             }
             if (showCover) {
@@ -368,7 +348,7 @@ private fun ScoreQueryGridCell(
                     modifier = Modifier
                         .fillMaxSize()
                         .squircleBorder(
-                            width = if (columns > 5) 1.5.dp else 2.dp,
+                            width = if (columns == 3) 2.dp else 1.dp,
                             color = difficultyColor,
                             cornerRadius = cornerRadius,
                             extension = SquircleExtension,
@@ -378,7 +358,13 @@ private fun ScoreQueryGridCell(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(3.dp),
+                    .padding(3.dp)
+                    .graphicsLayer {
+                        val scale = badgeScale()
+                        scaleX = scale
+                        scaleY = scale
+                        transformOrigin = TransformOrigin(1f, 1f)
+                    },
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
@@ -559,20 +545,3 @@ private fun ScoreQueryEmpty() {
         )
     }
 }
-
-private fun scoreGridSpacing(columns: Int): Dp = when (columns) {
-    in 0..3 -> 5.dp
-    4 -> 4.dp
-    5 -> 3.dp
-    6 -> 2.dp
-    else -> 1.dp
-}
-
-private fun scoreGridCornerRadius(columns: Int): Dp = when (columns) {
-    in 0..3 -> 10.dp
-    in 4..5 -> 6.dp
-    else -> 3.dp
-}
-
-private const val MinGridColumns = 3
-private const val MaxGridColumns = 7

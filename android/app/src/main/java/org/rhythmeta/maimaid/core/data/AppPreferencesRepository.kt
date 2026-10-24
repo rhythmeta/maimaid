@@ -165,7 +165,7 @@ class AppPreferencesRepository(
     }
 
     val catalogGridColumns: Flow<Int> = context.appPreferencesDataStore.data.map { preferences ->
-        (preferences[CatalogGridColumnsKey] ?: 4).coerceIn(3, 9)
+        normalizeGridColumns(preferences[CatalogGridColumnsKey])
     }
 
     val catalogHideUnavailableSongs: Flow<Boolean> = context.appPreferencesDataStore.data.map { preferences ->
@@ -183,7 +183,7 @@ class AppPreferencesRepository(
     }
 
     val scoreQueryGridColumns: Flow<Int> = context.appPreferencesDataStore.data.map { preferences ->
-        (preferences[ScoreQueryGridColumnsKey] ?: 5).coerceIn(3, 9)
+        normalizeGridColumns(preferences[ScoreQueryGridColumnsKey])
     }
 
     val scoreQuerySortMode: Flow<ScoreQuerySortMode> = context.appPreferencesDataStore.data.map { preferences ->
@@ -228,7 +228,7 @@ class AppPreferencesRepository(
 
     suspend fun setCatalogGridColumns(columns: Int) {
         context.appPreferencesDataStore.edit { preferences ->
-            preferences[CatalogGridColumnsKey] = columns.coerceIn(3, 9)
+            preferences[CatalogGridColumnsKey] = normalizeGridColumns(columns)
         }
     }
 
@@ -252,9 +252,11 @@ class AppPreferencesRepository(
 
     suspend fun setScoreQueryGridColumns(columns: Int) {
         context.appPreferencesDataStore.edit { preferences ->
-            preferences[ScoreQueryGridColumnsKey] = columns.coerceIn(3, 9)
+            preferences[ScoreQueryGridColumnsKey] = normalizeGridColumns(columns)
         }
     }
+
+    private fun normalizeGridColumns(columns: Int?): Int = if (columns == 3) 3 else 5
 
     suspend fun setScoreQuerySortMode(sortMode: ScoreQuerySortMode) {
         context.appPreferencesDataStore.edit { preferences ->

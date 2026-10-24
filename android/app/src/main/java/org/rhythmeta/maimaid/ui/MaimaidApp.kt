@@ -208,7 +208,6 @@ fun MaimaidApp(
     val thirdPartyScoreSyncEnabled by viewModel.thirdPartyScoreSyncEnabled.collectAsStateWithLifecycle()
     val catalogSortOption by viewModel.catalogSortOption.collectAsStateWithLifecycle()
     val catalogSortAscending by viewModel.catalogSortAscending.collectAsStateWithLifecycle()
-    val catalogGridColumns by viewModel.catalogGridColumns.collectAsStateWithLifecycle()
     val catalogHideUnavailableSongs by viewModel.catalogHideUnavailableSongs.collectAsStateWithLifecycle()
     val catalogShowPlayableSongsOnly by viewModel.catalogShowPlayableSongsOnly.collectAsStateWithLifecycle()
     if (initialCatalogState != InitialCatalogState.Ready) {
@@ -621,7 +620,6 @@ fun MaimaidApp(
                 sortAscending = catalogSortAscending,
                 filterSettings = catalogFilterSettings,
                 query = catalogQuery,
-                gridColumns = catalogGridColumns,
                 songAliases = uiState.songAliases,
                 server = uiState.activeProfile?.server ?: "jp",
                 contentTopPadding = contentTopPadding,
@@ -635,7 +633,6 @@ fun MaimaidApp(
                     }
                     catalogFilterSettings = settings
                 },
-                onGridColumnsChange = viewModel::setCatalogGridColumns,
                 onDismissFilter = { showCatalogFilter = false },
                 onOpenSong = openSong,
             )

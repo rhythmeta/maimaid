@@ -317,7 +317,10 @@ internal fun DetailScreen(
             createRequested = profileCreateRequested,
             onCreateRequestHandled = onProfileCreateRequestHandled,
         )
-        AppDetail.BackendAuth -> BackendAuthScreen(container = container)
+        AppDetail.BackendAuth -> BackendAuthScreen(
+            container = container,
+            contentTopPadding = songContentTopPadding,
+        )
         AppDetail.DivingFishImport -> DivingFishImportScreen(
             container = container,
             contentTopPadding = songContentTopPadding,

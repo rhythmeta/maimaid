@@ -98,6 +98,8 @@
 	<string name="catalog_filter_title">篩選</string>
 	<string name="catalog_filter_quick">快速篩選</string>
 	<string name="catalog_filter_favorites">僅顯示收藏</string>
+	<string name="grid_zoom_in">放大封面</string>
+	<string name="grid_zoom_out">縮小封面</string>
 	<string name="catalog_filter_hide_unavailable">隱藏刪除曲</string>
 	<string name="catalog_filter_playable_only">僅顯示可玩歌曲</string>
 	<string name="catalog_filter_difficulty">難度等級</string>

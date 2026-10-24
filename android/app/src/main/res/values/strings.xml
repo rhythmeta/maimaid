@@ -477,6 +477,8 @@
 	<string name="profile_clear_avatar">Clear</string>
 	<string name="avatar_editor_title">Adjust Avatar</string>
 	<string name="avatar_editor_hint">Drag to position, pinch to zoom, or rotate with two fingers.</string>
+	<string name="grid_zoom_in">Zoom in covers</string>
+	<string name="grid_zoom_out">Zoom out covers</string>
 	<string name="avatar_editor_reset">Reset</string>
 	<string name="avatar_editor_apply">Apply Crop</string>
 	<string name="profile_sheet_expand">Expand profile editor</string>
