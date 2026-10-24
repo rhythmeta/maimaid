@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -58,6 +59,7 @@ import org.rhythmeta.maimaid.core.data.ScoreQueryEntry
 import org.rhythmeta.maimaid.core.data.ScoreQueryStats
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
@@ -310,61 +312,87 @@ private fun ScoreQueryGridCell(
             .build()
     }
     val cornerRadius = scoreGridCornerRadius(columns)
+    val cardColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+    val coverNavigation = rememberSongCoverNavigation(
+        songId = entry.songIdentifier,
+        onClick = onClick,
+        cornerRadius = cornerRadius,
+        key = entry.sheetKey,
+        enabled = enabled,
+        cardColor = cardColor,
+        cardBorderColor = difficultyColor,
+        cardBorderWidth = if (columns > 5) 1.5.dp else 2.dp,
+        cardCornerRadius = cornerRadius,
+    )
 
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .squircleSurface(
-                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                cornerRadius = cornerRadius,
-                extension = SquircleExtension,
-            )
-            .semantics(mergeDescendants = true) {
-                contentDescription = "${entry.songTitle}, ${entry.rank}"
-            }
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick,
-            ),
-    ) {
-        AsyncImage(
-            model = model,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(squircleShape(cornerRadius)),
-        )
+    SongCardTransitionContent(coverNavigation) { showCover ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .squircleBorder(
-                    width = if (columns > 5) 1.5.dp else 2.dp,
-                    color = difficultyColor,
+                .aspectRatio(1f)
+                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .squircleSurface(
+                    color = if (showCover) cardColor else Color.Transparent,
                     cornerRadius = cornerRadius,
                     extension = SquircleExtension,
-                ),
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(3.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            ScoreQueryBadge(entry.rank, ScoreStatusColors.rank(entry.rank) ?: MiuixTheme.colorScheme.primary, columns)
-            ScoreRules.displayFc(entry.fc)?.let {
-                ScoreQueryBadge(it, ScoreStatusColors.combo(entry.fc) ?: MiuixTheme.colorScheme.primary, columns)
-            }
-            ScoreRules.displayFs(entry.fs)?.let {
-                ScoreQueryBadge(
-                    displaySyncStatus(it),
-                    ScoreStatusColors.sync(entry.fs) ?: MiuixTheme.colorScheme.primary,
-                    columns,
                 )
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "${entry.songTitle}, ${entry.rank}"
+                }
+                .then(
+                    if (showCover) {
+                        Modifier.clickable(
+                            enabled = enabled,
+                            interactionSource = interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = coverNavigation::open,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            if (showCover) {
+                AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(squircleShape(cornerRadius)),
+                    onSuccess = { result -> coverNavigation.onPainter(result.painter) },
+                )
+            }
+            if (showCover) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .squircleBorder(
+                            width = if (columns > 5) 1.5.dp else 2.dp,
+                            color = difficultyColor,
+                            cornerRadius = cornerRadius,
+                            extension = SquircleExtension,
+                        ),
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(3.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                ScoreQueryBadge(entry.rank, ScoreStatusColors.rank(entry.rank) ?: MiuixTheme.colorScheme.primary, columns)
+                ScoreRules.displayFc(entry.fc)?.let {
+                    ScoreQueryBadge(it, ScoreStatusColors.combo(entry.fc) ?: MiuixTheme.colorScheme.primary, columns)
+                }
+                ScoreRules.displayFs(entry.fs)?.let {
+                    ScoreQueryBadge(
+                        displaySyncStatus(it),
+                        ScoreStatusColors.sync(entry.fs) ?: MiuixTheme.colorScheme.primary,
+                        columns,
+                    )
+                }
             }
         }
     }
@@ -404,26 +432,34 @@ private fun ScoreQueryListRow(
         cornerRadius = 9.dp,
         key = entry.sheetKey,
         cardColor = MiuixTheme.colorScheme.surfaceContainer,
+        cardCornerRadius = 12.dp,
     )
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp)
-            .then(coverNavigation.cardModifier)
-            .squircleSurface(
-                color = MiuixTheme.colorScheme.surfaceContainer,
-                cornerRadius = 12.dp,
-                extension = SquircleExtension,
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClick = coverNavigation::open,
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    SongCardTransitionContent(coverNavigation) { showCover ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .squircleSurface(
+                    color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else Color.Transparent,
+                    cornerRadius = 12.dp,
+                    extension = SquircleExtension,
+                )
+                .then(
+                    if (showCover) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = coverNavigation::open,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
         Box(
             Modifier
                 .height(44.dp)
@@ -431,13 +467,17 @@ private fun ScoreQueryListRow(
                 .squircleSurface(difficultyColor, 2.dp, extension = SquircleExtension),
         )
         Spacer(Modifier.width(10.dp))
-        SongJacket(
-            entry.imageName,
-            container.coverImageStore,
-            size = 52.dp,
-            cornerRadius = 9.dp,
-            navigation = coverNavigation,
-        )
+        if (showCover) {
+            SongJacket(
+                entry.imageName,
+                container.coverImageStore,
+                size = 52.dp,
+                cornerRadius = 9.dp,
+                navigation = coverNavigation,
+            )
+        } else {
+            Spacer(Modifier.size(52.dp))
+        }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -485,6 +525,7 @@ private fun ScoreQueryListRow(
                 style = MiuixTheme.textStyles.footnote2.copy(fontFamily = FontFamily.Monospace),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
+        }
         }
     }
 }

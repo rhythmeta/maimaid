@@ -12,11 +12,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -34,8 +36,11 @@ internal class SongCoverSource(
     var layoutWidth by mutableStateOf(0)
     var layoutHeight by mutableStateOf(0)
     var painter by mutableStateOf<Painter?>(null)
+    var painterAlpha by mutableStateOf(1f)
+    var painterSaturation by mutableStateOf(1f)
     var cardColor by mutableStateOf<Color?>(null)
     var cardBorderColor by mutableStateOf<Color?>(null)
+    var cardBorderWidth by mutableStateOf(1.dp)
     var cardCornerRadius by mutableStateOf(0.dp)
     var bodyBounds by mutableStateOf<Rect?>(null)
     var bodySize by mutableStateOf(IntSize.Zero)
@@ -80,8 +85,12 @@ internal class SongCoverNavigation(
                 alpha = if (host?.active?.genericSource === source && host.active.hidesSource) 0f else 1f
             }
 
-    fun onPainter(painter: Painter?) {
-        if (painter != null) source.painter = painter
+    fun onPainter(painter: Painter?, alpha: Float = 1f, saturation: Float = 1f) {
+        if (painter != null) {
+            source.painter = painter
+            source.painterAlpha = alpha
+            source.painterSaturation = saturation
+        }
     }
 
     fun open() {
@@ -103,6 +112,7 @@ internal fun rememberSongCoverNavigation(
     enabled: Boolean = true,
     cardColor: Color? = null,
     cardBorderColor: Color? = null,
+    cardBorderWidth: Dp = 1.dp,
     cardCornerRadius: Dp = 14.dp,
 ): SongCoverNavigation {
     val host = LocalSongNavigationHost.current.takeIf { enabled }
@@ -112,6 +122,7 @@ internal fun rememberSongCoverNavigation(
     SideEffect {
         source.cardColor = cardColor
         source.cardBorderColor = cardBorderColor
+        source.cardBorderWidth = cardBorderWidth
         source.cardCornerRadius = cardCornerRadius
     }
     return remember(source, host, onClick) { SongCoverNavigation(source, host, onClick) }
@@ -143,6 +154,7 @@ internal fun SongCardTransitionContent(
 internal fun SongCardContentOverlay(
     state: CatalogCoverTransition,
     progress: () -> Float,
+    pageSize: () -> Size,
 ) {
     val source = state.genericSource ?: return
     val body = source.bodyContent ?: return
@@ -158,11 +170,24 @@ internal fun SongCardContentOverlay(
             .graphicsLayer {
                 val fraction = progress()
                 val bounds = state.genericBodyBounds()
-                alpha = if (bounds == null) 0f else catalogListContentAlpha(fraction)
                 if (bounds != null) {
-                    translationX = bounds.left
-                    translationY = bounds.top + state.listContentTranslation(fraction) -
-                        state.listContentTranslation(0f)
+                    alpha = catalogListContentAlpha(fraction)
+                    if (state.usesListMotion) {
+                        translationX = bounds.left
+                        translationY = bounds.top + state.listContentTranslation(fraction) -
+                            state.listContentTranslation(0f)
+                    } else {
+                        val coverBounds = state.detailBounds?.let { state.sharedCoverBounds(it, fraction) }
+                            ?: state.fallbackCoverBounds(pageSize(), fraction)
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        scaleX = coverBounds.width / size.width.coerceAtLeast(1f)
+                        scaleY = coverBounds.height / size.height.coerceAtLeast(1f)
+                        translationX = coverBounds.left
+                        translationY = coverBounds.top
+                        clip = true
+                    }
+                } else {
+                    alpha = 0f
                 }
             },
     ) {

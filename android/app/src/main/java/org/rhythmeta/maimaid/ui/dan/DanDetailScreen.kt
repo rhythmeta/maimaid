@@ -47,6 +47,7 @@ import org.rhythmeta.maimaid.core.data.DanChartEntry
 import org.rhythmeta.maimaid.core.data.DanSectionDetail
 import org.rhythmeta.maimaid.core.data.ServerChartPolicy
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
@@ -285,34 +286,41 @@ private fun DanSongRow(
             onClick = { onOpenSong(currentSong.songIdentifier) },
             cornerRadius = 12.dp,
             key = entry.reference.title + entry.reference.type + entry.reference.difficulty,
+            cardColor = MiuixTheme.colorScheme.surfaceContainerHigh,
+            cardBorderColor = difficultyColor.copy(alpha = 0.12f),
+            cardBorderWidth = 1.dp,
+            cardCornerRadius = 15.dp,
         )
     }
-    val rowModifier = if (song != null) {
-        Modifier.clickable { coverNavigation?.open() ?: onOpenSong(song.songIdentifier) }
-    } else {
-        Modifier
-    }
-
-    Row(
-        modifier = rowModifier
-            .fillMaxWidth()
-            .then(coverNavigation?.cardModifier ?: Modifier)
-            .height(76.dp)
-            .squircleSurface(
-                color = MiuixTheme.colorScheme.surfaceContainerHigh,
-                cornerRadius = 15.dp,
-                extension = SquircleExtension,
-            )
-            .squircleBorder(
-                width = 1.dp,
-                color = difficultyColor.copy(alpha = if (song == null) 0.08f else 0.12f),
-                cornerRadius = 15.dp,
-                extension = SquircleExtension,
-            )
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
+    val rowContent: @Composable (Boolean) -> Unit = { showCover ->
+        val rowModifier = song?.takeIf { showCover }?.let { currentSong ->
+            Modifier
+                .then(coverNavigation?.cardModifier ?: Modifier)
+                .clickable { coverNavigation?.open() ?: onOpenSong(currentSong.songIdentifier) }
+        } ?: Modifier
+        Row(
+            modifier = rowModifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .squircleSurface(
+                    color = if (showCover || song == null) MiuixTheme.colorScheme.surfaceContainerHigh else Color.Transparent,
+                    cornerRadius = 15.dp,
+                    extension = SquircleExtension,
+                )
+                .squircleBorder(
+                    width = if (showCover || song == null) 1.dp else 0.dp,
+                    color = when {
+                        song == null -> difficultyColor.copy(alpha = 0.08f)
+                        showCover -> difficultyColor.copy(alpha = 0.12f)
+                        else -> Color.Transparent
+                    },
+                    cornerRadius = 15.dp,
+                    extension = SquircleExtension,
+                )
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
         Box(
             modifier = Modifier
                 .width(4.dp)
@@ -324,7 +332,7 @@ private fun DanSongRow(
                     extension = SquircleExtension,
                 ),
         )
-        if (song != null) {
+        if (song != null && showCover) {
             SongJacket(
                 imageName = song.imageName,
                 coverImageStore = container.coverImageStore,
@@ -332,6 +340,8 @@ private fun DanSongRow(
                 cornerRadius = 12.dp,
                 navigation = coverNavigation,
             )
+        } else if (song != null) {
+            Spacer(Modifier.size(50.dp))
         } else {
             Box(
                 modifier = Modifier
@@ -461,6 +471,12 @@ private fun DanSongRow(
                 Spacer(Modifier.size(16.dp))
             }
         }
+        }
+    }
+    if (coverNavigation != null) {
+        SongCardTransitionContent(coverNavigation, rowContent)
+    } else {
+        rowContent(true)
     }
 }
 

@@ -66,6 +66,7 @@ import org.rhythmeta.maimaid.core.data.RatingUtils
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.UserProfileEntity
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.catalog.SongCoverNavigation
@@ -486,18 +487,28 @@ private fun BestEntryCard(
         cornerRadius = 10.dp,
         key = entry.sheetKey,
         cardColor = MiuixTheme.colorScheme.surfaceContainer,
+        cardCornerRadius = 16.dp,
     )
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(coverNavigation.cardModifier)
-            .clip(squircleShape(16.dp))
-            .clickable(onClick = coverNavigation::open),
-        cornerRadius = 16.dp,
-        insideMargin = PaddingValues(start = 8.dp),
-        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
-    ) {
-        BestEntryRow(entry = entry, coverImageStore = coverImageStore, coverNavigation = coverNavigation)
+    SongCardTransitionContent(coverNavigation) { showCover ->
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .clip(squircleShape(16.dp))
+                .then(if (showCover) Modifier.clickable(onClick = coverNavigation::open) else Modifier),
+            cornerRadius = 16.dp,
+            insideMargin = PaddingValues(start = 8.dp),
+            colors = CardDefaults.defaultColors(
+                color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else Color.Transparent,
+            ),
+        ) {
+            BestEntryRow(
+                entry = entry,
+                coverImageStore = coverImageStore,
+                coverNavigation = coverNavigation,
+                showCover = showCover,
+            )
+        }
     }
 }
 
@@ -506,6 +517,7 @@ private fun BestEntryRow(
     entry: RatingUtils.Entry,
     coverImageStore: CoverImageStore,
     coverNavigation: SongCoverNavigation,
+    showCover: Boolean,
 ) {
     val darkTheme = SongVisualUtils.isDarkTheme(MiuixTheme.colorScheme.background)
     val difficultyColor = SongVisualUtils.difficultyColor(
@@ -534,7 +546,11 @@ private fun BestEntryRow(
                 ),
         )
         Spacer(Modifier.width(10.dp))
-        BestJacket(entry.imageName, coverImageStore, coverNavigation)
+        if (showCover) {
+            BestJacket(entry.imageName, coverImageStore, coverNavigation)
+        } else {
+            Spacer(Modifier.size(56.dp))
+        }
         Spacer(Modifier.width(12.dp))
         Column(
             modifier = Modifier.weight(1f),

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,6 +46,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.RecommendationResult
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
@@ -226,27 +228,35 @@ private fun RecommendationRow(
         cornerRadius = 10.dp,
         key = result.sheet.sheetKey,
         cardColor = MiuixTheme.colorScheme.surfaceContainer,
+        cardCornerRadius = 16.dp,
     )
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(84.dp)
-            .then(coverNavigation.cardModifier)
-            .squircleSurface(
-                color = MiuixTheme.colorScheme.surfaceContainer,
-                cornerRadius = 16.dp,
-                extension = SquircleExtension,
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClick = coverNavigation::open,
-            )
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    SongCardTransitionContent(coverNavigation) { showCover ->
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(84.dp)
+                .then(if (showCover) coverNavigation.cardModifier else Modifier)
+                .squircleSurface(
+                    color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else androidx.compose.ui.graphics.Color.Transparent,
+                    cornerRadius = 16.dp,
+                    extension = SquircleExtension,
+                )
+                .then(
+                    if (showCover) {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            role = Role.Button,
+                            onClick = coverNavigation::open,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
         Box(
             modifier = Modifier
                 .height(52.dp)
@@ -258,13 +268,17 @@ private fun RecommendationRow(
                 ),
         )
         Spacer(Modifier.width(10.dp))
-        SongJacket(
-            imageName = result.song.imageName,
-            coverImageStore = container.coverImageStore,
-            size = 56.dp,
-            cornerRadius = 10.dp,
-            navigation = coverNavigation,
-        )
+        if (showCover) {
+            SongJacket(
+                imageName = result.song.imageName,
+                coverImageStore = container.coverImageStore,
+                size = 56.dp,
+                cornerRadius = 10.dp,
+                navigation = coverNavigation,
+            )
+        } else {
+            Spacer(Modifier.size(56.dp))
+        }
         Spacer(Modifier.width(12.dp))
         Column(
             modifier = Modifier.weight(1f),
@@ -353,6 +367,7 @@ private fun RecommendationRow(
                 fontWeight = FontWeight.Bold,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
+        }
         }
     }
 }

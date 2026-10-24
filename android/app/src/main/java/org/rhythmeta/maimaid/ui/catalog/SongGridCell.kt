@@ -70,117 +70,139 @@ internal fun SongGridCell(
     val isUtage = sheets.any { it.type.contains("utage", ignoreCase = true) } ||
         song.category.contains("utage", ignoreCase = true) ||
         song.category.contains("宴")
+    val cardBorderColor = actualSheet?.let {
+        SongVisualUtils.difficultyColor(it.difficulty, it.type, darkTheme)
+    } ?: MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     val coverNavigation = rememberSongCoverNavigation(
         songId = song.songIdentifier,
         onClick = onClick,
         cornerRadius = cornerRadius,
         key = song.imageName,
+        cardColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+        cardBorderColor = cardBorderColor,
+        cardBorderWidth = if (actualSheet != null) 1.5.dp else 0.5.dp,
+        cardCornerRadius = cornerRadius,
     )
 
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .then(coverNavigation.modifier)
-            .clip(squircleShape(cornerRadius))
-            .squircleSurface(
-                color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                cornerRadius = cornerRadius,
-                extension = SquircleExtension,
-            )
-            .semantics(mergeDescendants = true) {
-                contentDescription = listOf(song.title, song.artist)
-                    .filter(String::isNotBlank)
-                    .joinToString(", ")
+    SongCardTransitionContent(coverNavigation) { showCover ->
+        Box(
+            modifier = modifier
+                .aspectRatio(1f)
+                .then(if (showCover) coverNavigation.modifier else Modifier)
+                .clip(squircleShape(cornerRadius))
+                .squircleSurface(
+                    color = if (showCover) {
+                        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    } else {
+                        Color.Transparent
+                    },
+                    cornerRadius = cornerRadius,
+                    extension = SquircleExtension,
+                )
+                .then(
+                    if (showCover) {
+                        Modifier
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = listOf(song.title, song.artist)
+                                    .filter(String::isNotBlank)
+                                    .joinToString(", ")
+                            }
+                            .combinedClickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = coverNavigation::open,
+                                onLongClick = onLongClick,
+                            )
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            if (showCover) {
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { result -> coverNavigation.onPainter(result.painter) },
+                )
             }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = coverNavigation::open,
-                onLongClick = onLongClick,
-            ),
-    ) {
-        AsyncImage(
-            model = imageModel,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
-        )
 
-        if (showActualDifficultyIndicator) actualSheet?.let { sheet ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .fillMaxHeight()
-                    .width(4.dp)
-                    .squircleSurface(
-                        color = SongVisualUtils.difficultyColor(sheet.difficulty, sheet.type, darkTheme),
-                        cornerRadius = 2.dp,
-                        extension = SquircleExtension,
-                    ),
-            )
-        }
+            if (showActualDifficultyIndicator) actualSheet?.let { sheet ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .width(4.dp)
+                        .squircleSurface(
+                            color = SongVisualUtils.difficultyColor(sheet.difficulty, sheet.type, darkTheme),
+                            cornerRadius = 2.dp,
+                            extension = SquircleExtension,
+                        ),
+                )
+            }
 
-        if (showDots) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(if (columnCount <= 3) 6.dp else 4.dp)
-                    .squircleSurface(
-                        color = if (isUtage) {
-                            SongVisualUtils.utageColor(darkTheme).copy(alpha = 0.68f)
-                        } else if (darkTheme) {
-                            ProgressDotLightSurface.copy(alpha = 0.88f)
-                        } else {
-                            MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f)
-                        },
-                        cornerRadius = 50.dp,
-                        extension = SquircleExtension,
-                    )
-                    .padding(
-                        horizontal = if (columnCount <= 3) 6.dp else 4.dp,
-                        vertical = if (columnCount <= 3) 3.dp else 2.dp,
-                    ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (isUtage) {
-                    Text(
-                        text = "宴",
-                        fontSize = when (columnCount) {
-                            in 0..3 -> 14.sp
-                            4 -> 8.sp
-                            5 -> 7.sp
-                            else -> 6.sp
-                        },
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                    )
-                } else {
-                    prioritizedSheets.forEachIndexed { index, sheet ->
-                        SongScoreProgressDot(
-                            sheet = sheet,
-                            score = scoresBySheetKey[sheet.sheetKey],
-                            darkTheme = darkTheme,
+            if (showDots) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(if (columnCount <= 3) 6.dp else 4.dp)
+                        .squircleSurface(
+                            color = if (isUtage) {
+                                SongVisualUtils.utageColor(darkTheme).copy(alpha = 0.68f)
+                            } else if (darkTheme) {
+                                ProgressDotLightSurface.copy(alpha = 0.88f)
+                            } else {
+                                MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f)
+                            },
+                            cornerRadius = 50.dp,
+                            extension = SquircleExtension,
                         )
-                        if (index < prioritizedSheets.lastIndex) {
-                            Box(Modifier.width(2.dp))
+                        .padding(
+                            horizontal = if (columnCount <= 3) 6.dp else 4.dp,
+                            vertical = if (columnCount <= 3) 3.dp else 2.dp,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isUtage) {
+                        Text(
+                            text = "宴",
+                            fontSize = when (columnCount) {
+                                in 0..3 -> 14.sp
+                                4 -> 8.sp
+                                5 -> 7.sp
+                                else -> 6.sp
+                            },
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                        )
+                    } else {
+                        prioritizedSheets.forEachIndexed { index, sheet ->
+                            SongScoreProgressDot(
+                                sheet = sheet,
+                                score = scoresBySheetKey[sheet.sheetKey],
+                                darkTheme = darkTheme,
+                            )
+                            if (index < prioritizedSheets.lastIndex) {
+                                Box(Modifier.width(2.dp))
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .squircleBorder(
-                    width = if (actualSheet != null) 1.5.dp else 0.5.dp,
-                    color = actualSheet?.let {
-                        SongVisualUtils.difficultyColor(it.difficulty, it.type, darkTheme)
-                    } ?: MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    cornerRadius = cornerRadius,
-                    extension = SquircleExtension,
-                ),
-        )
+            if (showCover) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .squircleBorder(
+                            width = if (actualSheet != null) 1.5.dp else 0.5.dp,
+                            color = cardBorderColor,
+                            cornerRadius = cornerRadius,
+                            extension = SquircleExtension,
+                        ),
+                )
+            }
+        }
     }
 }

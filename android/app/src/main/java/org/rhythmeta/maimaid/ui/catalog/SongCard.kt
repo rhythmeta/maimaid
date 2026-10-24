@@ -89,6 +89,7 @@ internal fun SongCard(
         key = song.imageName,
         cardColor = cardColor,
         cardBorderColor = accentColor.copy(alpha = 0.12f),
+        cardBorderWidth = 1.dp,
     )
 
     SongCardTransitionContent(coverNavigation) { showCover ->

@@ -76,6 +76,7 @@ import org.rhythmeta.maimaid.core.ml.MaimaiScreenType
 import org.rhythmeta.maimaid.core.ml.RecognizedRegion
 import org.rhythmeta.maimaid.core.ml.ScannerMatch
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
@@ -518,29 +519,42 @@ private fun ScannerResultCard(
         cornerRadius = 8.dp,
         key = match.song.imageName,
         enabled = isSongChoice,
+        cardColor = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
+        cardBorderColor = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+        cardBorderWidth = 1.dp,
+        cardCornerRadius = 16.dp,
     )
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .fillMaxWidth()
-            .then(coverNavigation.cardModifier)
-            .squircleSurface(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f), 16.dp, SquircleExtension)
-            .squircleBorder(
-                1.dp,
-                if (isScore) difficultyColor.copy(alpha = 0.2f)
-                else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                16.dp,
-                SquircleExtension,
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClick = if (isSongChoice) coverNavigation::open else onClick,
-            )
-            .padding(vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val rowContent: @Composable (Boolean) -> Unit = { showCover ->
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth()
+                .then(if (showCover && isSongChoice) coverNavigation.cardModifier else Modifier)
+                .squircleSurface(
+                    if (showCover) MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f) else Color.Transparent,
+                    16.dp,
+                    SquircleExtension,
+                )
+                .squircleBorder(
+                    if (showCover) 1.dp else 0.dp,
+                    when {
+                        !showCover -> Color.Transparent
+                        isScore -> difficultyColor.copy(alpha = 0.2f)
+                        else -> MiuixTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    },
+                    16.dp,
+                    SquircleExtension,
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = showCover || !isSongChoice,
+                    role = Role.Button,
+                    onClick = if (isSongChoice) coverNavigation::open else onClick,
+                )
+                .padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
         if (isScore) {
             Box(
                 modifier = Modifier
@@ -555,13 +569,17 @@ private fun ScannerResultCard(
                 .padding(start = if (isScore) 0.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SongJacket(
-                match.song.imageName,
-                coverImageStore,
-                40.dp,
-                8.dp,
-                navigation = coverNavigation.takeIf { isSongChoice },
-            )
+            if (showCover) {
+                SongJacket(
+                    match.song.imageName,
+                    coverImageStore,
+                    40.dp,
+                    8.dp,
+                    navigation = coverNavigation.takeIf { isSongChoice },
+                )
+            } else {
+                Spacer(Modifier.size(40.dp))
+            }
             Spacer(Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
@@ -679,6 +697,12 @@ private fun ScannerResultCard(
                 modifier = Modifier.padding(start = 4.dp, end = 16.dp),
             )
         }
+        }
+    }
+    if (isSongChoice) {
+        SongCardTransitionContent(coverNavigation, rowContent)
+    } else {
+        rowContent(true)
     }
 }
 

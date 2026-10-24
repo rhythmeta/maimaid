@@ -43,6 +43,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
@@ -191,23 +192,27 @@ private fun CommunityAliasSongHeader(
             onClick = { onOpenSong(currentSong.songIdentifier) },
             cornerRadius = 9.dp,
             key = currentSong.imageName,
+            cardColor = Color.Transparent,
+            cardCornerRadius = 12.dp,
         )
     }
-    val navigationModifier = song?.let { currentSong ->
-        Modifier.clickable(role = Role.Button) {
-            coverNavigation?.open() ?: onOpenSong(currentSong.songIdentifier)
-        }
-    } ?: Modifier
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(navigationModifier)
-            .padding(top = 8.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (song != null) {
+    val headerContent: @Composable (Boolean) -> Unit = { showCover ->
+        val navigationModifier = song?.takeIf { showCover }?.let { currentSong ->
+            Modifier
+                .then(coverNavigation?.cardModifier ?: Modifier)
+                .clickable(role = Role.Button) {
+                    coverNavigation?.open() ?: onOpenSong(currentSong.songIdentifier)
+                }
+        } ?: Modifier
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(navigationModifier)
+                .padding(top = 8.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+        if (song != null && showCover) {
             SongJacket(
                 imageName = song.imageName,
                 coverImageStore = container.coverImageStore,
@@ -215,6 +220,8 @@ private fun CommunityAliasSongHeader(
                 cornerRadius = 9.dp,
                 navigation = coverNavigation,
             )
+        } else if (song != null) {
+            Spacer(Modifier.size(46.dp))
         } else {
             Box(
                 modifier = Modifier
@@ -246,6 +253,12 @@ private fun CommunityAliasSongHeader(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
+        }
+    }
+    if (coverNavigation != null) {
+        SongCardTransitionContent(coverNavigation, headerContent)
+    } else {
+        headerContent(true)
     }
 }
 

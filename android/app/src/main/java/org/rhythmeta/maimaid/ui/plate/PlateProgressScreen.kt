@@ -48,6 +48,7 @@ import org.rhythmeta.maimaid.core.data.PlateType
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.core.data.VersionPlateGroup
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
@@ -361,61 +362,83 @@ private fun PlateJacket(
         onClick = onClick,
         cornerRadius = 10.dp,
         key = chart.sheet.sheetKey,
+        cardColor = MiuixTheme.colorScheme.background,
+        cardBorderColor = if (chart.achieved) accent.copy(alpha = 0.75f)
+        else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+        cardBorderWidth = if (chart.achieved) 2.dp else 1.dp,
+        cardCornerRadius = 10.dp,
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .then(coverNavigation.modifier)
-            .semantics {
-                contentDescription = accessibilityDescription
-            }
-            .clip(squircleShape(10.dp))
-            .clickable(onClick = coverNavigation::open),
-    ) {
-        AsyncImage(
-            model = model,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
-            alpha = if (chart.achieved) 0.92f else 0.62f,
-            modifier = Modifier.fillMaxSize(),
-            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
-        )
-        if (chart.achieved) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, accent.copy(alpha = 0.78f)),
-                        ),
-                    ),
-            )
-        }
-        achievementMarker(chart, plateType)?.let { marker ->
-            PlateMarker(
-                text = marker.first,
-                color = marker.second,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp),
-            )
-        }
+    SongCardTransitionContent(coverNavigation) { showCover ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .squircleBorder(
-                    width = if (chart.achieved) 2.dp else 1.dp,
-                    color = if (chart.achieved) accent.copy(alpha = 0.75f)
-                    else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                    cornerRadius = 10.dp,
-                    extension = SquircleExtension,
-                ),
-        )
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .then(if (showCover) coverNavigation.modifier else Modifier)
+                .then(
+                    if (showCover) {
+                        Modifier
+                            .semantics { contentDescription = accessibilityDescription }
+                            .clickable(onClick = coverNavigation::open)
+                    } else {
+                        Modifier
+                    },
+                )
+                .clip(squircleShape(10.dp)),
+        ) {
+            if (showCover) {
+                AsyncImage(
+                    model = model,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) }),
+                    alpha = if (chart.achieved) 0.92f else 0.62f,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { result ->
+                        coverNavigation.onPainter(
+                            painter = result.painter,
+                            alpha = if (chart.achieved) 0.92f else 0.62f,
+                            saturation = saturation,
+                        )
+                    },
+                )
+            }
+            if (chart.achieved) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, accent.copy(alpha = 0.78f)),
+                            ),
+                        ),
+                )
+            }
+            achievementMarker(chart, plateType)?.let { marker ->
+                PlateMarker(
+                    text = marker.first,
+                    color = marker.second,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp),
+                )
+            }
+            if (showCover) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .squircleBorder(
+                            width = if (chart.achieved) 2.dp else 1.dp,
+                            color = if (chart.achieved) accent.copy(alpha = 0.75f)
+                            else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            cornerRadius = 10.dp,
+                            extension = SquircleExtension,
+                        ),
+                )
+            }
+        }
     }
 }
 

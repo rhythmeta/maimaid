@@ -14,6 +14,8 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
@@ -100,6 +102,14 @@ internal fun CatalogContainerTransform(
                 val sourceRadius = state.coverCornerRadiusPx(this)
                 val radius = if (shared) interpolate(sourceRadius, 26.dp.toPx(), progress) else sourceRadius
                 val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
+                val source = state.genericSource
+                val painterAlpha = source?.painterAlpha?.let { interpolate(it, 1f, progress) } ?: 1f
+                val painterSaturation = source?.painterSaturation?.let { interpolate(it, 1f, progress) } ?: 1f
+                val colorFilter = if (painterSaturation < 0.999f) {
+                    ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(painterSaturation) })
+                } else {
+                    null
+                }
                 clipRect(visible.left, visible.top, visible.right, visible.bottom) {
                     clipPath(path) {
                         if (!state.usesListMotion) {
@@ -108,7 +118,7 @@ internal fun CatalogContainerTransform(
                             }
                         }
                         translate(bounds.center.x - drawSize.width / 2f, bounds.center.y - drawSize.height / 2f) {
-                            with(painter) { draw(drawSize, alpha = coverAlpha) }
+                            with(painter) { draw(drawSize, alpha = coverAlpha * painterAlpha, colorFilter = colorFilter) }
                         }
                     }
                 }
@@ -116,9 +126,14 @@ internal fun CatalogContainerTransform(
             state.genericSource?.cardBorderColor?.let { borderColor ->
                 val borderAlpha = catalogListContentAlpha(progress)
                 if (borderAlpha > 0f) {
-                    val borderWidth = 1.dp.toPx()
+                    val borderWidth = interpolate(
+                        1.dp.toPx(),
+                        (state.genericSource?.cardBorderWidth ?: 1.dp).toPx(),
+                        borderAlpha,
+                    )
                     val bounds = state.containerBounds(Size(size.width, size.height), progress)
                     val inset = borderWidth / 2f
+                    val cornerRadius = (state.containerCornerRadiusPx(this, progress) - inset).coerceAtLeast(0f)
                     drawRoundRect(
                         color = borderColor.copy(alpha = borderColor.alpha * borderAlpha),
                         topLeft = androidx.compose.ui.geometry.Offset(bounds.left + inset, bounds.top + inset),
@@ -126,14 +141,16 @@ internal fun CatalogContainerTransform(
                             (bounds.width - borderWidth).coerceAtLeast(0f),
                             (bounds.height - borderWidth).coerceAtLeast(0f),
                         ),
-                        cornerRadius = CornerRadius(
-                            state.containerCornerRadiusPx(this, progress),
-                        ),
+                        cornerRadius = CornerRadius(cornerRadius),
                         style = Stroke(width = borderWidth),
                     )
                 }
             }
         }
-        SongCardContentOverlay(state, { catalogContainerProgress(navigation.relativeDepth) })
+        SongCardContentOverlay(
+            state = state,
+            progress = { catalogContainerProgress(navigation.relativeDepth) },
+            pageSize = { Size(navigation.layoutSize.width.toFloat(), navigation.layoutSize.height.toFloat()) },
+        )
     }
 }

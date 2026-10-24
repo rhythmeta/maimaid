@@ -53,6 +53,7 @@ import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.catalog.CatalogFilterDialog
+import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -348,54 +349,70 @@ private fun ConstantTableJacket(
         onClick = onClick,
         cornerRadius = 9.dp,
         key = entry.songIdentifier,
+        cardBorderColor = difficultyColor,
+        cardBorderWidth = 1.5.dp,
+        cardCornerRadius = 9.dp,
     )
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .then(coverNavigation.modifier)
-            .semantics { contentDescription = entry.songTitle }
-            .clip(squircleShape(9.dp))
-            .clickable(onClick = coverNavigation::open),
-    ) {
-        AsyncImage(
-            model = coverModel,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-            onSuccess = { result -> coverNavigation.onPainter(result.painter) },
-        )
-        if (includeScores) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(2.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(1.dp),
-            ) {
-                entry.rank?.let { ConstantTableBadge(it, ScoreStatusColors.rank(it)) }
-                entry.fc?.let {
-                    ConstantTableBadge(ScoreRules.displayFc(it) ?: it.uppercase(), ScoreStatusColors.combo(it))
-                }
-                entry.fs?.let {
-                    val normalized = ScoreRules.displayFs(it) ?: it.uppercase()
-                    ConstantTableBadge(
-                        if (normalized == "S") "SYNC" else normalized,
-                        ScoreStatusColors.sync(it),
-                    )
-                }
-            }
-        }
+    SongCardTransitionContent(coverNavigation) { showCover ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .squircleBorder(
-                    width = 1.5.dp,
-                    color = difficultyColor,
-                    cornerRadius = 9.dp,
-                    extension = SquircleExtension,
-                ),
-        )
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .then(if (showCover) coverNavigation.modifier else Modifier)
+                .then(
+                    if (showCover) {
+                        Modifier
+                            .semantics { contentDescription = entry.songTitle }
+                            .clickable(onClick = coverNavigation::open)
+                    } else {
+                        Modifier
+                    },
+                )
+                .clip(squircleShape(9.dp)),
+        ) {
+            if (showCover) {
+                AsyncImage(
+                    model = coverModel,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { result -> coverNavigation.onPainter(result.painter) },
+                )
+            }
+            if (includeScores) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(2.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    entry.rank?.let { ConstantTableBadge(it, ScoreStatusColors.rank(it)) }
+                    entry.fc?.let {
+                        ConstantTableBadge(ScoreRules.displayFc(it) ?: it.uppercase(), ScoreStatusColors.combo(it))
+                    }
+                    entry.fs?.let {
+                        val normalized = ScoreRules.displayFs(it) ?: it.uppercase()
+                        ConstantTableBadge(
+                            if (normalized == "S") "SYNC" else normalized,
+                            ScoreStatusColors.sync(it),
+                        )
+                    }
+                }
+            }
+            if (showCover) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .squircleBorder(
+                            width = 1.5.dp,
+                            color = difficultyColor,
+                            cornerRadius = 9.dp,
+                            extension = SquircleExtension,
+                        ),
+                )
+            }
+        }
     }
 }
 
