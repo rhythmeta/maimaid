@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UIKit
 
 // Persisted filters, statistics, sorting, and result navigation share one query lifecycle.
 // swiftlint:disable:next type_body_length
@@ -23,21 +22,8 @@ struct ScoreQueryView: View {
 
     // Display settings (persisted)
     @AppStorage(AppStorageKeys.scoreQueryDisplayMode) private var displayMode: DisplayMode = .grid
-    @AppStorage(AppStorageKeys.scoreQueryGridColumns) private var committedColumns: Int = 5
     @AppStorage(AppStorageKeys.scoreQuerySortMode) private var sortMode: SortMode = .rating
     @AppStorage(AppStorageKeys.scoreQuerySortAscending) private var sortAscending: Bool = false
-
-    // Grid zoom state
-    @State private var isZooming: Bool = false
-    @State private var liveColumnCount: CGFloat = 5.0
-    @State private var pinchStartColumns: CGFloat = 5.0
-    @State private var zoomAnchorEntryID: String?
-    @State private var viewportHeight: CGFloat = 0
-    /// Brief cooldown after pinch ends to prevent accidental tap activation
-    @State private var navigationDisabled: Bool = false
-
-    private let minColumns: CGFloat = 3
-    private let maxColumns: CGFloat = 7
 
     // Stats
     @State private var stats = PlayerStats()
@@ -85,155 +71,54 @@ struct ScoreQueryView: View {
         let dxScore: Int
     }
 
-    // MARK: - Grid Zoom Helpers
-
-    /// Given the pinch magnification, compute the effective continuous column count.
-    private func continuousColumns(for magnification: CGFloat) -> CGFloat {
-        let raw = pinchStartColumns / magnification
-        return min(maxColumns, max(minColumns, raw))
-    }
-
-    /// Compute cell size and spacing from a column count and available width.
-    private func gridMetrics(intColumns: Int, in width: CGFloat) -> (cellSize: CGFloat, spacing: CGFloat) {
-        let intCols = max(1, intColumns)
-        let spacing: CGFloat
-        switch intCols {
-        case ...3: spacing = 5
-        case 4: spacing = 4
-        case 5: spacing = 3
-        case 6: spacing = 2
-        default: spacing = 1
-        }
-        let totalSpacing = spacing * CGFloat(intCols - 1)
-        let horizontalPadding: CGFloat = spacing + 2
-        let cellSize = (width - totalSpacing - horizontalPadding * 2) / CGFloat(intCols)
-        return (max(1, cellSize), spacing)
-    }
-
-    /// The corner radius for a given column count
-    private func cornerRadius(for columns: Int) -> CGFloat {
-        switch columns {
-        case ...3: return 10
-        case 4...5: return 6
-        default: return 3
-        }
-    }
-
-    /// Estimate which entry index is near the center of the pinch gesture.
-    private func estimateCenterEntryIndex(pinchY: CGFloat, gridWidth: CGFloat, columns: Int) -> Int {
-        let metrics = gridMetrics(intColumns: columns, in: gridWidth)
-        let cellSize = metrics.cellSize
-        let spacing = metrics.spacing
-        let rowHeight = cellSize + spacing
-        guard rowHeight > 0 else { return 0 }
-
-        let estimatedRow = Int(max(0, pinchY - 12) / rowHeight)
-        let centerIndexInRow = columns / 2
-        let index = estimatedRow * columns + centerIndexInRow
-        return min(max(0, index), max(0, filteredEntries.count - 1))
-    }
-
-    private func makePinchGesture(width: CGFloat) -> some Gesture {
-        MagnifyGesture(minimumScaleDelta: 0.02)
-            .onChanged { value in
-                if !isZooming {
-                    isZooming = true
-                    navigationDisabled = true
-                    pinchStartColumns = CGFloat(committedColumns)
-
-                    let centerIdx = estimateCenterEntryIndex(
-                        pinchY: value.startLocation.y,
-                        gridWidth: width,
-                        columns: committedColumns
-                    )
-                    if centerIdx >= 0 && centerIdx < filteredEntries.count {
-                        zoomAnchorEntryID = filteredEntries[centerIdx].id
-                    }
-                }
-                liveColumnCount = continuousColumns(for: value.magnification)
-            }
-            .onEnded { value in
-                let finalCols = continuousColumns(for: value.magnification)
-                let targetCols = max(Int(minColumns), min(Int(maxColumns), Int(finalCols.rounded())))
-                let changed = targetCols != committedColumns
-                let anchorID = zoomAnchorEntryID
-
-                isZooming = false
-
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    committedColumns = targetCols
-                    liveColumnCount = CGFloat(targetCols)
-                }
-
-                if changed {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                }
-
-                if let anchorID = anchorID {
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(50))
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            self.zoomAnchorEntryID = anchorID
-                        }
-                    }
-                }
-
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(300))
-                    navigationDisabled = false
-                }
-            }
-    }
-
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-
-            ScrollViewReader { scrollProxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        // Stats Header
+        Group {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredEntries.isEmpty {
+                ContentUnavailableView(
+                    "scoreQuery.empty",
+                    systemImage: "music.note.list",
+                    description: Text("")
+                )
+            } else if displayMode == .grid {
+                MaimaiCoverGrid(
+                    items: filteredEntries,
+                    itemID: \.id,
+                    preferenceKey: AppStorageKeys.scoreQueryGridColumns,
+                    contentTopPadding: 8,
+                    contentBottomPadding: 28,
+                    header: {
                         statsHeader
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
-
-                        // Content
-                        Group {
-                            if isLoading {
-                                ProgressView()
-                                    .padding(.top, 60)
-                            } else if filteredEntries.isEmpty {
-                                ContentUnavailableView(
-                                    "scoreQuery.empty",
-                                    systemImage: "music.note.list",
-                                    description: Text("")
-                                )
-                                .padding(.top, 40)
-                            } else {
-                                contentView(in: width)
-                                    .padding(.top, 8)
-                            }
+                    },
+                    tile: { entry, columns, cellSize, transforming in
+                        NavigationLink(destination: songDetailDestination(entry: entry)) {
+                            gridCell(
+                                entry: entry,
+                                cellSize: cellSize,
+                                cornerRadius: columns == 3 ? 10 : 6,
+                                intCols: columns
+                            )
                         }
-                        .animation(.easeInOut(duration: 0.2), value: filteredEntries.count)
+                        .disabled(transforming)
+                        .buttonStyle(.plain)
+                    }
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        statsHeader
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                        listView
+                            .padding(.top, 8)
                     }
                 }
-                .scrollDisabled(isZooming)
-                .if(displayMode == .grid) { view in
-                    view.simultaneousGesture(makePinchGesture(width: width))
-                }
-                .onChange(of: zoomAnchorEntryID) { _, newID in
-                    if let id = newID, !isZooming {
-                        scrollProxy.scrollTo(id, anchor: .center)
-                    }
-                }
-            }
-            .onAppear {
-                viewportHeight = geo.size.height
-            }
-            .onChange(of: geo.size.height) { _, height in
-                viewportHeight = height
             }
         }
         .background(Color(.systemGroupedBackground))
@@ -285,9 +170,6 @@ struct ScoreQueryView: View {
         .searchable(text: $searchText, prompt: "search.placeholder")
         .sheet(isPresented: $isShowingFilters) {
             ScoreQueryFilterView(settings: $filterSettings)
-        }
-        .onAppear {
-            liveColumnCount = CGFloat(committedColumns)
         }
         .onChange(of: searchText) { _, _ in
             debounceFilter()
@@ -351,43 +233,6 @@ struct ScoreQueryView: View {
     }
 
     // MARK: - Content View
-
-    @ViewBuilder
-    private func contentView(in width: CGFloat) -> some View {
-        switch displayMode {
-        case .grid:
-            gridBody(in: width)
-        case .list:
-            listView
-        }
-    }
-
-    private func gridBody(in width: CGFloat) -> some View {
-        let cols = isZooming ? liveColumnCount : CGFloat(committedColumns)
-        let intCols = max(Int(minColumns), min(Int(maxColumns), Int(cols.rounded())))
-        let metrics = gridMetrics(intColumns: intCols, in: width)
-        let cellSize = metrics.cellSize
-        let spacing = metrics.spacing
-        let horizontalPadding = spacing + 2
-        let cellCornerRadius = cornerRadius(for: intCols)
-
-        return LazyVGrid(
-            columns: Array(repeating: GridItem(.fixed(cellSize), spacing: spacing), count: intCols),
-            spacing: spacing
-        ) {
-            ForEach(filteredEntries) { entry in
-                NavigationLink(destination: songDetailDestination(entry: entry)) {
-                    gridCell(entry: entry, cellSize: cellSize, cornerRadius: cellCornerRadius, intCols: intCols)
-                }
-                .disabled(navigationDisabled || isZooming)
-                .buttonStyle(.plain)
-                .frame(width: cellSize, height: cellSize)
-                .id(entry.id)
-            }
-        }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.bottom, 20)
-    }
 
     private func gridCell(entry: ScoreEntry, cellSize: CGFloat, cornerRadius: CGFloat, intCols: Int) -> some View {
         ZStack(alignment: .bottomTrailing) {

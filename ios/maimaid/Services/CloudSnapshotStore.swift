@@ -9,7 +9,7 @@ enum CloudSnapshotStore {
     "scoreQuery.gridColumns",
     "scoreQuery.sortMode", "scoreQuery.sortAscending", "songs.sortOption", "songs.sortAscending",
     "songs.gridColumns",
-    "collections.sortOption", "collections.sortAscending", "filter.hideDeletedSongs",
+    "collections.sortOption", "collections.sortAscending", "collections.gridColumns", "filter.hideDeletedSongs",
     "filter.showOnlyPlayableSongs"
   ]
   struct Environment {

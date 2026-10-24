@@ -494,6 +494,15 @@ struct ScoreEntryView: View {
                     .font(.headline.bold())
                     .monospacedDigit()
                     .foregroundStyle(.primary)
+
+                HStack(spacing: 4) {
+                    if let fc = ThemeUtils.canonicalFC(score.fc) {
+                        ScoreTintBadge(text: ThemeUtils.normalizeFC(fc), tint: ThemeUtils.fcColor(fc))
+                    }
+                    if let fs = score.fs, !fs.isEmpty {
+                        ScoreTintBadge(text: ThemeUtils.normalizeFS(fs), tint: ThemeUtils.fsColor(fs))
+                    }
+                }
             }
 
             Spacer()
@@ -503,7 +512,7 @@ struct ScoreEntryView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(14)
-        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
     }
 

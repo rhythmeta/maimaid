@@ -452,6 +452,8 @@
 
 // MARK: - Score Query
 "scoreQuery.title" = "成绩查询";
+"grid_zoom_in" = "放大网格";
+"grid_zoom_out" = "缩小网格";
 "scoreQuery.stats.played" = "总成绩数";
 "scoreQuery.stats.fc" = "FC/FC+";
 "scoreQuery.stats.ap" = "AP/AP+";

@@ -209,7 +209,6 @@ struct SongCollectionDetailView: View {
     @Query private var items: [SongCollectionItem]
     @Query(filter: #Predicate<UserProfile> { $0.isActive }) private var activeProfiles: [UserProfile]
     @State private var isGridView = false
-    @AppStorage(AppStorageKeys.songsGridColumns) private var gridColumns = 4
     @AppStorage(AppStorageKeys.collectionsSortOption) private var sortOption: SortOption = .defaultOrder
     @AppStorage(AppStorageKeys.collectionsSortAscending) private var sortAscending = true
     @State private var displayedCards: [SongCollectionCard] = []
@@ -233,33 +232,26 @@ struct SongCollectionDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isGridView {
-                GeometryReader { geometry in
-                    let columns = min(max(gridColumns, 3), 7)
-                    let metrics = collectionGridMetrics(columnCount: columns, width: geometry.size.width)
-                    ScrollView {
-                        LazyVGrid(
-                            columns: Array(
-                                repeating: GridItem(.fixed(metrics.cellSize), spacing: metrics.spacing),
-                                count: columns
-                            ),
-                            spacing: metrics.spacing
-                        ) {
-                            ForEach(displayedCards) { card in
-                                SongCollectionGridCard(
-                                    card: card,
-                                    columnCount: columns,
-                                    cellSize: metrics.cellSize,
-                                    cornerRadius: collectionGridCornerRadius(columnCount: columns),
-                                    showDots: columns <= 5,
-                                    onDelete: { delete(card.item) }
-                                )
-                                .frame(width: metrics.cellSize, height: metrics.cellSize)
-                            }
-                        }
-                        .padding(.horizontal, metrics.horizontalPadding)
-                        .padding(.vertical, 12)
+                MaimaiCoverGrid(
+                    items: displayedCards,
+                    itemID: { $0.id.uuidString },
+                    preferenceKey: AppStorageKeys.collectionsGridColumns,
+                    contentTopPadding: 12,
+                    contentBottomPadding: 96,
+                    header: { EmptyView() },
+                    tile: { card, columns, cellSize, transforming in
+                        SongCollectionGridCard(
+                            card: card,
+                            columnCount: columns,
+                            cellSize: cellSize,
+                            cornerRadius: columns == 3 ? 10 : 6,
+                            showDots: true,
+                            transforming: transforming,
+                            onDelete: { delete(card.item) }
+                        )
+                        .frame(width: cellSize, height: cellSize)
                     }
-                }
+                )
             } else {
                 List {
                     ForEach(displayedCards) { card in
@@ -335,30 +327,6 @@ struct SongCollectionDetailView: View {
         }
         .sheet(item: $sharePayload) { payload in
             ShareSheetView(items: [payload.url])
-        }
-    }
-
-    private func collectionGridMetrics(columnCount: Int, width: CGFloat) -> (
-        cellSize: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat
-    ) {
-        let spacing: CGFloat
-        switch columnCount {
-        case ...3: spacing = 5
-        case 4: spacing = 4
-        case 5: spacing = 3
-        case 6: spacing = 2
-        default: spacing = 1
-        }
-        let horizontalPadding = spacing + 2
-        let cellSize = (width - spacing * CGFloat(columnCount - 1) - horizontalPadding * 2) / CGFloat(columnCount)
-        return (max(1, cellSize), spacing, horizontalPadding)
-    }
-
-    private func collectionGridCornerRadius(columnCount: Int) -> CGFloat {
-        switch columnCount {
-        case ...3: return 10
-        case 4...5: return 6
-        default: return 3
         }
     }
 
@@ -559,6 +527,7 @@ private struct SongCollectionGridCard: View {
     let cellSize: CGFloat
     let cornerRadius: CGFloat
     let showDots: Bool
+    let transforming: Bool
     let onDelete: () -> Void
 
     var body: some View {
@@ -578,13 +547,14 @@ private struct SongCollectionGridCard: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .disabled(transforming)
             } else {
                 Button(
                     action: {},
                     label: {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(.secondary.opacity(0.12))
-                            .frame(height: 104)
+                            .frame(width: cellSize, height: cellSize)
                             .overlay { Image(systemName: "music.note").foregroundStyle(.secondary) }
                     }
                 )

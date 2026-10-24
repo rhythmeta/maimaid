@@ -455,6 +455,8 @@
 
 // MARK: - Score Query
 "scoreQuery.title" = "スコア検索";
+"grid_zoom_in" = "グリッドを拡大";
+"grid_zoom_out" = "グリッドを縮小";
 "scoreQuery.stats.played" = "合計スコア";
 "scoreQuery.stats.fc" = "FC/FC+";
 "scoreQuery.stats.ap" = "AP/AP+";

@@ -456,6 +456,8 @@
 
 // MARK: - Score Query
 "scoreQuery.title" = "Score Query";
+"grid_zoom_in" = "Zoom in";
+"grid_zoom_out" = "Zoom out";
 "scoreQuery.stats.played" = "Total Scores";
 "scoreQuery.stats.fc" = "FC/FC+";
 "scoreQuery.stats.ap" = "AP/AP+";

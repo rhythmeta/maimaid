@@ -455,6 +455,8 @@
 
 // MARK: - Score Query
 "scoreQuery.title" = "成績查詢";
+"grid_zoom_in" = "放大網格";
+"grid_zoom_out" = "縮小網格";
 "scoreQuery.stats.played" = "總成績數";
 "scoreQuery.stats.fc" = "FC/FC+";
 "scoreQuery.stats.ap" = "AP/AP+";
