@@ -12,7 +12,11 @@ import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
-internal fun ScoreTintBadge(text: String, color: Color) {
+internal fun ScoreTintBadge(
+    text: String,
+    color: Color,
+    compact: Boolean = false,
+) {
     Text(
         text = text,
         style = MiuixTheme.textStyles.footnote2,
@@ -20,7 +24,14 @@ internal fun ScoreTintBadge(text: String, color: Color) {
         color = color,
         maxLines = 1,
         modifier = Modifier
-            .squircleSurface(color.copy(alpha = 0.14f), 5.dp, SquircleExtension)
-            .padding(horizontal = 5.dp, vertical = 2.dp),
+            .squircleSurface(
+                color.copy(alpha = 0.14f),
+                if (compact) 4.dp else 5.dp,
+                SquircleExtension,
+            )
+            .padding(
+                horizontal = if (compact) 4.dp else 5.dp,
+                vertical = if (compact) 1.dp else 2.dp,
+            ),
     )
 }

@@ -21,6 +21,7 @@ internal fun ScoreStatusBadges(
     fs: String?,
     modifier: Modifier = Modifier,
     showStars: Boolean = true,
+    compact: Boolean = false,
 ) {
     val stars = if (showStars) ScoreRules.dxStars(dxScore, maxDxScore) else 0
     val combo = ScoreRules.displayFc(fc)
@@ -31,12 +32,12 @@ internal fun ScoreStatusBadges(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (stars > 0) ScoreTintBadge(text = "$stars ★", color = Color(0xFFFFB300))
+        if (stars > 0) ScoreTintBadge(text = "$stars ★", color = Color(0xFFFFB300), compact = compact)
         combo?.let {
-            ScoreTintBadge(it, ScoreStatusColors.combo(fc) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary)
+            ScoreTintBadge(it, ScoreStatusColors.combo(fc) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary, compact)
         }
         sync?.let {
-            ScoreTintBadge(it, ScoreStatusColors.sync(fs) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary)
+            ScoreTintBadge(it, ScoreStatusColors.sync(fs) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary, compact)
         }
     }
 }

@@ -2532,7 +2532,7 @@ private fun HistoryRow(
         Column(modifier = Modifier.width(72.dp)) {
             Text(
                 text = playedAt.format(dateFormatter),
-                style = MiuixTheme.textStyles.footnote1,
+                style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.Bold,
             )
             Text(
@@ -2562,6 +2562,7 @@ private fun HistoryRow(
             ScoreStatusBadges(
                 record.dxScore, maxDxScore, record.fc, record.fs,
                 modifier = Modifier.padding(top = 3.dp),
+                compact = true,
             )
         }
         if (record.dxScore > 0) {
