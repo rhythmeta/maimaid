@@ -6,6 +6,7 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
     var onImageCaptured: ((UIImage) -> Void)?
     var onPhotoCaptured: ((Result<Data, Error>) -> Void)?
     var onQRCodeDetected: ((String) -> Void)?
+    var onSGWCMAIDCodeDetected: ((String) -> Void)?
 
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -14,6 +15,7 @@ final class CameraViewController: UIViewController, AVCaptureVideoDataOutputSamp
     private var configuredPreviewSize: CGSize = .zero
     private let processingQueue = DispatchQueue(label: "com.maimaid.camera.queue", qos: .userInteractive)
     private let frameCounter = OSAllocatedUnfairLock(initialState: 0)
+    private let lastSGWCMAIDDelivery = OSAllocatedUnfairLock(initialState: Date.distantPast)
     nonisolated private static let rawContext = CIContext(options: [.useSoftwareRenderer: false])
 
     override func viewDidLoad() {
@@ -212,10 +214,20 @@ extension CameraViewController: AVCaptureMetadataOutputObjectsDelegate {
             let code = metadataObjects.compactMap({ $0 as? AVMetadataMachineReadableCodeObject }).first(where: {
                 $0.type == .qr
             }),
-              let value = code.stringValue,
-              let url = URL(string: value),
-              CollectionSharingService.isCollectionLink(url) else { return }
-        Task { @MainActor [weak self] in self?.onQRCodeDetected?(value) }
+              let value = code.stringValue else { return }
+        if let url = URL(string: value), CollectionSharingService.isCollectionLink(url) {
+            Task { @MainActor [weak self] in self?.onQRCodeDetected?(value) }
+            return
+        }
+        guard SgwcmaidCode.isRecognized(value) else { return }
+        let now = Date()
+        let shouldDeliver = lastSGWCMAIDDelivery.withLock { last -> Bool in
+            guard now.timeIntervalSince(last) >= 0.7 else { return false }
+            last = now
+            return true
+        }
+        guard shouldDeliver else { return }
+        Task { @MainActor [weak self] in self?.onSGWCMAIDCodeDetected?(value) }
     }
 }
 

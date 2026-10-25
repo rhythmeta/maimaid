@@ -156,19 +156,13 @@ struct UserProfileListView: View {
     private func profileRow(_ profile: UserProfile) -> some View {
         HStack(spacing: 14) {
             // Avatar
-            ZStack {
-                if let data = profile.avatarData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable().scaledToFill()
-                        .frame(width: 48, height: 48)
-                        .clipShape(Circle())
-                } else {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 48, height: 48)
-                        .foregroundStyle(.blue.opacity(0.6))
-                }
-            }
+            AvatarImageView(
+                imageData: profile.avatarData,
+                avatarURL: profile.avatarUrl,
+                size: 48,
+                placeholderSystemName: "person.crop.circle.fill",
+                placeholderTint: .blue.opacity(0.6)
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {

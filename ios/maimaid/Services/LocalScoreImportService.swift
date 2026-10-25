@@ -5,6 +5,9 @@ import SwiftData
 enum LocalScoreImportService {
   static func run(provider: ScoreImportProvider, profileID: UUID, context: ModelContext)
     async throws -> LocalScoreImportResult {
+    guard provider != .sgwcmaid else {
+      throw ScoreImportError(code: "sgwcmaid_requires_code")
+    }
     let token = try await ScoreImportAPI.shared.accessToken(
       provider: provider, profileID: profileID)
     let address =
@@ -54,10 +57,14 @@ enum LocalScoreImportService {
       if let rating = payload.rating { profile.playerRating = rating }
       if let name = payload.name, !name.isEmpty { profile.name = name }
       if let plate = payload.plate { profile.plate = plate }
-      if provider == .lxns {
+      switch provider {
+      case .lxns:
         profile.lastImportDateLXNS = Date()
-      } else {
+      case .divingFish:
         profile.lastImportDateDF = Date()
+      case .sgwcmaid:
+        // Cabinet snapshots neither carry nor update the import timestamps.
+        break
       }
       try context.save()
       ScoreService.shared.notifyScoresChanged(for: profileID)
@@ -93,10 +100,20 @@ enum LocalScoreImportService {
       let before = previous.map {
         ScoreValues(rate: $0.rate, dx: $0.dxScore, fc: $0.fc, fs: $0.fs)
       }
-      let saved = ScoreService.shared.saveScore(
-        sheet: sheet, rate: item.achievement, rank: "",
-        dxScore: item.dxScore, fc: item.fc, fs: item.fs, achievementDate: item.playedAt ?? Date(),
-        context: context)
+      let saved: Score
+      switch provider {
+      case .sgwcmaid:
+        // music.json imports overwrite the local sheet with whatever the game
+        // reports instead of keeping the better of the two values.
+        saved = ScoreService.shared.replaceScore(
+          sheet: sheet, rate: item.achievement, dxScore: item.dxScore, fc: item.fc, fs: item.fs,
+          achievementDate: item.playedAt, context: context)
+      case .divingFish, .lxns:
+        saved = ScoreService.shared.saveScore(
+          sheet: sheet, rate: item.achievement, rank: "",
+          dxScore: item.dxScore, fc: item.fc, fs: item.fs,
+          achievementDate: item.playedAt ?? Date(), context: context)
+      }
       var changed =
         before != ScoreValues(rate: saved.rate, dx: saved.dxScore, fc: saved.fc, fs: saved.fs)
       // Best-score snapshots without a play timestamp must never create play history.

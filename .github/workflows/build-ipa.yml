@@ -5,6 +5,9 @@ name: Build maimaid IPA
     paths:
       - ios/**
       - scripts/build-number.sh
+      - scripts/ios-sgwcmaid-settings.py
+      - .github/workflows/build-ipa.yml
+  workflow_dispatch:
 
 jobs:
   build-ipa:
@@ -41,6 +44,7 @@ jobs:
           ARCHIVE_PATH: ${{ runner.temp }}/maimaid.xcarchive
           MAIMAID_API_URL: ${{ secrets.MAIMAID_API_URL }}
           MAIMAID_AUTH_URL: https://dash.rhythmeta.org
+          MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
         run: |
           set -euo pipefail
           mkdir -p build
@@ -49,6 +53,26 @@ jobs:
           : "${MAIMAID_API_URL:?Missing GitHub Secret MAIMAID_API_URL}"
           : "${MAIMAID_AUTH_URL:?Missing MAIMAID_AUTH_URL}"
           echo "Configuring backend API and auth endpoints for the IPA archive."
+
+          SGWCMAID_XCCONFIG="ios/Config/Secrets.xcconfig"
+          if [ -n "${MAIMAID_SGWCMAID:-}" ]; then
+            if ! python3 scripts/ios-sgwcmaid-settings.py --format xcconfig > "$SGWCMAID_XCCONFIG"; then
+              echo "::error::Could not parse the MAIMAID_SGWCMAID secret."
+              rm -f "$SGWCMAID_XCCONFIG"
+              exit 1
+            fi
+            SETTINGS_COUNT="$(grep -c '^SGWCMAID_' "$SGWCMAID_XCCONFIG" || true)"
+            if [ "$SETTINGS_COUNT" -eq 0 ]; then
+              echo "::error::MAIMAID_SGWCMAID produced no SGWCMAID settings."
+              rm -f "$SGWCMAID_XCCONFIG"
+              exit 1
+            fi
+            echo "Configuring SGWCMAID import for the IPA archive ($SETTINGS_COUNT settings)."
+            trap 'rm -f "$SGWCMAID_XCCONFIG"' EXIT
+          else
+            echo "::warning::MAIMAID_SGWCMAID is not set; this IPA will ship without SGWCMAID import endpoints."
+          fi
+
           if ! xcodebuild \
             -project ios/maimaid.xcodeproj \
             -scheme maimaid \

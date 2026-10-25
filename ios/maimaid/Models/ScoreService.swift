@@ -317,6 +317,59 @@ final class ScoreService {
         return result
     }
 
+    /// Replaces the stored score with the incoming values verbatim.
+    ///
+    /// SGWCMAID imports mirror the cabinet's `music.json`, so a lower
+    /// achievement, DX score, or FC/FS status must overwrite the local copy
+    /// instead of being merged like Diving Fish and LXNS imports. The
+    /// achievement date is kept when the snapshot carries no timestamp.
+    @discardableResult
+    func replaceScore(
+        sheet: Sheet,
+        rate: Double,
+        dxScore: Int = 0,
+        fc: String? = nil,
+        fs: String? = nil,
+        achievementDate: Date? = nil,
+        context: ModelContext
+    ) -> Score {
+        let profileId = currentActiveProfileId(context: context)
+        let existingScore = score(for: sheet, context: context)
+        let canonicalFC = ThemeUtils.canonicalFC(fc)
+        let calculatedRank = calculateRank(achievement: rate)
+
+        let result: Score
+
+        if let existing = existingScore {
+            existing.rate = rate
+            existing.rank = calculatedRank
+            existing.dxScore = dxScore
+            existing.fc = canonicalFC
+            existing.fs = fs
+            if let achievementDate {
+                existing.achievementDate = achievementDate
+            }
+            result = existing
+        } else {
+            let newScore = Score(
+                sheetId: "\(sheet.songIdentifier)_\(sheet.type)_\(sheet.difficulty)",
+                rate: rate,
+                rank: calculatedRank,
+                dxScore: dxScore,
+                fc: canonicalFC,
+                fs: fs,
+                achievementDate: achievementDate ?? Date(),
+                userProfileId: profileId
+            )
+            context.insert(newScore)
+            sheet.scores.append(newScore)
+            result = newScore
+        }
+
+        invalidateScoreCache(for: profileId)
+        return result
+    }
+
     /// 记录游玩历史 - 自动关联当前用户
     func recordPlay(
         id: UUID = UUID(),

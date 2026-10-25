@@ -4,4 +4,29 @@ BACKEND_AUTH_URL = https:/$()/dash.rhythmeta.org
 STATIC_ASSETS_URL = https:/$()/maimaid-assets.rhythmeta.org
 MODEL_ASSETS_URL = https:/$()/models.rhythmeta.org
 
+// SGWCMAID score import (China server) deployment values.
+// Leave these empty to ship a build without the feature; the import screen
+// then reports that SGWCMAID is not configured. Override them in
+// Secrets.xcconfig (gitignored); URLs there must escape // as /$()/.
+//   SGWCMAID_CHIME_URL = https:/$()/ai.example.cn/wc_aime/api/get_data
+//   SGWCMAID_GAME_SERVER = https:/$()/maimai-gm.example.com:42081
+//   SGWCMAID_KEYCHIP = A63E-...
+//   SGWCMAID_AES_KEY = <32 characters>
+//   SGWCMAID_AES_IV = <16 characters>
+//   SGWCMAID_API_SALT = ...
+//   SGWCMAID_CHIME_SECRET = ...
+//   SGWCMAID_TITLE_KEY = SDGB
+//   SGWCMAID_PLACE_ID = 1971
+//   SGWCMAID_REGION_ID = 21
+SGWCMAID_CHIME_URL =
+SGWCMAID_GAME_SERVER =
+SGWCMAID_KEYCHIP =
+SGWCMAID_AES_KEY =
+SGWCMAID_AES_IV =
+SGWCMAID_API_SALT =
+SGWCMAID_CHIME_SECRET =
+SGWCMAID_TITLE_KEY =
+SGWCMAID_PLACE_ID = 0
+SGWCMAID_REGION_ID = 0
+
 #include? "Secrets.xcconfig"

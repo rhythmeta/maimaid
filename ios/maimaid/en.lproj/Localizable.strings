@@ -555,6 +555,7 @@
 "settings.cloud.config.error.unconfigured" = "Cloud is not configured.";
 "common.unknown" = "Unknown";
 "common.none" = "None";
+"common.close" = "Close";
 "common.ok" = "OK";
 "common.error" = "Error";
 "dan.detail.noRecord" = "No Record";
@@ -721,3 +722,28 @@
 "import.local.description" = "Import scores directly from the score tracker into the current profile. Better local scores are preserved.";
 "import.local.profileChanged" = "The active profile changed. Please start the import again.";
 "import.local.result %lld %lld %lld" = "Fetched %lld · Updated %lld · Unmatched or invalid %lld";
+
+// SGWCMAID (China server cabinet import)
+"settings.data.importSgwcmaid" = "Import through SGWCMAID";
+"import.sgwcmaid.title" = "Import through SGWCMAID";
+"import.sgwcmaid.summary.title" = "Import through SGWCMAID";
+"import.sgwcmaid.summary.description" = "Enter or scan an SGWCMAID code, then start the import.";
+"import.sgwcmaid.input.header" = "SGWCMAID code";
+"import.sgwcmaid.input.footer" = "Matched charts are replaced with the cabinet's copy.";
+"import.sgwcmaid.code.placeholder" = "SGWCMAID code";
+"import.sgwcmaid.action.import" = "Import music";
+"import.sgwcmaid.status.fetching" = "Fetching scores...";
+"import.sgwcmaid.result.imported" = "Import complete";
+"import.sgwcmaid.result.noChanges" = "Scores are already up to date";
+"import.sgwcmaid.error.notConfigured" = "SGWCMAID import is not configured in this build.";
+"import.sgwcmaid.error.invalidCode" = "Enter a valid SGWCMAID code.";
+"import.sgwcmaid.error.keychipMissing" = "No keychip is configured for SGWCMAID import.";
+"import.sgwcmaid.error.codeInvalid" = "This SGWCMAID code is invalid or has expired.";
+"import.sgwcmaid.error.codeUsed" = "This SGWCMAID code has already been used.";
+"import.sgwcmaid.error.sessionBusy" = "The account is still logged in elsewhere. Wait about 15 minutes and try again.";
+"import.sgwcmaid.error.credentials" = "The SGWCMAID service did not return valid credentials.";
+"import.sgwcmaid.error.service" = "The SGWCMAID service is temporarily unavailable. Try again later.";
+"import.sgwcmaid.error.network" = "Could not reach the SGWCMAID service.";
+"import.sgwcmaid.error.timeout" = "The SGWCMAID request timed out.";
+"import.sgwcmaid.error.catalogEmpty" = "The song catalog is empty. Update static data first.";
+"scanner.sgwcmaid.card.title" = "SGWCMAID code";

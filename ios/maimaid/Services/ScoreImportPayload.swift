@@ -8,6 +8,9 @@ struct ScoreImportPayload {
   var plate: String?
 
   static func decode(_ data: Data, provider: ScoreImportProvider) throws -> Self {
+    if provider == .sgwcmaid {
+      return try decodeSgwcmaid(data)
+    }
     guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw ScoreImportError(code: "invalid_response")
     }
@@ -59,6 +62,66 @@ struct ScoreImportPayload {
     default: type.lowercased()
     }
   }
+
+  /// Decodes the `music.json` array returned by the chime exchange.
+  ///
+  /// Every entry holds a `userMusicDetailList` whose `musicId` is the provider
+  /// song ID and whose charts are split by ID range: below 10000 is a standard
+  /// chart and the rest are DX charts. Rows that fail validation are dropped
+  /// individually, but still count towards the fetched total, matching Android.
+  private static func decodeSgwcmaid(_ data: Data) throws -> Self {
+    guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+      throw ScoreImportError(code: "invalid_response")
+    }
+    var scores: [ImportedScore] = []
+    var fetchedCount = 0
+    for row in rows {
+      guard let details = row["userMusicDetailList"] as? [[String: Any]] else { continue }
+      fetchedCount += details.count
+      for detail in details {
+        guard let songID = SgwcmaidJSON.int(detail["musicId"]),
+          let level = SgwcmaidJSON.int(detail["level"]), (0...4).contains(level),
+          let achievement = SgwcmaidJSON.double(detail["achievement"]),
+          achievement.isFinite, (0.0...1_010_000.0).contains(achievement),
+          let dxScore = SgwcmaidJSON.int(detail["deluxscoreMax"]), dxScore >= 0
+        else { continue }
+        scores.append(
+          ImportedScore(
+            songID: songID,
+            title: "",
+            type: songID < 10_000 ? "standard" : "dx",
+            levelIndex: level,
+            achievement: achievement / 10_000,
+            dxScore: dxScore,
+            fc: sgwcmaidFC(SgwcmaidJSON.int(detail["comboStatus"])),
+            fs: sgwcmaidFS(SgwcmaidJSON.int(detail["syncStatus"])),
+            playedAt: nil))
+      }
+    }
+    return Self(
+      scores: scores, fetchedCount: fetchedCount, rating: nil, name: nil, plate: nil)
+  }
+
+  private static func sgwcmaidFC(_ value: Int?) -> String? {
+    switch value {
+    case 1: return "fc"
+    case 2: return "fcp"
+    case 3: return "ap"
+    case 4: return "app"
+    default: return nil
+    }
+  }
+
+  private static func sgwcmaidFS(_ value: Int?) -> String? {
+    switch value {
+    case 1, 5: return "sync"
+    case 2: return "fsp"
+    case 3: return "fsd"
+    case 4: return "fsdp"
+    default: return nil
+    }
+  }
+
   private static func canonicalFS(_ value: String?) -> String? {
     switch value?.lowercased() {
     case nil, "": nil

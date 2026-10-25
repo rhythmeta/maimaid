@@ -41,7 +41,7 @@ struct MaimaiIconPicker: View {
                                         RoundedRectangle(cornerRadius: 12).stroke(
                                             Color.primary.opacity(0.1), lineWidth: 1))
                             } else {
-                                RemoteImage(url: URL(string: icon.iconUrl)) {
+                                RemoteImage(urls: StaticAssetURL.presetAvatarURLs(for: icon.id)) {
                                     ProgressView()
                                 }
                                 .frame(width: 70, height: 70)

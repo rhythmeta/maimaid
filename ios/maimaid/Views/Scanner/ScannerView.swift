@@ -330,6 +330,16 @@ struct ScannerView: View {
     @State private var frameAnalysisTask: Task<Void, Never>?
     @State private var pendingFrameImage: UIImage?
     @State private var modelController = ScannerModelDownloadController()
+    @State private var sgwcmaidCode: String?
+    @State private var sgwcmaidSuppressedCode: String?
+    @State private var sgwcmaidImportCode: String?
+    @State private var isShowingSgwcmaidImport = false
+    @State private var lastSgwcmaidDetection = Date.distantPast
+    @State private var sgwcmaidShownAt = Date.distantPast
+    @State private var sgwcmaidWatchdog: Task<Void, Never>?
+
+    private static let sgwcmaidGraceInterval: TimeInterval = 1.5
+    private static let sgwcmaidVisibleInterval: TimeInterval = 4
 
     private var resolvedCurrentScoreSheet: Sheet? {
         guard let song = recognizedSong else { return nil }
@@ -362,7 +372,8 @@ struct ScannerView: View {
                 CameraPreviewView(
                     onImageCaptured: handleCameraFrame,
                     onPhotoCaptured: handleCapturedScannerPhoto,
-                    onQRCodeDetected: handleCollectionQRCode
+                    onQRCodeDetected: handleCollectionQRCode,
+                    onSGWCMAIDCodeDetected: handleSgwcmaidCode
                 )
                 .ignoresSafeArea()
 
@@ -407,30 +418,42 @@ struct ScannerView: View {
 
                 VStack {
                     Spacer()
-                    if canPresentCurrentScoreResult {
-                        Button(action: triggerPhotoCapture) {
-                            ZStack {
-                                Circle()
-                                    .stroke(.white, lineWidth: 3)
-                                    .frame(width: 64, height: 64)
-                                Circle()
-                                    .fill(isSavingPhoto ? .gray : .white)
-                                    .frame(width: 54, height: 54)
-                                if isSavingPhoto {
-                                    ProgressView()
-                                        .tint(.white)
+                    if let sgwcmaidCode {
+                        Button {
+                            openSgwcmaidImport(sgwcmaidCode)
+                        } label: {
+                            SgwcmaidScanCard(code: sgwcmaidCode)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.scale.combined(with: .opacity))
+                        .padding(.bottom, 12)
+                    } else {
+                        if canPresentCurrentScoreResult {
+                            Button(action: triggerPhotoCapture) {
+                                ZStack {
+                                    Circle()
+                                        .stroke(.white, lineWidth: 3)
+                                        .frame(width: 64, height: 64)
+                                    Circle()
+                                        .fill(isSavingPhoto ? .gray : .white)
+                                        .frame(width: 54, height: 54)
+                                    if isSavingPhoto {
+                                        ProgressView()
+                                            .tint(.white)
+                                    }
                                 }
                             }
+                            .disabled(isSavingPhoto)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text(isSavingPhoto ? "scanner.capture.saving" : "scanner.capture.button"))
+                            .accessibilityHint(Text("scanner.capture.hint"))
+                            .transition(.scale.combined(with: .opacity))
+                            .padding(.bottom, 20)
                         }
-                        .disabled(isSavingPhoto)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(Text(isSavingPhoto ? "scanner.capture.saving" : "scanner.capture.button"))
-                        .accessibilityHint(Text("scanner.capture.hint"))
-                        .transition(.scale.combined(with: .opacity))
-                        .padding(.bottom, 20)
+                        resultView()
                     }
-                    resultView()
                 }
+                .animation(.spring(duration: 0.25), value: sgwcmaidCode)
 
                 ScannerModelDownloadView(
                     state: modelController.state,
@@ -458,10 +481,34 @@ struct ScannerView: View {
                 feedbackDismissTask = nil
                 frameAnalysisTask?.cancel()
                 frameAnalysisTask = nil
+                sgwcmaidWatchdog?.cancel()
+                sgwcmaidWatchdog = nil
+                sgwcmaidCode = nil
+                sgwcmaidSuppressedCode = nil
                 pendingFrameImage = nil
                 modelController.cancelDownload()
             }
         }
+        .sheet(
+            isPresented: $isShowingSgwcmaidImport,
+            onDismiss: {
+                sgwcmaidCode = nil
+                sgwcmaidSuppressedCode = nil
+                sgwcmaidShownAt = .distantPast
+                lastSgwcmaidDetection = .distantPast
+            },
+            content: {
+                NavigationStack {
+                    SgwcmaidImportView(initialCode: sgwcmaidImportCode ?? "")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("common.close") { isShowingSgwcmaidImport = false }
+                            }
+                        }
+                }
+                .presentationDragIndicator(.visible)
+            }
+        )
         .task {
             modelController.check()
         }
@@ -512,6 +559,59 @@ struct ScannerView: View {
         } catch {
             showFeedback("Invalid collection QR code")
         }
+    }
+
+    /// Shows the SGWCMAID hand-off card while the cabinet QR is in frame.
+    ///
+    /// The card collapses after a grace period once the QR leaves the frame,
+    /// and also after a fixed visible duration so it cannot keep covering the
+    /// scanner. The same code is suppressed until it leaves the frame, which
+    /// prevents the card from flickering back immediately.
+    private func handleSgwcmaidCode(_ value: String) {
+        guard !isProcessingPhoto, !isShowingSgwcmaidImport,
+            SgwcmaidCode.isRecognized(value)
+        else { return }
+        let now = Date()
+        if now.timeIntervalSince(lastSgwcmaidDetection) >= Self.sgwcmaidGraceInterval {
+            // The previous QR left the frame; allow it to be shown again.
+            sgwcmaidSuppressedCode = nil
+        }
+        lastSgwcmaidDetection = now
+
+        guard sgwcmaidSuppressedCode != value, sgwcmaidCode != value else { return }
+        sgwcmaidCode = value
+        sgwcmaidShownAt = now
+        startSgwcmaidWatchdog()
+    }
+
+    private func startSgwcmaidWatchdog() {
+        guard sgwcmaidWatchdog == nil else { return }
+        sgwcmaidWatchdog = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                let now = Date()
+                let isAbsent =
+                    now.timeIntervalSince(lastSgwcmaidDetection) >= Self.sgwcmaidGraceInterval
+                let isExpired =
+                    now.timeIntervalSince(sgwcmaidShownAt) >= Self.sgwcmaidVisibleInterval
+                guard isAbsent || isExpired else { continue }
+                if isExpired, !isAbsent, let code = sgwcmaidCode {
+                    // Keep the card out of the way while this QR stays in frame.
+                    sgwcmaidSuppressedCode = code
+                }
+                sgwcmaidCode = nil
+                sgwcmaidWatchdog = nil
+                return
+            }
+        }
+    }
+
+    private func openSgwcmaidImport(_ code: String) {
+        sgwcmaidWatchdog?.cancel()
+        sgwcmaidWatchdog = nil
+        sgwcmaidImportCode = code
+        isShowingSgwcmaidImport = true
     }
 
     @ViewBuilder
@@ -1223,7 +1323,9 @@ struct ScannerView: View {
     // MARK: - Camera Frame Handling
 
     private func handleCameraFrame(_ image: UIImage) {
-        guard !isShowingScoreEntry, modelController.canRecognize else { return }
+        guard !isShowingScoreEntry, !isShowingSgwcmaidImport,
+            modelController.canRecognize
+        else { return }
         pendingFrameImage = image
 
         guard frameAnalysisTask == nil else { return }
@@ -1245,7 +1347,7 @@ struct ScannerView: View {
     // Choose-screen and score-screen models intentionally share one serialized frame loop.
     // swiftlint:disable:next cyclomatic_complexity
     private func analyzeCameraFrame(_ image: UIImage) async {
-        guard !isShowingScoreEntry else { return }
+        guard !isShowingScoreEntry, !isShowingSgwcmaidImport else { return }
 
         guard modelController.canRecognize else { return }
         let imageType: MaimaiImageType

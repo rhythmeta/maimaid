@@ -28,6 +28,26 @@
 	</array>
 	<key>MODEL_ASSETS_URL</key>
 	<string>$(MODEL_ASSETS_URL)</string>
+	<key>SGWCMAID_AES_IV</key>
+	<string>$(SGWCMAID_AES_IV)</string>
+	<key>SGWCMAID_AES_KEY</key>
+	<string>$(SGWCMAID_AES_KEY)</string>
+	<key>SGWCMAID_API_SALT</key>
+	<string>$(SGWCMAID_API_SALT)</string>
+	<key>SGWCMAID_CHIME_SECRET</key>
+	<string>$(SGWCMAID_CHIME_SECRET)</string>
+	<key>SGWCMAID_CHIME_URL</key>
+	<string>$(SGWCMAID_CHIME_URL)</string>
+	<key>SGWCMAID_GAME_SERVER</key>
+	<string>$(SGWCMAID_GAME_SERVER)</string>
+	<key>SGWCMAID_KEYCHIP</key>
+	<string>$(SGWCMAID_KEYCHIP)</string>
+	<key>SGWCMAID_PLACE_ID</key>
+	<string>$(SGWCMAID_PLACE_ID)</string>
+	<key>SGWCMAID_REGION_ID</key>
+	<string>$(SGWCMAID_REGION_ID)</string>
+	<key>SGWCMAID_TITLE_KEY</key>
+	<string>$(SGWCMAID_TITLE_KEY)</string>
 	<key>STATIC_ASSETS_URL</key>
 	<string>$(STATIC_ASSETS_URL)</string>
 </dict>

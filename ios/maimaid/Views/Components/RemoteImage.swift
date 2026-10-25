@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 struct RemoteImage<Placeholder: View, Failure: View>: View {
-    let url: URL?
+    let urls: [URL]
     let contentMode: ContentMode
     @ViewBuilder let placeholder: Placeholder
     @ViewBuilder let failure: Failure
@@ -11,15 +11,29 @@ struct RemoteImage<Placeholder: View, Failure: View>: View {
     @State private var didFail = false
 
     init(
+        urls: [URL],
+        contentMode: ContentMode = .fill,
+        @ViewBuilder placeholder: () -> Placeholder,
+        @ViewBuilder failure: () -> Failure
+    ) {
+        self.urls = urls
+        self.contentMode = contentMode
+        self.placeholder = placeholder()
+        self.failure = failure()
+    }
+
+    init(
         url: URL?,
         contentMode: ContentMode = .fill,
         @ViewBuilder placeholder: () -> Placeholder,
         @ViewBuilder failure: () -> Failure
     ) {
-        self.url = url
-        self.contentMode = contentMode
-        self.placeholder = placeholder()
-        self.failure = failure()
+        self.init(
+            urls: url.map { [$0] } ?? [],
+            contentMode: contentMode,
+            placeholder: placeholder,
+            failure: failure
+        )
     }
 
     var body: some View {
@@ -34,36 +48,55 @@ struct RemoteImage<Placeholder: View, Failure: View>: View {
                 placeholder
             }
         }
-        .task(id: url) {
+        .task(id: urls) {
             image = nil
             didFail = false
-            guard let url else { return }
+            guard !urls.isEmpty else { return }
 
-            do {
-                let fetchedImage = try await ImageDownloader.shared.fetchImage(from: url)
-                try Task.checkCancellation()
-                image = Image(uiImage: fetchedImage)
-            } catch is CancellationError {
-                return
-            } catch {
-                didFail = true
+            for url in urls {
+                do {
+                    let fetchedImage = try await ImageDownloader.shared.fetchImage(from: url)
+                    try Task.checkCancellation()
+                    image = Image(uiImage: fetchedImage)
+                    return
+                } catch is CancellationError {
+                    return
+                } catch {
+                    // Try the next candidate before falling back to the
+                    // placeholder; configured CDN transforms may reject an
+                    // origin that the direct asset path still serves.
+                    continue
+                }
             }
+            didFail = true
         }
     }
 }
 
 extension RemoteImage where Failure == Placeholder {
     init(
-        url: URL?,
+        urls: [URL],
         contentMode: ContentMode = .fill,
         @ViewBuilder placeholder: () -> Placeholder
     ) {
         let placeholder = placeholder()
         self.init(
-            url: url,
+            urls: urls,
             contentMode: contentMode,
             placeholder: { placeholder },
             failure: { placeholder }
+        )
+    }
+
+    init(
+        url: URL?,
+        contentMode: ContentMode = .fill,
+        @ViewBuilder placeholder: () -> Placeholder
+    ) {
+        self.init(
+            urls: url.map { [$0] } ?? [],
+            contentMode: contentMode,
+            placeholder: placeholder
         )
     }
 }

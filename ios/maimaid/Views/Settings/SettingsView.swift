@@ -74,6 +74,16 @@ struct SettingsView: View {
                         settingsRowLabel(icon: "snowflake", iconColor: .cyan, title: "settings.data.importLxns")
                     }
 
+                    if activeProfile?.server == GameServer.cn.rawValue {
+                        NavigationLink {
+                            SgwcmaidImportView()
+                        } label: {
+                            settingsRowLabel(
+                                icon: "qrcode", iconColor: .green,
+                                title: "settings.data.importSgwcmaid")
+                        }
+                    }
+
                     if activeProfile?.server == GameServer.jp.rawValue {
                         NavigationLink {
                             OtogameImportView()

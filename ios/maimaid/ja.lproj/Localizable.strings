@@ -554,6 +554,7 @@
 "settings.cloud.config.error.unconfigured" = "クラウドが構成されていません。";
 "common.unknown" = "未知";
 "common.none" = "なし";
+"common.close" = "閉じる";
 "common.ok" = "OK";
 "common.error" = "エラー";
 "dan.detail.noRecord" = "記録なし";
@@ -721,3 +722,28 @@
 "import.local.description" = "スコアトラッカーから現在のプロフィールへ直接インポートします。各項目のより良いスコアを保持します。";
 "import.local.profileChanged" = "プロフィールが変更されました。インポートをやり直してください。";
 "import.local.result %lld %lld %lld" = "取得 %lld 件 · 更新 %lld 件 · 未一致または無効 %lld 件";
+
+// SGWCMAID (中国サーバーの筐体インポート)
+"settings.data.importSgwcmaid" = "SGWCMAID からインポート";
+"import.sgwcmaid.title" = "SGWCMAID からインポート";
+"import.sgwcmaid.summary.title" = "SGWCMAID からインポート";
+"import.sgwcmaid.summary.description" = "SGWCMAID コードを入力またはスキャンしてからインポートします。";
+"import.sgwcmaid.input.header" = "SGWCMAID コード";
+"import.sgwcmaid.input.footer" = "一致した譜面のスコアは筐体の記録で置き換えられます。";
+"import.sgwcmaid.code.placeholder" = "SGWCMAID コード";
+"import.sgwcmaid.action.import" = "楽曲をインポート";
+"import.sgwcmaid.status.fetching" = "スコアを取得中...";
+"import.sgwcmaid.result.imported" = "インポート完了";
+"import.sgwcmaid.result.noChanges" = "スコアは最新です";
+"import.sgwcmaid.error.notConfigured" = "このビルドでは SGWCMAID インポートが設定されていません。";
+"import.sgwcmaid.error.invalidCode" = "有効な SGWCMAID コードを入力してください。";
+"import.sgwcmaid.error.keychipMissing" = "SGWCMAID インポート用のキーチップが設定されていません。";
+"import.sgwcmaid.error.codeInvalid" = "この SGWCMAID コードは無効か、期限切れです。";
+"import.sgwcmaid.error.codeUsed" = "この SGWCMAID コードは既に使用されています。";
+"import.sgwcmaid.error.sessionBusy" = "アカウントは他の場所でログインしたままです。約 15 分待ってから再度お試しください。";
+"import.sgwcmaid.error.credentials" = "SGWCMAID サービスから有効な認証情報が返されませんでした。";
+"import.sgwcmaid.error.service" = "SGWCMAID サービスは一時的に利用できません。時間をおいて再度お試しください。";
+"import.sgwcmaid.error.network" = "SGWCMAID サービスに接続できませんでした。";
+"import.sgwcmaid.error.timeout" = "SGWCMAID のリクエストがタイムアウトしました。";
+"import.sgwcmaid.error.catalogEmpty" = "楽曲データが空です。先に静的データを更新してください。";
+"scanner.sgwcmaid.card.title" = "SGWCMAID コード";

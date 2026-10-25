@@ -30,7 +30,7 @@ pnpm run build:ios
 
 ### iOS
 
-Use XcodeBuildMCP (via the xcodebuildmcp-cli skill) for building, testing, and running the iOS app. The Xcode project is at `ios/maimaid.xcodeproj/`. iOS secrets (BACKEND_URL, BACKEND_AUTH_URL) go in `ios/Config/Secrets.xcconfig` (gitignored).
+Use XcodeBuildMCP (via the xcodebuildmcp-cli skill) for building, testing, and running the iOS app. The Xcode project is at `ios/maimaid.xcodeproj/`. iOS secrets (BACKEND_URL, BACKEND_AUTH_URL, and the `SGWCMAID_*` import values) go in `ios/Config/Secrets.xcconfig` (gitignored). Leave the `SGWCMAID_*` values unset to ship a build without the China-server cabinet import. The IPA workflow generates that file from the `MAIMAID_SGWCMAID` GitHub secret at archive time.
 
 ### Android (from `android/`)
 

@@ -42,16 +42,26 @@ enum UserDefaultsKeys {
     static let staticBundleSchemaVersion = "static.bundle.schemaVersion"
 }
 
-enum BundleInfoKeys {
+nonisolated enum BundleInfoKeys {
     static let shortVersion = "CFBundleShortVersionString"
     static let buildNumber = "CFBundleVersion"
     static let backendURL = "BACKEND_URL"
     static let backendAuthURL = "BACKEND_AUTH_URL"
     static let staticAssetsURL = "STATIC_ASSETS_URL"
     static let modelAssetsURL = "MODEL_ASSETS_URL"
+    static let sgwcmaidChimeURL = "SGWCMAID_CHIME_URL"
+    static let sgwcmaidGameServer = "SGWCMAID_GAME_SERVER"
+    static let sgwcmaidKeychip = "SGWCMAID_KEYCHIP"
+    static let sgwcmaidAESKey = "SGWCMAID_AES_KEY"
+    static let sgwcmaidAESIV = "SGWCMAID_AES_IV"
+    static let sgwcmaidAPISalt = "SGWCMAID_API_SALT"
+    static let sgwcmaidChimeSecret = "SGWCMAID_CHIME_SECRET"
+    static let sgwcmaidTitleKey = "SGWCMAID_TITLE_KEY"
+    static let sgwcmaidPlaceID = "SGWCMAID_PLACE_ID"
+    static let sgwcmaidRegionID = "SGWCMAID_REGION_ID"
 }
 
-enum AppInfo {
+nonisolated enum AppInfo {
     private static func stringValue(for key: String, allowsUnresolvedPlaceholders: Bool = true) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
             return nil

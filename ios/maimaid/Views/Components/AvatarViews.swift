@@ -24,8 +24,8 @@ struct AvatarImageView: View {
         } else if let cachedIconImage {
             Image(uiImage: cachedIconImage)
                 .resizable().scaledToFill()
-        } else if let remoteURL {
-            RemoteImage(url: remoteURL) {
+        } else if !remoteURLs.isEmpty {
+            RemoteImage(urls: remoteURLs) {
                 placeholderView(showsProgress: true)
             } failure: {
                 placeholderView(showsProgress: false)
@@ -35,12 +35,12 @@ struct AvatarImageView: View {
         }
     }
 
-    private var remoteURL: URL? {
-        guard cachedIconImage == nil, let avatarURL else { return nil }
+    private var remoteURLs: [URL] {
+        guard cachedIconImage == nil, let avatarURL else { return [] }
         if let iconID = StaticAssetURL.presetAvatarID(from: avatarURL) {
-            return StaticAssetURL.presetAvatarURL(for: iconID)
+            return StaticAssetURL.presetAvatarURLs(for: iconID)
         }
-        return URL(string: avatarURL)
+        return URL(string: avatarURL).map { [$0] } ?? []
     }
 
     private var cachedIconImage: UIImage? {

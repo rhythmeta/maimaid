@@ -34,12 +34,19 @@ enum StaticAssetURL {
     }
 
     nonisolated static func presetAvatarURLs(for id: Int) -> [URL] {
-        candidateURLs(
+        let urls = candidateURLs(
             name: "\(id).png",
             primaryKey: presetAvatarBaseURLKey,
             fallbackKey: presetAvatarFallbackBaseURLKey,
             legacyBaseURL: legacyPresetAvatarBaseURL
         )
+        // The optional image-transform endpoint can reject the assets origin
+        // (Cloudflare error 9401). Try the direct asset paths first so a
+        // misconfigured transform never turns a preset avatar into a
+        // placeholder, and keep the transformed URL as a last resort.
+        let direct = urls.filter { !$0.path.contains("/cdn-cgi/") }
+        let transformed = urls.filter { $0.path.contains("/cdn-cgi/") }
+        return direct + transformed
     }
 
     nonisolated static func presetAvatarID(from avatarURL: String?) -> Int? {
