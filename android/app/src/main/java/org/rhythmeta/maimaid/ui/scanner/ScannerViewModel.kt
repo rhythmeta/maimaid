@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -28,6 +31,7 @@ import org.rhythmeta.maimaid.core.ml.ScannerRecognitionEngine
 import org.rhythmeta.maimaid.core.ml.ScannerSongMatcher
 import org.rhythmeta.maimaid.core.ml.ScannerStabilizer
 import org.rhythmeta.maimaid.ui.song.ScoreSaveStatus
+import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
 
 data class ScannerUiState(
@@ -41,6 +45,8 @@ data class ScannerUiState(
     val scoreEntryVisible: Boolean = false,
     val scoreSaveStatus: ScoreSaveStatus = ScoreSaveStatus.Idle,
     val message: ScannerMessage? = null,
+    /** Raw SGWCMAID payload detected by the QR scanner; null when nothing is shown. */
+    val sgwcmaidCode: String? = null,
 )
 
 enum class ScannerMessage {
@@ -62,6 +68,9 @@ class ScannerViewModel(
     @Volatile
     private var liveRecognitionEnabled = true
     private var catalog = ScannerCatalog(emptyList(), emptyList(), emptyMap())
+    private val barcodeScanner = BarcodeScanning.getClient()
+    private var lastSgwcmaidScanAt = 0L
+    private var lastSgwcmaidSeenAt = 0L
     private val mutableState = MutableStateFlow(ScannerUiState())
     val state = mutableState.asStateFlow()
 
@@ -188,7 +197,7 @@ class ScannerViewModel(
     }
 
     fun analyzeLiveFrame(bitmap: Bitmap) {
-        if (!liveRecognitionEnabled || !canRecognize(mutableState.value.modelState) ||
+        if (!liveRecognitionEnabled ||
             mutableState.value.isProcessingPhoto ||
             mutableState.value.scoreEntryVisible
         ) {
@@ -201,6 +210,9 @@ class ScannerViewModel(
         }
         viewModelScope.launch {
             try {
+                // SGWCMAID QR detection works even before the song models are ready.
+                refreshSgwcmaidCode(bitmap)
+                if (!canRecognize(mutableState.value.modelState)) return@launch
                 val raw = withContext(Dispatchers.Default) { engine.recognize(bitmap) }
                 val matches = withContext(Dispatchers.Default) { ScannerSongMatcher.matchFast(raw, catalog) }
                 val stabilized = stabilizer.update(matches, raw)
@@ -311,6 +323,40 @@ class ScannerViewModel(
         }
     }
 
+    private suspend fun refreshSgwcmaidCode(bitmap: Bitmap) {
+        val now = System.currentTimeMillis()
+        if (now - lastSgwcmaidScanAt < SgwcmaidScanIntervalMillis) return
+        lastSgwcmaidScanAt = now
+        val code = scanSgwcmaidCode(bitmap)
+        if (code != null) {
+            lastSgwcmaidSeenAt = now
+            mutableState.update { it.copy(sgwcmaidCode = code) }
+        } else if (now - lastSgwcmaidSeenAt > SgwcmaidHideDelayMillis &&
+            mutableState.value.sgwcmaidCode != null
+        ) {
+            // The QR left the frame: drop the card after a short grace period so a
+            // briefly blurred frame does not make it flicker.
+            mutableState.update { it.copy(sgwcmaidCode = null) }
+        }
+    }
+
+    private suspend fun scanSgwcmaidCode(bitmap: Bitmap): String? {
+        return suspendCancellableCoroutine { continuation ->
+            barcodeScanner.process(InputImage.fromBitmap(bitmap, 0))
+                .addOnSuccessListener { codes ->
+                    val value = codes.asSequence().mapNotNull { it.rawValue }
+                        .firstOrNull { it.startsWith(SGWCMAID_PREFIX) && it.length > SGWCMAID_MIN_HEADER }
+                    if (continuation.isActive) continuation.resume(value)
+                }
+                .addOnFailureListener { if (continuation.isActive) continuation.resume(null) }
+                .addOnCanceledListener { if (continuation.isActive) continuation.resume(null) }
+        }
+    }
+
+    fun dismissSgwcmaidCode() {
+        mutableState.update { it.copy(sgwcmaidCode = null) }
+    }
+
     fun reset() {
         photoResultDismissJob?.cancel()
         photoResultDismissJob = null
@@ -383,6 +429,7 @@ class ScannerViewModel(
     }
 
     override fun onCleared() {
+        barcodeScanner.close()
         modelTask?.cancel()
         photoResultDismissJob?.cancel()
         engine.close()
@@ -400,6 +447,10 @@ class ScannerViewModel(
 
     private companion object {
         const val PHOTO_RESULT_DURATION_MILLIS = 5_000L
+        const val SgwcmaidScanIntervalMillis = 700L
+        const val SgwcmaidHideDelayMillis = 1_500L
+        const val SGWCMAID_PREFIX = "SGWCMAID"
+        const val SGWCMAID_MIN_HEADER = 20
 
         fun canRecognize(state: ScannerModelState): Boolean = when (state) {
             is ScannerModelState.Ready,

@@ -8,6 +8,31 @@ import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 
 class ThirdPartyImportPolicyTest {
+    @Test
+    fun decodesSgwcmaidMusicJson() {
+        val payload = ThirdPartyImportPolicy.decode(Json.parseToJsonElement("""
+            [{"userMusicDetailList":[{"musicId":10123,"level":3,"playCount":2,"achievement":1000739,"comboStatus":4,"syncStatus":5,"deluxscoreMax":2267,"scoreRank":12,"extNum1":0,"extNum2":0}],"length":1}]
+        """), ScoreImportProvider.Sgwcmaid)
+        assertEquals(1, payload.fetchedCount)
+        assertEquals(1, payload.scores.size)
+        assertEquals(10123, payload.scores.single().songId)
+        assertEquals("dx", payload.scores.single().type)
+        assertEquals(3, payload.scores.single().levelIndex)
+        assertEquals(100.0739, payload.scores.single().input.achievement, 0.000001)
+        assertEquals("app", payload.scores.single().input.fc)
+        assertEquals("sync", payload.scores.single().input.fs)
+    }
+
+    @Test
+    fun mapsSgwcmaidIdsToStandardAndDxCharts() {
+        val payload = ThirdPartyImportPolicy.decode(Json.parseToJsonElement("""
+            [
+              {"userMusicDetailList":[{"musicId":123,"level":3,"achievement":990000,"deluxscoreMax":100}]},
+              {"userMusicDetailList":[{"musicId":10123,"level":3,"achievement":990000,"deluxscoreMax":100}]}
+            ]
+        """), ScoreImportProvider.Sgwcmaid)
+        assertEquals(listOf("standard", "dx"), payload.scores.map { it.type })
+    }
     @Test fun `maps DX IDs and ignores invalid difficulties`() {
         val payload = ThirdPartyImportPolicy.decode(Json.parseToJsonElement("""{"success":true,"data":[
             {"id":123,"type":"dx","level_index":3,"achievements":100.1,"dx_score":99,"play_time":"2026-10-01T12:34:56.123Z"},

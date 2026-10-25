@@ -26,6 +26,7 @@ enum class AppDetail {
     BackendAuth,
     DivingFishImport,
     LxnsImport,
+    SgwcmaidImport,
     OtogameImport,
     OtogameLogin,
     Appearance,

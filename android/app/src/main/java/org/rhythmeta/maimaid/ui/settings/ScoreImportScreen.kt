@@ -14,16 +14,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +52,57 @@ import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+@Composable
+fun SgwcmaidImportScreen(
+    container: AppContainer,
+    contentTopPadding: Dp,
+    initialCode: String? = null,
+    onInitialCodeConsumed: () -> Unit = {},
+) {
+    val viewModel = viewModel<ScoreImportViewModel>(key = "sgwcmaid-import", factory = ScoreImportViewModel.Factory(container))
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    androidx.compose.runtime.DisposableEffect(viewModel) { onDispose { viewModel.cancel() } }
+    // Codes scanned on the scanner tab arrive through the navigation hand-off. Wait for the
+    // active profile so the prefill is not lost to the view model's profile-driven reset.
+    LaunchedEffect(initialCode, state.profile?.id) {
+        if (!initialCode.isNullOrBlank() && state.profile != null) {
+            viewModel.setSgwcmaidCode(initialCode)
+            onInitialCodeConsumed()
+        }
+    }
+    ScoreImportPage(contentTopPadding = contentTopPadding) {
+        item {
+            ImportSummaryCard(
+                icon = Icons.Rounded.QrCode2,
+                title = stringResource(R.string.import_sgwcmaid_summary_title),
+                summary = stringResource(R.string.import_sgwcmaid_summary_description),
+            )
+        }
+        item {
+            ImportSection(stringResource(R.string.import_sgwcmaid_input_section)) {
+                TextField(
+                    value = state.sgwcmaidCode,
+                    onValueChange = viewModel::setSgwcmaidCode,
+                    colors = appTextFieldColors(),
+                    label = stringResource(R.string.import_sgwcmaid_code),
+                    useLabelAsPlaceholder = true,
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 14.dp,
+                )
+                ImportPrimaryButton(
+                    title = stringResource(R.string.import_sgwcmaid_import),
+                    icon = Icons.Rounded.CloudDownload,
+                    busy = state.isBusy,
+                    enabled = state.profile != null && state.sgwcmaidCode.isNotBlank(),
+                    onClick = viewModel::importSgwcmaid,
+                )
+            }
+        }
+        importStatusItem(state)
+    }
+}
 
 @Composable
 fun DivingFishImportScreen(

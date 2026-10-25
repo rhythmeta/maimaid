@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Wahlap serves its game-API leaf certificate without the intermediate
+         (GeoTrust G2 TLS CN RSA4096 SHA256 2022 CA1), so the system store alone
+         cannot build a chain to a trust anchor. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">maimai-gm.wahlap.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/digicert_geotrust_g2_tls_cn_rsa4096_2022_ca1" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Same issue for the chime (SGWCMAID) endpoint: leaf *.sys-allnet.cn only,
+         missing GlobalSign GCC R46 AlphaSSL CA 2025. Without this anchor Android
+         throws "Trust anchor for certification path not found". -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">ai.sys-allnet.cn</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/globalsign_gcc_r46_alphassl_ca_2025" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

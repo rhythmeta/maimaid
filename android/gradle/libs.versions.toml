@@ -19,6 +19,7 @@ miuixNav = "0.9.4"
 onnxRuntime = "1.29.0"
 backdrop = "2.0.1"
 camerax = "1.6.2"
+mlkitBarcode = "17.3.0"
 browser = "1.10.0"
 glance = "1.2.0"
 protobuf = "4.36.1"
@@ -60,6 +61,7 @@ backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backd
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 protobuf-javalite = { group = "com.google.protobuf", name = "protobuf-javalite", version.ref = "protobuf" }

@@ -710,4 +710,14 @@
     <string name="update_error_package">This APK cannot update the installed app.</string>
     <string name="update_error_signature">The APK signature differs from this installation. In-place updating is unavailable.</string>
     <string name="update_error_install">Could not open the installer. Please try again.</string>
+    <string name="settings_sgwcmaid">Import through SGWCMAID</string>
+    <string name="settings_sgwcmaid_description">Import scores into the China server profile</string>
+    <string name="import_sgwcmaid_summary_title">Import through SGWCMAID</string>
+    <string name="import_sgwcmaid_summary_description">Enter or scan an SGWCMAID code, then start the import.</string>
+    <string name="import_sgwcmaid_input_section">SGWCMAID code</string>
+    <string name="import_sgwcmaid_code">SGWCMAID code</string>
+    <string name="import_sgwcmaid_import">Import music</string>
+    <string name="import_sgwcmaid_scan">Scan</string>
+    <string name="detail_sgwcmaid">Import through SGWCMAID</string>
+    <string name="scanner_sgwcmaid_card_title">SGWCMAID code</string>
 </resources>

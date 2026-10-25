@@ -684,4 +684,14 @@
     <string name="update_error_package">この APK では現在のアプリを更新できません。</string>
     <string name="update_error_signature">APK と現在のアプリの署名に互換性がないため、上書き更新できません。</string>
     <string name="update_error_install">インストーラーを開けませんでした。再試行してください。</string>
+    <string name="settings_sgwcmaid">SGWCMAID からインポート</string>
+    <string name="settings_sgwcmaid_description">中国サーバープロフィールに成績をインポート</string>
+    <string name="import_sgwcmaid_summary_title">SGWCMAID からインポート</string>
+    <string name="import_sgwcmaid_summary_description">SGWCMAID コードを入力またはスキャンしてからインポートします。</string>
+    <string name="import_sgwcmaid_input_section">SGWCMAID コード</string>
+    <string name="import_sgwcmaid_code">SGWCMAID コード</string>
+    <string name="import_sgwcmaid_import">成績をインポート</string>
+    <string name="import_sgwcmaid_scan">スキャン</string>
+    <string name="detail_sgwcmaid">SGWCMAID からインポート</string>
+    <string name="scanner_sgwcmaid_card_title">SGWCMAID コード</string>
 </resources>

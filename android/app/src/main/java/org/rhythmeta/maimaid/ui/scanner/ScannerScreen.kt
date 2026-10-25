@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -111,6 +112,7 @@ fun ScannerScreen(
     contentTopPadding: Dp,
     enabled: Boolean,
     onOpenSong: (String) -> Unit,
+    onOpenSgwcmaidImport: (String) -> Unit,
 ) {
     val context = LocalContext.current
     val viewModel: ScannerViewModel = viewModel(factory = ScannerViewModel.Factory(container))
@@ -164,6 +166,10 @@ fun ScannerScreen(
     }
     DisposableEffect(enabled) {
         onDispose { if (enabled) viewModel.reset() }
+    }
+    LaunchedEffect(state.sgwcmaidCode) {
+        // A plain SGWCMAID QR does not need the models, so do not keep the prompt in the way.
+        if (state.sgwcmaidCode != null) modelPromptDismissed = true
     }
     LaunchedEffect(state.message) {
         if (state.message != null) {
@@ -234,49 +240,67 @@ fun ScannerScreen(
                 .padding(bottom = 76.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val match = state.match
+            val sgwcmaidCode = state.sgwcmaidCode
             AnimatedVisibility(
-                visible = match?.recognition?.screenType == MaimaiScreenType.Score && match.sheet != null,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-            ) {
-                IconButton(
-                    onClick = {
-                        val description = match?.let { captureDescription(it, server) }.orEmpty()
-                        cameraController.capture(context, description) { saved ->
-                            viewModel.showMessage(
-                                if (saved) ScannerMessage.PhotoSaved else ScannerMessage.PhotoSaveFailed,
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .padding(bottom = 12.dp)
-                        .size(64.dp)
-                        .squircleBorder(3.dp, Color.White, 32.dp, SquircleExtension),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .squircleSurface(Color.White, 26.dp, SquircleExtension),
-                    )
-                }
-            }
-            AnimatedVisibility(
-                visible = match != null,
+                visible = sgwcmaidCode != null,
                 enter = scaleIn(initialScale = 0.9f) + fadeIn(),
                 exit = scaleOut(targetScale = 0.95f) + fadeOut(),
             ) {
-                match?.let { scannerMatch ->
-                    ScannerResultCard(
-                        match = scannerMatch,
-                        coverImageStore = container.coverImageStore,
-                        server = server,
-                        onOpenSong = {
-                            viewModel.reset()
-                            onOpenSong(scannerMatch.song.songIdentifier)
+                sgwcmaidCode?.let { code ->
+                    SgwcmaidQrCard(
+                        code = code,
+                        onOpen = {
+                            viewModel.dismissSgwcmaidCode()
+                            onOpenSgwcmaidImport(code)
                         },
-                        onClick = viewModel::openScoreEntry,
                     )
+                }
+            }
+            if (sgwcmaidCode == null) {
+                val match = state.match
+                AnimatedVisibility(
+                    visible = match?.recognition?.screenType == MaimaiScreenType.Score && match.sheet != null,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut(),
+                ) {
+                    IconButton(
+                        onClick = {
+                            val description = match?.let { captureDescription(it, server) }.orEmpty()
+                            cameraController.capture(context, description) { saved ->
+                                viewModel.showMessage(
+                                    if (saved) ScannerMessage.PhotoSaved else ScannerMessage.PhotoSaveFailed,
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(bottom = 12.dp)
+                            .size(64.dp)
+                            .squircleBorder(3.dp, Color.White, 32.dp, SquircleExtension),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .squircleSurface(Color.White, 26.dp, SquircleExtension),
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = match != null,
+                    enter = scaleIn(initialScale = 0.9f) + fadeIn(),
+                    exit = scaleOut(targetScale = 0.95f) + fadeOut(),
+                ) {
+                    match?.let { scannerMatch ->
+                        ScannerResultCard(
+                            match = scannerMatch,
+                            coverImageStore = container.coverImageStore,
+                            server = server,
+                            onOpenSong = {
+                                viewModel.reset()
+                                onOpenSong(scannerMatch.song.songIdentifier)
+                            },
+                            onClick = viewModel::openScoreEntry,
+                        )
+                    }
                 }
             }
         }
@@ -492,6 +516,48 @@ private fun ScannerStatusOverlay(state: ScannerUiState, modifier: Modifier = Mod
             }
             Text(text = message.orEmpty(), color = Color.White)
         }
+    }
+}
+
+@Composable
+private fun SgwcmaidQrCard(code: String, onOpen: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth()
+            .squircleSurface(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f), 16.dp, SquircleExtension)
+            .squircleBorder(1.dp, MiuixTheme.colorScheme.primary.copy(alpha = 0.35f), 16.dp, SquircleExtension)
+            .clickable(role = Role.Button, onClick = onOpen)
+            .padding(start = 16.dp, top = 10.dp, end = 16.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.QrCode2,
+            contentDescription = null,
+            tint = MiuixTheme.colorScheme.primary,
+            modifier = Modifier.size(26.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.scanner_sgwcmaid_card_title),
+                style = MiuixTheme.textStyles.title4,
+                maxLines = 1,
+            )
+            Text(
+                text = code,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
+        Spacer(Modifier.width(6.dp))
     }
 }
 

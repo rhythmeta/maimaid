@@ -39,6 +39,7 @@ data class ScoreImportUiState(
     val divingFishUsername: String? = null,
     val lxnsRefreshToken: String = "",
     val lxnsAuthorizationCode: String = "",
+    val sgwcmaidCode: String = "",
     val phase: ScoreImportPhase = ScoreImportPhase.Idle,
     val result: ScoreImportResult? = null,
     val resultDetails: String? = null,
@@ -67,7 +68,13 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
                     cancel()
                     verifier = ""
                     authorizationProfileId = null
-                    mutableState.value = ScoreImportUiState(profile = profile)
+                    // Keep user input alive across the initial profile emission, otherwise a
+                    // code handed over from the scanner would be wiped before it is usable.
+                    val current = mutableState.value
+                    mutableState.value = ScoreImportUiState(
+                        profile = profile,
+                        sgwcmaidCode = current.sgwcmaidCode,
+                    )
                 } else {
                     mutableState.update { it.copy(profile = profile) }
                 }
@@ -102,6 +109,27 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
 
     fun quickImportDivingFish() = perform { import(it.id, ScoreImportProvider.DivingFish) }
     fun quickImportLxns() = perform { import(it.id, ScoreImportProvider.Lxns) }
+    fun setSgwcmaidCode(value: String) { mutableState.update { it.copy(sgwcmaidCode = value) } }
+    fun showError(message: String) { mutableState.update { it.copy(result = ScoreImportResult.Failed, resultDetails = message) } }
+    fun importSgwcmaid() = perform { profile ->
+        val code = mutableState.value.sgwcmaidCode.trim()
+        check(code.startsWith("SGWCMAID")) { "invalid_sgwcmaid" }
+        check(stateKeychip().isNotBlank()) { "chime_keychip_missing" }
+        val endpoint = ThirdPartyImportService.SGWCMAID_ENDPOINT
+        mutableState.update { it.copy(phase = ScoreImportPhase.Fetching) }
+        val result = service.importSgwcmaid(code, endpoint, profile.id)
+        mutableState.update { it.copy(fetchedCount = result.fetchedCount, upsertedCount = result.updatedCount,
+            skippedCount = result.skippedCount, result = if (result.updatedCount > 0) ScoreImportResult.Imported else ScoreImportResult.NoChanges) }
+    }
+
+    private fun stateKeychip(): String = container.chimeCredentialStore.keychip()
+
+    fun importSgwcmaidJson(content: String) = perform { profile ->
+        mutableState.update { it.copy(phase = ScoreImportPhase.Fetching) }
+        val result = service.importSgwcmaidJson(content, profile.id)
+        mutableState.update { it.copy(fetchedCount = result.fetchedCount, upsertedCount = result.updatedCount,
+            skippedCount = result.skippedCount, result = if (result.updatedCount > 0) ScoreImportResult.Imported else ScoreImportResult.NoChanges) }
+    }
 
     fun exchangeLxnsCodeAndImport() {
         val code = mutableState.value.lxnsAuthorizationCode
@@ -134,6 +162,7 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
             try { body(profile) }
             catch (error: CancellationException) { throw error }
             catch (error: Exception) {
+                android.util.Log.e("ScoreImport", "import failed: ${error.message}", error)
                 if (generation == currentGeneration && mutableState.value.profile?.id == profile.id) {
                     mutableState.update { it.copy(result = if (error is DirectImportException &&
                         error.code in listOf("invalid_grant", "unauthorized")) ScoreImportResult.TokenExpired else ScoreImportResult.Failed,

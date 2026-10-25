@@ -22,6 +22,7 @@ class ThirdPartyImportService(
     private val database: MaimaidDatabase,
     private val credentials: ProfileCredentialStore,
     private val json: Json,
+    private val chimeClient: ChimeGetUserDataClient? = null,
 ) {
     private val tokenMutex = Mutex()
 
@@ -116,6 +117,9 @@ class ThirdPartyImportService(
     fun disconnect(provider: ScoreImportProvider, profileId: String) = saveToken(provider, profileId, "")
 
     suspend fun importScores(provider: ScoreImportProvider, profileId: String): LocalScoreImportResult {
+        if (provider == ScoreImportProvider.Sgwcmaid) {
+            throw DirectImportException("sgwcmaid_requires_code")
+        }
         val access = accessToken(provider, profileId)
         currentCoroutineContext().ensureActive()
         val address = if (provider == ScoreImportProvider.Lxns) "https://maimai.lxns.net/api/v0/user/maimai/player/scores"
@@ -191,6 +195,40 @@ class ThirdPartyImportService(
         return payload.required("access_token") to payload.required("refresh_token")
     }
 
+    internal suspend fun requestElement(address: String, body: String): JsonElement =
+        withContext(Dispatchers.IO) {
+            val connection = URL(address).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 30000; connection.readTimeout = 60000; connection.useCaches = false
+                connection.requestMethod = "POST"; connection.doOutput = true
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("Content-Type", "text/plain")
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(body) }
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val response = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                if (status !in 200..299) throw DirectImportException("HTTP $status")
+                runCatching { json.parseToJsonElement(response) }.getOrElse { throw DirectImportException("invalid_response") }
+            } finally { connection.disconnect() }
+        }
+
+    internal suspend fun importSgwcmaid(code: String, endpoint: String, profileId: String): LocalScoreImportResult {
+        val element = if (endpoint.isBlank()) {
+            chimeClient?.fetchMusic(code.trim()) ?: throw DirectImportException("chime_client_unavailable")
+        } else {
+            requestElement(endpoint, code.trim())
+        }
+        val payload = ThirdPartyImportPolicy.decode(element, ScoreImportProvider.Sgwcmaid)
+        currentCoroutineContext().ensureActive()
+        return apply(payload, ScoreImportProvider.Sgwcmaid, profileId)
+    }
+
+    internal suspend fun importSgwcmaidJson(content: String, profileId: String): LocalScoreImportResult {
+        val payload = ThirdPartyImportPolicy.decode(json.parseToJsonElement(content), ScoreImportProvider.Sgwcmaid)
+        currentCoroutineContext().ensureActive()
+        return apply(payload, ScoreImportProvider.Sgwcmaid, profileId)
+    }
+
     private suspend fun request(address: String, values: Map<String, String>? = null, token: String? = null): JsonObject =
         withContext(Dispatchers.IO) {
             val connection = URL(address).openConnection() as HttpURLConnection
@@ -221,6 +259,7 @@ class ThirdPartyImportService(
         ?: throw DirectImportException("invalid_response")
 
     companion object {
+        const val SGWCMAID_ENDPOINT = ""
         const val DF_CLIENT_ID = "5b79b87f22855b80ee35243eeec07916"
         const val LXNS_CLIENT_ID = "cfb7ef40-bc0f-4e3a-8258-9e5f52cd7338"
         const val REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"

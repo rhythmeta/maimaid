@@ -18,6 +18,14 @@ val maimaidModelAssetsUrl = providers.gradleProperty("MAIMAID_MODEL_ASSETS_URL")
     .orElse("https://models.rhythmeta.org")
 val maimaidUpdateUrl = providers.gradleProperty("MAIMAID_UPDATE_URL")
     .orElse("https://assets.rhythmeta.org/android/ci/main/latest.json")
+// Single build-time env var holding every SGWCMAID deployment value as JSON, so endpoints,
+// keys and salts are never baked into the sources. Leave it unset to build an APK without
+// the SGWCMAID import (it then reports "sgwcmaid_not_configured").
+//   MAIMAID_SGWCMAID='{"chimeUrl":"https://...","gameServer":"https://...","keychip":"A63E-...",
+//     "aesKey":"...","aesIv":"...","apiSalt":"...","chimeSecret":"...","titleKey":"SDGB",
+//     "placeId":1971,"regionId":21}'
+val maimaidSgwcmaidConfig = providers.environmentVariable("MAIMAID_SGWCMAID").orElse("{}")
+
 fun gitBuildValue(vararg arguments: String) = providers.exec {
     workingDir(rootProject.projectDir.parentFile)
     commandLine("git", *arguments)
@@ -73,6 +81,7 @@ android {
         buildConfigField("String", "STATIC_ASSETS_URL", "\"${maimaidStaticAssetsUrl.get()}\"")
         buildConfigField("String", "MODEL_ASSETS_URL", "\"${maimaidModelAssetsUrl.get()}\"")
         buildConfigField("String", "UPDATE_URL", buildConfigString(maimaidUpdateUrl.get()))
+        buildConfigField("String", "SGWCMAID_CONFIG", buildConfigString(maimaidSgwcmaidConfig.get()))
         buildConfigField("String", "GIT_SHA", buildConfigString(maimaidGitSha.get()))
         buildConfigField("String", "GIT_BRANCH", buildConfigString(maimaidGitBranch.get()))
         buildConfigField("String", "BUILD_TIME", buildConfigString(maimaidBuildTime.get()))
@@ -162,6 +171,7 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.protobuf.javalite)

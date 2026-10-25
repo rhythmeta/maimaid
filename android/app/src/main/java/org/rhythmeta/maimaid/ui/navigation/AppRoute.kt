@@ -51,6 +51,9 @@ sealed interface AppRoute : NavKey {
     data object LxnsImport : AppRoute
 
     @Serializable
+    data object SgwcmaidImport : AppRoute
+
+    @Serializable
     data object OtogameImport : AppRoute
 
     @Serializable
@@ -96,6 +99,7 @@ fun AppDetail.toRoute(
     AppDetail.BackendAuth -> AppRoute.BackendAuth
     AppDetail.DivingFishImport -> AppRoute.DivingFishImport
     AppDetail.LxnsImport -> AppRoute.LxnsImport
+    AppDetail.SgwcmaidImport -> AppRoute.SgwcmaidImport
     AppDetail.OtogameImport -> AppRoute.OtogameImport
     AppDetail.OtogameLogin -> AppRoute.OtogameLogin
     AppDetail.Appearance -> AppRoute.Appearance
@@ -122,6 +126,7 @@ val AppRoute.appDetail: AppDetail?
         AppRoute.BackendAuth -> AppDetail.BackendAuth
         AppRoute.DivingFishImport -> AppDetail.DivingFishImport
         AppRoute.LxnsImport -> AppDetail.LxnsImport
+        AppRoute.SgwcmaidImport -> AppDetail.SgwcmaidImport
         AppRoute.OtogameImport -> AppDetail.OtogameImport
         AppRoute.OtogameLogin -> AppDetail.OtogameLogin
         AppRoute.Appearance -> AppDetail.Appearance

@@ -79,12 +79,23 @@ jobs:
             -alias "${ANDROID_KEY_ALIAS}" > /dev/null
           echo "ANDROID_KEYSTORE_PATH=${keystore_path}" >> "${GITHUB_ENV}"
 
+      - name: Check SGWCMAID configuration
+        env:
+          MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
+        run: |
+          if [ -z "${MAIMAID_SGWCMAID}" ]; then
+            echo "::warning::MAIMAID_SGWCMAID is not set; this APK will ship without SGWCMAID import endpoints."
+          else
+            echo "SGWCMAID configuration provided."
+          fi
+
       - name: Build release APK
         working-directory: android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
         run: >-
           ./gradlew :app:assembleRelease
           -PMAIMAID_SPLIT_RELEASE_APKS=true

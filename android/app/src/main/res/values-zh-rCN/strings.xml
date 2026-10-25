@@ -683,4 +683,14 @@
     <string name="update_error_package">此安装包无法更新当前应用。</string>
     <string name="update_error_signature">安装包与当前应用的签名不兼容，无法直接覆盖更新。</string>
     <string name="update_error_install">无法打开系统安装器，请重试。</string>
+    <string name="settings_sgwcmaid">通过 SGWCMAID 导入</string>
+    <string name="settings_sgwcmaid_description">为国服档案导入成绩</string>
+    <string name="import_sgwcmaid_summary_title">通过 SGWCMAID 导入</string>
+    <string name="import_sgwcmaid_summary_description">输入或扫描 SGWCMAID 码，然后开始导入。</string>
+    <string name="import_sgwcmaid_input_section">SGWCMAID 代码</string>
+    <string name="import_sgwcmaid_code">SGWCMAID 代码</string>
+    <string name="import_sgwcmaid_import">导入成绩</string>
+    <string name="import_sgwcmaid_scan">扫一扫</string>
+    <string name="detail_sgwcmaid">通过 SGWCMAID 导入</string>
+    <string name="scanner_sgwcmaid_card_title">SGWCMAID 码</string>
 </resources>

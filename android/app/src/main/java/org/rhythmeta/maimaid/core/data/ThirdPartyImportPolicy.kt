@@ -2,14 +2,11 @@ package org.rhythmeta.maimaid.core.data
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
-import java.text.Normalizer
 import java.time.Instant
 import java.util.UUID
 import kotlinx.serialization.json.*
-import org.rhythmeta.maimaid.core.database.SheetEntity
-import org.rhythmeta.maimaid.core.database.SongEntity
 
-enum class ScoreImportProvider { DivingFish, Lxns }
+enum class ScoreImportProvider { DivingFish, Lxns, Sgwcmaid }
 
 data class ImportedScore(
     val songId: Int,
@@ -38,7 +35,9 @@ data class ScoreImportPayload(
 )
 
 object ThirdPartyImportPolicy {
-    fun decode(root: JsonObject, provider: ScoreImportProvider): ScoreImportPayload {
+    fun decode(root: JsonElement, provider: ScoreImportProvider): ScoreImportPayload {
+        if (provider == ScoreImportProvider.Sgwcmaid) return decodeSgwcmaid(root)
+        val root = root.jsonObject
         val lxns = provider == ScoreImportProvider.Lxns
         check(!lxns || root["success"]?.jsonPrimitive?.booleanOrNull == true) { "Invalid score response" }
         val rows = root[if (lxns) "data" else "records"] as? JsonArray ?: error("Invalid score response")
@@ -62,11 +61,52 @@ object ThirdPartyImportPolicy {
             root["rating"]?.jsonPrimitive?.intOrNull, root.text("plate"))
     }
 
+    private fun decodeSgwcmaid(root: JsonElement): ScoreImportPayload {
+        val rows = root as? JsonArray ?: error("Invalid music.json response")
+        val scores = rows.flatMap { element ->
+            val details = (element as? JsonObject)?.get("userMusicDetailList") as? JsonArray ?: return@flatMap emptyList()
+            details.mapNotNull { detailElement ->
+                val detail = detailElement as? JsonObject ?: return@mapNotNull null
+                val songId = detail["musicId"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                val level = detail["level"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                if (level !in 0..4) return@mapNotNull null
+                val achievement = detail["achievement"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+                if (!achievement.isFinite() || achievement !in 0.0..1010000.0) return@mapNotNull null
+                val dxScore = detail["deluxscoreMax"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                if (dxScore < 0) return@mapNotNull null
+                val type = if (songId < 10_000) "standard" else "dx"
+                ImportedScore(songId, "", type, level,
+                    ScoreInput(achievement / 10000.0, dxScore,
+                        sgwcmaidFc(detail["comboStatus"]?.jsonPrimitive?.intOrNull),
+                        sgwcmaidFs(detail["syncStatus"]?.jsonPrimitive?.intOrNull)), null)
+            }
+        }
+        return ScoreImportPayload(scores, rows.sumOf {
+            ((it as? JsonObject)?.get("userMusicDetailList") as? JsonArray)?.size ?: 0
+        })
+    }
+
+    private fun sgwcmaidFc(value: Int?): String? = when (value) {
+        1 -> "fc"
+        2 -> "fcp"
+        3 -> "ap"
+        4 -> "app"
+        else -> null
+    }
+
+    private fun sgwcmaidFs(value: Int?): String? = when (value) {
+        1 -> "sync"
+        2 -> "fsp"
+        3 -> "fsd"
+        4 -> "fsdp"
+        5 -> "sync"
+        else -> null
+    }
+
     fun chartType(value: String): String = when (val type = value.lowercase()) {
         "sd", "std" -> "standard"
         else -> type
     }
 
-    private fun normalize(value: String) = Normalizer.normalize(value, Normalizer.Form.NFKC).trim().lowercase()
-    private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
+	private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
 }

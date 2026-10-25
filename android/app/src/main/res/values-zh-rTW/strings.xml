@@ -682,4 +682,14 @@
     <string name="update_error_package">此安裝套件無法更新目前應用程式。</string>
     <string name="update_error_signature">安裝套件與目前應用程式的簽章不相容，無法直接覆蓋更新。</string>
     <string name="update_error_install">無法開啟系統安裝程式，請重試。</string>
+    <string name="settings_sgwcmaid">透過 SGWCMAID 匯入</string>
+    <string name="settings_sgwcmaid_description">為國服檔案匯入成績</string>
+    <string name="import_sgwcmaid_summary_title">透過 SGWCMAID 匯入</string>
+    <string name="import_sgwcmaid_summary_description">輸入或掃描 SGWCMAID 碼，然後開始匯入。</string>
+    <string name="import_sgwcmaid_input_section">SGWCMAID 代碼</string>
+    <string name="import_sgwcmaid_code">SGWCMAID 代碼</string>
+    <string name="import_sgwcmaid_import">匯入成績</string>
+    <string name="import_sgwcmaid_scan">掃一掃</string>
+    <string name="detail_sgwcmaid">透過 SGWCMAID 匯入</string>
+    <string name="scanner_sgwcmaid_card_title">SGWCMAID 碼</string>
 </resources>

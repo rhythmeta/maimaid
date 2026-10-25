@@ -76,6 +76,7 @@ import org.rhythmeta.maimaid.ui.scorequery.ScoreQueryViewModel
 import org.rhythmeta.maimaid.ui.settings.BackendAuthScreen
 import org.rhythmeta.maimaid.ui.settings.DivingFishImportScreen
 import org.rhythmeta.maimaid.ui.settings.LxnsImportScreen
+import org.rhythmeta.maimaid.ui.settings.SgwcmaidImportScreen
 import org.rhythmeta.maimaid.ui.settings.OtogameImportScreen
 import org.rhythmeta.maimaid.ui.settings.OtogameLoginScreen
 import org.rhythmeta.maimaid.ui.settings.ThemeSettingsScreen
@@ -142,6 +143,8 @@ internal fun DetailScreen(
     onEnablePredictiveBackChange: (Boolean) -> Unit = {},
     onPageScaleChange: (Float) -> Unit = {},
     coverTransition: CatalogCoverTransition? = null,
+    sgwcmaidInitialCode: String? = null,
+    onSgwcmaidInitialCodeConsumed: () -> Unit = {},
 ) {
     val constantTableVersions = remember(state.songs, state.gameVersions) {
         val versionMetadata = state.gameVersions.associateBy(GameVersionEntity::name)
@@ -328,6 +331,12 @@ internal fun DetailScreen(
         AppDetail.LxnsImport -> LxnsImportScreen(
             container = container,
             contentTopPadding = songContentTopPadding,
+        )
+        AppDetail.SgwcmaidImport -> SgwcmaidImportScreen(
+            container = container,
+            contentTopPadding = songContentTopPadding,
+            initialCode = sgwcmaidInitialCode,
+            onInitialCodeConsumed = onSgwcmaidInitialCodeConsumed,
         )
         AppDetail.OtogameImport -> OtogameImportScreen(
             container = container,

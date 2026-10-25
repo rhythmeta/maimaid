@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.SetMeal
 import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +52,7 @@ fun SettingsScreen(
     onShowScannerBoundingBoxesChange: (Boolean) -> Unit,
     thirdPartyScoreSyncEnabled: Boolean,
     canSyncThirdPartyScores: Boolean,
+    activeProfileIsChina: Boolean,
     canImportOtogame: Boolean,
     onThirdPartyScoreSyncEnabledChange: (Boolean) -> Unit,
     onOpenDetail: (AppDetail) -> Unit,
@@ -108,6 +110,14 @@ fun SettingsScreen(
                     summary = stringResource(R.string.settings_lxns_description),
                     onClick = { onOpenDetail(AppDetail.LxnsImport) },
                 )
+                if (activeProfileIsChina) {
+                    SettingsRow(
+                        icon = Icons.Rounded.QrCode2,
+                        title = stringResource(R.string.settings_sgwcmaid),
+                        summary = stringResource(R.string.settings_sgwcmaid_description),
+                        onClick = { onOpenDetail(AppDetail.SgwcmaidImport) },
+                    )
+                }
                 if (canImportOtogame) {
                     SettingsRow(
                         icon = Icons.Rounded.History,

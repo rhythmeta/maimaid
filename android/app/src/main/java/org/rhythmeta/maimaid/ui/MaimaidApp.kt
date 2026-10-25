@@ -205,6 +205,7 @@ fun MaimaidApp(
     val collections by container.songCollectionRepository.collections.collectAsStateWithLifecycle(emptyList())
     val initialCatalogState by viewModel.initialCatalogState.collectAsStateWithLifecycle()
     val showScannerBoundingBoxes by viewModel.showScannerBoundingBoxes.collectAsStateWithLifecycle()
+    var pendingSgwcmaidCode by remember { mutableStateOf<String?>(null) }
     val thirdPartyScoreSyncEnabled by viewModel.thirdPartyScoreSyncEnabled.collectAsStateWithLifecycle()
     val catalogSortOption by viewModel.catalogSortOption.collectAsStateWithLifecycle()
     val catalogSortAscending by viewModel.catalogSortAscending.collectAsStateWithLifecycle()
@@ -607,6 +608,10 @@ fun MaimaidApp(
                 contentTopPadding = contentTopPadding,
                 enabled = destination == RootDestination.Scanner && detail == null,
                 onOpenSong = openSong,
+                onOpenSgwcmaidImport = { code ->
+                    pendingSgwcmaidCode = code
+                    openDetail(AppDetail.SgwcmaidImport)
+                },
             )
             RootDestination.Catalog -> CatalogScreen(
                 songs = uiState.songs,
@@ -643,6 +648,8 @@ fun MaimaidApp(
                 onShowScannerBoundingBoxesChange = viewModel::setShowScannerBoundingBoxes,
                 thirdPartyScoreSyncEnabled = thirdPartyScoreSyncEnabled,
                 canSyncThirdPartyScores = uiState.activeProfile?.server
+                    ?.equals("cn", ignoreCase = true) == true,
+                activeProfileIsChina = uiState.activeProfile?.server
                     ?.equals("cn", ignoreCase = true) == true,
                 canImportOtogame = uiState.activeProfile?.server
                     ?.equals("jp", ignoreCase = true) == true,
@@ -944,6 +951,8 @@ fun MaimaidApp(
                     },
                     onOpenCommunityAliases = openCommunityAliasesFromSong,
                     onOpenOtogameLogin = { openDetail(AppDetail.OtogameLogin) },
+                    sgwcmaidInitialCode = pendingSgwcmaidCode,
+                    onSgwcmaidInitialCodeConsumed = { pendingSgwcmaidCode = null },
                     onSongDetailBackgroundChanged = { color ->
                         if (activeDetail == AppDetail.Song && routeSongId != null) {
                             songDetailBackground = color?.let { routeSongId to it }
@@ -1205,6 +1214,9 @@ fun MaimaidApp(
             entry<AppRoute.LxnsImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.LxnsImport)
             }
+            entry<AppRoute.SgwcmaidImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
+                DetailEntry(AppDetail.SgwcmaidImport)
+            }
             entry<AppRoute.OtogameImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.OtogameImport)
             }
@@ -1396,6 +1408,7 @@ private fun detailTitle(detail: AppDetail): String = when (detail) {
     AppDetail.BackendAuth -> stringResource(R.string.detail_cloud_account)
     AppDetail.DivingFishImport -> stringResource(R.string.detail_diving_fish)
     AppDetail.LxnsImport -> stringResource(R.string.detail_lxns)
+    AppDetail.SgwcmaidImport -> stringResource(R.string.detail_sgwcmaid)
     AppDetail.OtogameImport -> stringResource(R.string.detail_otogame)
     AppDetail.OtogameLogin -> stringResource(R.string.detail_otogame_login)
     AppDetail.Appearance -> stringResource(R.string.detail_appearance)

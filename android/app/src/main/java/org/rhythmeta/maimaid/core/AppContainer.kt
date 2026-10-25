@@ -14,6 +14,8 @@ import org.rhythmeta.maimaid.core.data.BackendSyncStateStore
 import org.rhythmeta.maimaid.core.data.BackendTokenStore
 import org.rhythmeta.maimaid.core.data.Best50Repository
 import org.rhythmeta.maimaid.core.data.CatalogRepository
+import org.rhythmeta.maimaid.core.data.ChimeCredentialStore
+import org.rhythmeta.maimaid.core.data.ChimeGetUserDataClient
 import org.rhythmeta.maimaid.core.data.CatalogSyncStateStore
 import org.rhythmeta.maimaid.core.data.ChartFitStore
 import org.rhythmeta.maimaid.core.data.CoverImageStore
@@ -94,6 +96,7 @@ class AppContainer(context: Context) {
     val presetAvatarImageStore = PresetAvatarImageStore(applicationContext)
     val profileAvatarStore = ProfileAvatarStore(applicationContext)
     val profileCredentialStore = ProfileCredentialStore(applicationContext)
+    val chimeCredentialStore = ChimeCredentialStore(applicationContext)
     private val chartFitStore = ChartFitStore(applicationContext, json)
     val backendApiClient = BackendApiClient(BuildConfig.BACKEND_URL, json)
     val backendSessionManager = BackendSessionManager(
@@ -109,7 +112,10 @@ class AppContainer(context: Context) {
         kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { cloudBackupService.recover() }
     }
 
-    val thirdPartyImportService = org.rhythmeta.maimaid.core.data.ThirdPartyImportService(database, profileCredentialStore, json)
+    val thirdPartyImportService = org.rhythmeta.maimaid.core.data.ThirdPartyImportService(
+        database, profileCredentialStore, json,
+        ChimeGetUserDataClient(json, chimeCredentialStore),
+    )
 
     val backendImportService = BackendImportService(
         sessionManager = backendSessionManager,

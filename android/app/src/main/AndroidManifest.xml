@@ -11,6 +11,7 @@
         android:required="false" />
 
     <application
+        android:networkSecurityConfig="@xml/network_security_config"
         android:name=".MaimaidApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
