@@ -501,8 +501,13 @@ struct ScannerView: View {
                 NavigationStack {
                     SgwcmaidImportView(initialCode: sgwcmaidImportCode ?? "")
                         .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("common.close") { isShowingSgwcmaidImport = false }
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button {
+                                    isShowingSgwcmaidImport = false
+                                } label: {
+                                    Image(systemName: "xmark")
+                                }
+                                .accessibilityLabel(Text("common.close"))
                             }
                         }
                 }
