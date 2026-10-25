@@ -162,8 +162,14 @@ class ThirdPartyImportService(
                 if (ScoreRules.validate(item.input, ScoreRules.effectiveMaxDxScore(sheet.total)) != null) return@forEach
                 matched++
                 val previous = dao.score(profileId, sheet.sheetKey)
-                val merged = ScoreRules.mergeScore(profileId, sheet.sheetKey, previous, item.input,
-                    item.playedAt ?: System.currentTimeMillis())
+                val now = item.playedAt ?: System.currentTimeMillis()
+                // music.json imports overwrite the local sheet with whatever the game reports,
+                // instead of keeping the better of the two values.
+                val merged = if (provider == ScoreImportProvider.Sgwcmaid) {
+                    ScoreRules.replaceScore(profileId, sheet.sheetKey, previous, item.input, now)
+                } else {
+                    ScoreRules.mergeScore(profileId, sheet.sheetKey, previous, item.input, now)
+                }
                 var changed = previous != merged
                 if (changed) dao.upsertScore(merged)
                 val recordId = item.recordId(profileId)

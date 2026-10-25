@@ -123,6 +123,24 @@ object ScoreRules {
         )
     }
 
+    /** Replaces the stored score with the incoming values verbatim (forced import). */
+    fun replaceScore(
+        profileId: String,
+        sheetKey: String,
+        existing: ScoreEntity?,
+        input: ScoreInput,
+        now: Long,
+    ): ScoreEntity = ScoreEntity(
+        profileId = profileId,
+        sheetKey = sheetKey,
+        achievement = input.achievement,
+        rank = calculateRank(input.achievement),
+        dxScore = input.dxScore,
+        fc = canonicalFc(input.fc),
+        fs = canonicalFs(input.fs),
+        achievedAt = existing?.achievedAt ?: now,
+    )
+
     fun bestHistoryRecord(records: List<PlayRecordEntity>): PlayRecordEntity? =
         records.maxWithOrNull(compareBy<PlayRecordEntity> { it.achievement }.thenBy { it.playedAt })
 

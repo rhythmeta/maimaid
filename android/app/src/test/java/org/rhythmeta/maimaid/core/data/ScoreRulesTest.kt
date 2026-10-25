@@ -76,6 +76,35 @@ class ScoreRulesTest {
     }
 
     @Test
+    fun replacesLocalValuesVerbatimWhenImportForcesOverwrite() {
+        val existing = ScoreEntity(
+            profileId = "profile",
+            sheetKey = "sheet",
+            achievement = 98.0,
+            rank = "S+",
+            dxScore = 700,
+            fc = "ap",
+            fs = "fsdp",
+            achievedAt = 100L,
+        )
+
+        val result = ScoreRules.replaceScore(
+            profileId = "profile",
+            sheetKey = "sheet",
+            existing = existing,
+            input = ScoreInput(achievement = 97.0, dxScore = 600, fc = null, fs = "sync"),
+            now = 200L,
+        )
+
+        assertEquals(97.0, result.achievement, 0.0)
+        assertEquals("S", result.rank)
+        assertEquals(600, result.dxScore)
+        assertNull(result.fc)
+        assertEquals("sync", result.fs)
+        assertEquals(100L, result.achievedAt)
+    }
+
+    @Test
     fun usesBestRemainingHistoryRecordAfterBestIsDeleted() {
         val score = ScoreEntity(
             profileId = "profile",
