@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0
+
+### 中文
+
+- 支持使用国服登录二维码（SGWCMAID）获取游玩数据。
+
+> 没必要解释，绝对的 MAJOR UPDATE，我懂得欣赏。但请注意，使用该功能则代表您允许我们在您的账号上增加一次登录记录但不写入任何游玩记录，which is 不正常在官方机台上，但没必要担心，其他查分器大抵也是同样的逻辑。
+
+### English
+
+- Supports retrieving gameplay data using the Chinese server login QR code (SGWCMAID).
+
+> No need to explain—this is definitely a MAJOR UPDATE, and I appreciate it. Please note, however, that using this feature means you are allowing us to add a login record to your account without logging any gameplay activity—which is unusual on official cabinet—but there’s no need to worry; other score checkers generally operate on the same principle.
+
 ## 1.2.9
 
 ### 中文
