@@ -90,9 +90,14 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
     return Credentials(userID: userID, token: token)
   }
 
-  private struct Credentials {
+  fileprivate struct Credentials {
     let userID: Int
     let token: String
+
+    fileprivate init(userID: Int, token: String) {
+      self.userID = userID
+      self.token = token
+    }
   }
 
   private static func chimeError(for errorID: Int) -> ScoreImportError {
@@ -137,13 +142,19 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
 
 /// One session against the game API. Cookies are kept in insertion order, like
 /// the reference client's dictionary keyed by cookie name.
-private nonisolated struct GameClient {
+fileprivate nonisolated struct GameClient {
   let config: SgwcmaidConfig
   let clientID: String
   let transport: SgwcmaidHTTPTransport
 
   private var urn = ""
   private var cookies: [(name: String, value: String)] = []
+
+  fileprivate init(config: SgwcmaidConfig, clientID: String, transport: SgwcmaidHTTPTransport) {
+    self.config = config
+    self.clientID = clientID
+    self.transport = transport
+  }
 
   mutating func fetch(userID: Int, token: String) async throws -> Data {
     let setting = try await call(
