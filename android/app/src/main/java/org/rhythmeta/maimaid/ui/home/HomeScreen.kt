@@ -44,12 +44,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import java.io.File
 import kotlin.math.max
 import org.rhythmeta.maimaid.R
+import org.rhythmeta.maimaid.core.data.PresetAvatarRepository
 import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.rememberProfileAvatarModel
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
 import org.rhythmeta.maimaid.ui.song.ScoreTintBadge
 import top.yukonga.miuix.kmp.basic.Card
@@ -63,6 +64,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun HomeScreen(
     state: MainUiState,
+    presetAvatarRepository: PresetAvatarRepository,
     contentTopPadding: Dp,
     onOpenDetail: (AppDetail) -> Unit,
     onEditProfile: () -> Unit,
@@ -90,6 +92,7 @@ fun HomeScreen(
                 profile = profile,
                 isLoading = !state.isActiveProfileReady,
                 displayRating = displayRating,
+                presetAvatarRepository = presetAvatarRepository,
                 onClick = onEditProfile,
             )
         }
@@ -117,6 +120,7 @@ private fun ProfileCard(
     profile: UserProfileEntity?,
     isLoading: Boolean,
     displayRating: Int,
+    presetAvatarRepository: PresetAvatarRepository,
     onClick: () -> Unit,
 ) {
     val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
@@ -144,6 +148,7 @@ private fun ProfileCard(
                 ProfileAvatar(
                     profile = profile,
                     displayRating = displayRating,
+                    presetAvatarRepository = presetAvatarRepository,
                 )
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -231,14 +236,13 @@ private fun ProfileCardPlaceholder(modifier: Modifier = Modifier) {
 private fun ProfileAvatar(
     profile: UserProfileEntity?,
     displayRating: Int,
+    presetAvatarRepository: PresetAvatarRepository,
 ) {
-    val avatarModel = remember(profile?.avatarPath, profile?.avatarUrl) {
-        profile?.avatarPath
-            ?.takeIf(String::isNotBlank)
-            ?.let(::File)
-            ?.takeIf(File::exists)
-            ?: profile?.avatarUrl?.takeIf(String::isNotBlank)
-    }
+    val avatarModel = rememberProfileAvatarModel(
+        avatarPath = profile?.avatarPath,
+        avatarUrl = profile?.avatarUrl,
+        presetAvatarRepository = presetAvatarRepository,
+    )
     Box(modifier = Modifier.size(64.dp)) {
         Box(
             modifier = Modifier

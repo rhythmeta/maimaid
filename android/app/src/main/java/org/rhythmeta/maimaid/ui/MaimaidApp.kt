@@ -593,6 +593,7 @@ fun MaimaidApp(
         when (page) {
             RootDestination.Home -> HomeScreen(
                 state = uiState,
+                presetAvatarRepository = container.presetAvatarRepository,
                 contentTopPadding = contentTopPadding,
                 onOpenDetail = openDetail,
                 onEditProfile = { showHomeProfileEditor = true },

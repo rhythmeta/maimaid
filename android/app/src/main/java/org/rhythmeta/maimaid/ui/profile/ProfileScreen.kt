@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,6 +64,7 @@ import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.components.ExpandableBottomSheet
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.appTextFieldColors
+import org.rhythmeta.maimaid.ui.components.rememberProfileAvatarModel
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -609,13 +609,11 @@ private fun ProfileAvatar(
     size: Int,
     presetAvatarRepository: PresetAvatarRepository,
 ) {
-    val model = remember(profile.avatarPath, profile.avatarUrl, presetAvatarRepository) {
-        profile.avatarPath
-            ?.let(::File)
-            ?.takeIf(File::isFile)
-            ?: presetAvatarRepository.imageFileFor(profile.avatarUrl)
-            ?: profile.avatarUrl?.takeIf(String::isNotBlank)
-    }
+    val model = rememberProfileAvatarModel(
+        avatarPath = profile.avatarPath,
+        avatarUrl = profile.avatarUrl,
+        presetAvatarRepository = presetAvatarRepository,
+    )
     Box(
         modifier = Modifier
             .size(size.dp)
