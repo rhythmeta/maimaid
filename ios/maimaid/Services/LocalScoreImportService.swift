@@ -100,18 +100,22 @@ enum LocalScoreImportService {
       let before = previous.map {
         ScoreValues(rate: $0.rate, dx: $0.dxScore, fc: $0.fc, fs: $0.fs)
       }
+      // A provider that cannot report the badges leaves them absent; keep what
+      // the profile already had rather than wiping a known FC/AP marker.
+      let incomingFC = payload.keepUnknownJudgements ? (item.fc ?? previous?.fc) : item.fc
+      let incomingFS = payload.keepUnknownJudgements ? (item.fs ?? previous?.fs) : item.fs
       let saved: Score
       switch provider {
       case .sgwcmaid:
         // music.json imports overwrite the local sheet with whatever the game
         // reports instead of keeping the better of the two values.
         saved = ScoreService.shared.replaceScore(
-          sheet: sheet, rate: item.achievement, dxScore: item.dxScore, fc: item.fc, fs: item.fs,
-          achievementDate: item.playedAt, context: context)
+          sheet: sheet, rate: item.achievement, dxScore: item.dxScore, fc: incomingFC,
+          fs: incomingFS, achievementDate: item.playedAt, context: context)
       case .divingFish, .lxns:
         saved = ScoreService.shared.saveScore(
           sheet: sheet, rate: item.achievement, rank: "",
-          dxScore: item.dxScore, fc: item.fc, fs: item.fs,
+          dxScore: item.dxScore, fc: incomingFC, fs: incomingFS,
           achievementDate: item.playedAt ?? Date(), context: context)
       }
       var changed =

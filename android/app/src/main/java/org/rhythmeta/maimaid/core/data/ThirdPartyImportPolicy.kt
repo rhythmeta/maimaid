@@ -32,6 +32,11 @@ data class ImportedScore(
 data class ScoreImportPayload(
     val scores: List<ImportedScore>, val fetchedCount: Int,
     val name: String? = null, val rating: Int? = null, val plate: String? = null,
+    /**
+     * True when the provider could not see the combo/sync badges (the userId-only quick
+     * import). Existing badges are then kept instead of being cleared with a null.
+     */
+    val keepUnknownJudgements: Boolean = false,
 )
 
 object ThirdPartyImportPolicy {
@@ -61,7 +66,7 @@ object ThirdPartyImportPolicy {
             root["rating"]?.jsonPrimitive?.intOrNull, root.text("plate"))
     }
 
-    private fun decodeSgwcmaid(root: JsonElement): ScoreImportPayload {
+    fun decodeSgwcmaid(root: JsonElement, keepUnknownJudgements: Boolean = false): ScoreImportPayload {
         val rows = root as? JsonArray ?: error("Invalid music.json response")
         val scores = rows.flatMap { element ->
             val details = (element as? JsonObject)?.get("userMusicDetailList") as? JsonArray ?: return@flatMap emptyList()
@@ -83,7 +88,7 @@ object ThirdPartyImportPolicy {
         }
         return ScoreImportPayload(scores, rows.sumOf {
             ((it as? JsonObject)?.get("userMusicDetailList") as? JsonArray)?.size ?: 0
-        })
+        }, keepUnknownJudgements = keepUnknownJudgements)
     }
 
     private fun sgwcmaidFc(value: Int?): String? = when (value) {

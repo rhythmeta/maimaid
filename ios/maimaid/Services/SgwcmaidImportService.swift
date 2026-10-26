@@ -1,6 +1,16 @@
 import Foundation
 import SwiftData
 
+/// One SGWCMAID import together with the identity it proved.
+///
+/// `userID` is present only for the direct chime path; the relay returns scores
+/// without an identity.
+nonisolated struct SgwcmaidImportRun: Sendable {
+  let result: LocalScoreImportResult
+  let userID: Int?
+  let playerName: String
+}
+
 /// Imports China-server scores from an `SGWCMAID` cabinet code.
 ///
 /// The code is exchanged for a game session, `music.json` is fetched, and the
@@ -14,7 +24,7 @@ enum SgwcmaidImportService {
   static let relayEndpoint = ""
 
   static func run(code: String, profileID: UUID, context: ModelContext) async throws
-    -> LocalScoreImportResult {
+    -> SgwcmaidImportRun {
     let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines)
     guard normalized.hasPrefix(SgwcmaidCode.prefix) else {
       throw ScoreImportError(code: "invalid_sgwcmaid")
@@ -24,18 +34,48 @@ enum SgwcmaidImportService {
       throw ScoreImportError(code: "sgwcmaid_not_configured")
     }
 
-    let data: Data
+    let fetched: (data: Data, userID: Int?, playerName: String)
     if relayEndpoint.isEmpty {
-      data = try await fetchMusicUsingKeychips(code: normalized, config: config)
+      let music = try await fetchMusicUsingKeychips(code: normalized, config: config)
+      fetched = (music.data, music.userID, music.playerName)
     } else {
-      data = try await fetchFromRelay(relayEndpoint, code: normalized)
+      fetched = (try await fetchFromRelay(relayEndpoint, code: normalized), nil, "")
     }
 
+    // The QR exchange consumed a one-time code, so remember the player identity
+    // before the (fallible) apply; a local failure must not force another scan.
+    if let userID = fetched.userID, userID > 0 {
+      SgwcmaidBindingStore.shared.save(
+        SgwcmaidBinding(userID: userID, playerName: fetched.playerName), for: profileID)
+    }
     try Task.checkCancellation()
-    let payload = try ScoreImportPayload.decode(data, provider: .sgwcmaid)
+    let payload = try ScoreImportPayload.decode(fetched.data, provider: .sgwcmaid)
     try Task.checkCancellation()
-    return try LocalScoreImportService.apply(
+    let result = try LocalScoreImportService.apply(
       payload, provider: .sgwcmaid, profileID: profileID, context: context)
+    return SgwcmaidImportRun(
+      result: result, userID: fetched.userID, playerName: fetched.playerName)
+  }
+
+  /// Refreshes the scores of a remembered player without scanning another code.
+  ///
+  /// The rival endpoint answers for the player id alone, so this path never logs
+  /// in and cannot trip the cabinet session lock.
+  static func runByBinding(userID: Int, profileID: UUID, context: ModelContext) async throws
+    -> SgwcmaidImportRun {
+    let fetched = try await ChimeGetUserDataClient(config: .current).fetchOwnMusic(userID: userID)
+    SgwcmaidBindingStore.shared.save(
+      SgwcmaidBinding(userID: userID, playerName: fetched.playerName), for: profileID)
+    try Task.checkCancellation()
+    // This payload only carries the achievement and the best DX score, so the
+    // combo/sync badges already stored for the profile are kept.
+    let payload = try ScoreImportPayload.decode(
+      fetched.data, provider: .sgwcmaid, keepUnknownJudgements: true)
+    try Task.checkCancellation()
+    let result = try LocalScoreImportService.apply(
+      payload, provider: .sgwcmaid, profileID: profileID, context: context)
+    return SgwcmaidImportRun(
+      result: result, userID: fetched.userID, playerName: fetched.playerName)
   }
 
   /// Tries cabinets in the selected region first, then the nationwide pool, and
@@ -43,7 +83,7 @@ enum SgwcmaidImportService {
   /// session exists the QR code has been consumed, so the game fetch must not be
   /// replayed on another cabinet.
   private static func fetchMusicUsingKeychips(code: String, config: SgwcmaidConfig) async throws
-    -> Data {
+    -> SgwcmaidFetchedMusic {
     let store = SgwcmaidKeychipStore.shared
     let plan = SgwcmaidKeychipSelector.plan(
       catalog: .bundled, provinceID: store.selectedProvinceID, cursor: store.cursor)

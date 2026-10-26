@@ -36,6 +36,7 @@ import org.rhythmeta.maimaid.core.data.RecommendationRepository
 import org.rhythmeta.maimaid.core.data.ScoreRepository
 import org.rhythmeta.maimaid.core.data.ScoreQueryRepository
 import org.rhythmeta.maimaid.core.data.ScoreSyncService
+import org.rhythmeta.maimaid.core.data.SgwcmaidBindingStore
 import org.rhythmeta.maimaid.core.data.SgwcmaidKeychipCatalogLoader
 import org.rhythmeta.maimaid.core.data.SgwcmaidKeychipStore
 import org.rhythmeta.maimaid.core.data.SongCollectionRepository
@@ -101,6 +102,7 @@ class AppContainer(context: Context) {
     val profileCredentialStore = ProfileCredentialStore(applicationContext)
     val chimeCredentialStore = ChimeCredentialStore(applicationContext)
     internal val sgwcmaidKeychipStore = SgwcmaidKeychipStore(applicationContext)
+    private val sgwcmaidBindingStore = SgwcmaidBindingStore(applicationContext, json)
     internal val sgwcmaidKeychipCatalog = SgwcmaidKeychipCatalogLoader.load(applicationContext)
     private val chartFitStore = ChartFitStore(applicationContext, json)
     val backendApiClient = BackendApiClient(BuildConfig.BACKEND_URL, json)
@@ -111,6 +113,7 @@ class AppContainer(context: Context) {
     )
     val cloudBackupService = org.rhythmeta.maimaid.core.backup.CloudBackupService(
         applicationContext, database, appPreferencesRepository, profileAvatarStore, backendSessionManager,
+        sgwcmaidBindingStore,
     )
     init {
         // Finish or roll back interrupted replacement before exposing repositories to UI.
@@ -120,6 +123,7 @@ class AppContainer(context: Context) {
     val thirdPartyImportService = org.rhythmeta.maimaid.core.data.ThirdPartyImportService(
         database, profileCredentialStore, json,
         ChimeGetUserDataClient(json, chimeCredentialStore, sgwcmaidKeychipCatalog, sgwcmaidKeychipStore),
+        sgwcmaidBindingStore,
     )
 
     val backendImportService = BackendImportService(

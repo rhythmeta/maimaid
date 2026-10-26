@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
         <exclude domain="file" path="datastore/app_update_state.preferences_pb" />
+        <!-- SGWCMAID binding: device-bound ciphertext, never restorable elsewhere. -->
+        <exclude domain="sharedpref" path="sgwcmaid_bindings.xml" />
         <exclude domain="external" path="updates/" />
 </full-backup-content>

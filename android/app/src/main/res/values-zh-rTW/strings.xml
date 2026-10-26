@@ -693,6 +693,12 @@
     <string name="import_sgwcmaid_input_section">SGWCMAID 代碼</string>
     <string name="import_sgwcmaid_code">SGWCMAID 代碼</string>
     <string name="import_sgwcmaid_import">匯入成績</string>
+    <string name="import_sgwcmaid_bound_section">已綁定玩家</string>
+    <string name="import_sgwcmaid_bound_player">SGWCMAID 玩家</string>
+    <string name="import_sgwcmaid_quick_import">快速匯入</string>
+    <string name="import_sgwcmaid_rival_notice">透過 Rival 取得個人成績，無法取得 FC/FS 狀態，請知悉</string>
+    <string name="import_sgwcmaid_unbind">解除綁定</string>
+    <string name="import_sgwcmaid_binding_invalid">找不到已綁定的玩家，請解除綁定後重新掃描 SGWCMAID 碼。</string>
     <string name="import_sgwcmaid_scan">掃一掃</string>
     <string name="detail_sgwcmaid">透過 SGWCMAID 匯入</string>
     <string name="scanner_sgwcmaid_card_title">SGWCMAID 碼</string>

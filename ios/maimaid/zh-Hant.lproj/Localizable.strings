@@ -735,6 +735,12 @@
 "import.sgwcmaid.input.footer" = "符合譜面的成績將被機台紀錄覆蓋。";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID 代碼";
 "import.sgwcmaid.action.import" = "匯入樂曲";
+"import.sgwcmaid.bound.header" = "已綁定玩家";
+"import.sgwcmaid.bound.unknown" = "SGWCMAID 玩家";
+"import.sgwcmaid.bound.notice" = "透過 Rival 取得個人成績，無法取得 FC/FS 狀態，請知悉";
+"import.sgwcmaid.action.quick" = "快速匯入";
+"import.sgwcmaid.action.unbind" = "解除綁定";
+"import.sgwcmaid.error.bindingInvalid" = "找不到已綁定的玩家，請解除綁定後重新掃描 SGWCMAID 碼。";
 "import.sgwcmaid.status.fetching" = "正在取得成績...";
 "import.sgwcmaid.result.imported" = "匯入完成";
 "import.sgwcmaid.result.noChanges" = "成績已是最新";

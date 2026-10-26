@@ -23,6 +23,7 @@ class ThirdPartyImportService(
     private val credentials: ProfileCredentialStore,
     private val json: Json,
     private val chimeClient: ChimeGetUserDataClient? = null,
+    private val bindingStore: SgwcmaidBindingStore? = null,
 ) {
     private val tokenMutex = Mutex()
 
@@ -163,20 +164,26 @@ class ThirdPartyImportService(
                 matched++
                 val previous = dao.score(profileId, sheet.sheetKey)
                 val now = item.playedAt ?: System.currentTimeMillis()
+                // A provider that cannot report the badges leaves them absent; keep whatever
+                // the profile already had rather than wiping a known FC/AP marker.
+                val input = if (payload.keepUnknownJudgements) item.input.copy(
+                    fc = item.input.fc ?: previous?.fc,
+                    fs = item.input.fs ?: previous?.fs,
+                ) else item.input
                 // music.json imports overwrite the local sheet with whatever the game reports,
                 // instead of keeping the better of the two values.
                 val merged = if (provider == ScoreImportProvider.Sgwcmaid) {
-                    ScoreRules.replaceScore(profileId, sheet.sheetKey, previous, item.input, now)
+                    ScoreRules.replaceScore(profileId, sheet.sheetKey, previous, input, now)
                 } else {
-                    ScoreRules.mergeScore(profileId, sheet.sheetKey, previous, item.input, now)
+                    ScoreRules.mergeScore(profileId, sheet.sheetKey, previous, input, now)
                 }
                 var changed = previous != merged
                 if (changed) dao.upsertScore(merged)
                 val recordId = item.recordId(profileId)
                 if (provider == ScoreImportProvider.Lxns && recordId != null && item.playedAt != null && ids.add(recordId)) {
-                    if (fingerprints.add(historyKey(sheet.sheetKey, item.playedAt, item.input))) {
-                        val record = PlayRecordEntity(recordId, profileId, sheet.sheetKey, item.input.achievement,
-                            ScoreRules.calculateRank(item.input.achievement), item.input.dxScore, item.input.fc, item.input.fs, item.playedAt)
+                    if (fingerprints.add(historyKey(sheet.sheetKey, item.playedAt, input))) {
+                        val record = PlayRecordEntity(recordId, profileId, sheet.sheetKey, input.achievement,
+                            ScoreRules.calculateRank(input.achievement), input.dxScore, input.fc, input.fs, item.playedAt)
                         dao.upsertPlayRecord(record)
                         changed = true
                     }
@@ -220,13 +227,53 @@ class ThirdPartyImportService(
 
     internal suspend fun importSgwcmaid(code: String, endpoint: String, profileId: String): LocalScoreImportResult {
         val element = if (endpoint.isBlank()) {
-            chimeClient?.fetchMusic(code.trim()) ?: throw DirectImportException("chime_client_unavailable")
+            val fetched = chimeClient?.fetchMusic(code.trim())
+                ?: throw DirectImportException("chime_client_unavailable")
+            // The QR exchange consumed a one-time code, so the cabinet import is the only
+            // moment the player identity is proven. Remember it before the (fallible) apply
+            // so a local failure does not force another QR scan.
+            rememberBinding(profileId, fetched)
+            fetched.music
         } else {
             requestElement(endpoint, code.trim())
         }
         val payload = ThirdPartyImportPolicy.decode(element, ScoreImportProvider.Sgwcmaid)
         currentCoroutineContext().ensureActive()
         return apply(payload, ScoreImportProvider.Sgwcmaid, profileId)
+    }
+
+    /**
+     * Refreshes the scores of the remembered SGWCMAID player without scanning another code.
+     *
+     * The rival endpoint answers for the player id alone, so this path never logs in: no
+     * cabinet, no token, no `isLogin` lock and no logout to get wrong.
+     */
+    internal suspend fun importSgwcmaidByUserId(userId: Long, profileId: String): LocalScoreImportResult {
+        val fetched = chimeClient?.fetchMusicByUserId(userId)
+            ?: throw DirectImportException("chime_client_unavailable")
+        rememberBinding(profileId, fetched)
+        // This response carries only the achievement and the best DX score, so the combo and
+        // sync badges already stored for the profile are kept instead of being cleared.
+        val payload = ThirdPartyImportPolicy.decodeSgwcmaid(
+            fetched.music,
+            keepUnknownJudgements = true,
+        )
+        currentCoroutineContext().ensureActive()
+        return apply(payload, ScoreImportProvider.Sgwcmaid, profileId)
+    }
+
+    fun binding(profileId: String): SgwcmaidBinding? = bindingStore?.load(profileId)
+
+    fun unbind(profileId: String) {
+        bindingStore?.clear(profileId)
+    }
+
+    private suspend fun rememberBinding(profileId: String, fetched: SgwcmaidFetchedMusic) {
+        if (fetched.userId <= 0) return
+        // Keystore-backed encryption touches the disk, so keep it off the main thread.
+        withContext(Dispatchers.IO) {
+            runCatching { bindingStore?.save(profileId, SgwcmaidBinding(fetched.userId, fetched.playerName)) }
+        }
     }
 
     internal suspend fun importSgwcmaidJson(content: String, profileId: String): LocalScoreImportResult {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -79,6 +80,56 @@ fun SgwcmaidImportScreen(
                 title = stringResource(R.string.import_sgwcmaid_summary_title),
                 summary = stringResource(R.string.import_sgwcmaid_summary_description),
             )
+        }
+        state.sgwcmaidBinding?.let { binding ->
+            item {
+                Column {
+                    ImportSection(stringResource(R.string.import_sgwcmaid_bound_section)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Rounded.AccountCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MiuixTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            // Only the display name is ever shown; the bound user id stays private.
+                            Text(
+                                binding.playerName.ifBlank {
+                                    stringResource(R.string.import_sgwcmaid_bound_player)
+                                },
+                                style = MiuixTheme.textStyles.title3,
+                            )
+                        }
+                        ImportPrimaryButton(
+                            title = stringResource(R.string.import_sgwcmaid_quick_import),
+                            icon = Icons.Rounded.Refresh,
+                            busy = state.isBusy,
+                            enabled = state.profile != null,
+                            onClick = viewModel::quickImportSgwcmaid,
+                        )
+                        Button(
+                            onClick = viewModel::unbindSgwcmaid,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isBusy,
+                            colors = ButtonDefaults.buttonColors(
+                                color = MiuixTheme.colorScheme.errorContainer,
+                                contentColor = MiuixTheme.colorScheme.onErrorContainer,
+                            ),
+                        ) {
+                            Icon(Icons.Rounded.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.import_sgwcmaid_unbind))
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.import_sgwcmaid_rival_notice),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(start = 4.dp, top = 6.dp, end = 4.dp),
+                    )
+                }
+            }
         }
         item {
             val provinces = state.provinces

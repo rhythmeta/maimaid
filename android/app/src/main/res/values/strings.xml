@@ -721,6 +721,12 @@
     <string name="import_sgwcmaid_input_section">SGWCMAID code</string>
     <string name="import_sgwcmaid_code">SGWCMAID code</string>
     <string name="import_sgwcmaid_import">Import music</string>
+    <string name="import_sgwcmaid_bound_section">Bound player</string>
+    <string name="import_sgwcmaid_bound_player">SGWCMAID player</string>
+    <string name="import_sgwcmaid_quick_import">Quick import</string>
+    <string name="import_sgwcmaid_rival_notice">Scores are fetched through Rival, so FC/FS status is unavailable.</string>
+    <string name="import_sgwcmaid_unbind">Unbind</string>
+    <string name="import_sgwcmaid_binding_invalid">The linked player could not be found. Unbind, then scan a new SGWCMAID code.</string>
     <string name="import_sgwcmaid_scan">Scan</string>
     <string name="detail_sgwcmaid">Import through SGWCMAID</string>
     <string name="scanner_sgwcmaid_card_title">SGWCMAID code</string>

@@ -735,6 +735,12 @@
 "import.sgwcmaid.input.footer" = "Matched charts are replaced with the cabinet's copy.";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID code";
 "import.sgwcmaid.action.import" = "Import music";
+"import.sgwcmaid.bound.header" = "Bound player";
+"import.sgwcmaid.bound.unknown" = "SGWCMAID player";
+"import.sgwcmaid.bound.notice" = "Scores are fetched through Rival, so FC/FS status is unavailable.";
+"import.sgwcmaid.action.quick" = "Quick import";
+"import.sgwcmaid.action.unbind" = "Unbind";
+"import.sgwcmaid.error.bindingInvalid" = "The linked player could not be found. Unbind, then scan a new SGWCMAID code.";
 "import.sgwcmaid.status.fetching" = "Fetching scores...";
 "import.sgwcmaid.result.imported" = "Import complete";
 "import.sgwcmaid.result.noChanges" = "Scores are already up to date";

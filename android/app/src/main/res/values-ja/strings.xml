@@ -695,6 +695,12 @@
     <string name="import_sgwcmaid_input_section">SGWCMAID コード</string>
     <string name="import_sgwcmaid_code">SGWCMAID コード</string>
     <string name="import_sgwcmaid_import">成績をインポート</string>
+    <string name="import_sgwcmaid_bound_section">連携中のプレイヤー</string>
+    <string name="import_sgwcmaid_bound_player">SGWCMAID プレイヤー</string>
+    <string name="import_sgwcmaid_quick_import">クイックインポート</string>
+    <string name="import_sgwcmaid_rival_notice">Rival 経由で個人スコアを取得します。FC/FS の状態は取得できません。</string>
+    <string name="import_sgwcmaid_unbind">連携を解除</string>
+    <string name="import_sgwcmaid_binding_invalid">連携中のプレイヤーが見つかりません。連携を解除して、新しい SGWCMAID コードをスキャンしてください。</string>
     <string name="import_sgwcmaid_scan">スキャン</string>
     <string name="detail_sgwcmaid">SGWCMAID からインポート</string>
     <string name="scanner_sgwcmaid_card_title">SGWCMAID コード</string>

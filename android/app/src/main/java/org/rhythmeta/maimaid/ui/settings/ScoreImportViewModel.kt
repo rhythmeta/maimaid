@@ -41,6 +41,7 @@ data class ScoreImportUiState(
     val lxnsRefreshToken: String = "",
     val lxnsAuthorizationCode: String = "",
     val sgwcmaidCode: String = "",
+    val sgwcmaidBinding: SgwcmaidBinding? = null,
     val provinces: List<SgwcmaidProvince> = emptyList(),
     val selectedProvinceId: Int? = null,
     val phase: ScoreImportPhase = ScoreImportPhase.Idle,
@@ -82,6 +83,7 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
                     mutableState.value = ScoreImportUiState(
                         profile = profile,
                         sgwcmaidCode = current.sgwcmaidCode,
+                        sgwcmaidBinding = profile?.let { service.binding(it.id) },
                         provinces = container.sgwcmaidKeychipCatalog.provinces,
                         selectedProvinceId = container.sgwcmaidKeychipStore.selectedProvinceId(),
                     )
@@ -97,7 +99,8 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
         val id = mutableState.value.profile?.id ?: return
         mutableState.update { it.copy(
             divingFishConnected = service.refreshToken(ScoreImportProvider.DivingFish, id).isNotEmpty(),
-            lxnsRefreshToken = service.refreshToken(ScoreImportProvider.Lxns, id)) }
+            lxnsRefreshToken = service.refreshToken(ScoreImportProvider.Lxns, id),
+            sgwcmaidBinding = service.binding(id)) }
     }
 
     fun setLxnsAuthorizationCode(value: String) { mutableState.update { it.copy(lxnsAuthorizationCode = value) } }
@@ -133,6 +136,28 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
         val result = service.importSgwcmaid(code, endpoint, profile.id)
         mutableState.update { it.copy(fetchedCount = result.fetchedCount, upsertedCount = result.updatedCount,
             skippedCount = result.skippedCount, result = if (result.updatedCount > 0) ScoreImportResult.Imported else ScoreImportResult.NoChanges) }
+    }
+
+    /**
+     * Refreshes the scores of the player remembered from the last QR import. This path never
+     * logs in, so it cannot trip the cabinet session lock.
+     */
+    fun quickImportSgwcmaid() = perform { profile ->
+        val binding = mutableState.value.sgwcmaidBinding
+        check(binding != null) { "sgwcmaid_not_bound" }
+        mutableState.update { it.copy(phase = ScoreImportPhase.Fetching) }
+        val result = service.importSgwcmaidByUserId(binding.userId, profile.id)
+        mutableState.update { it.copy(fetchedCount = result.fetchedCount, upsertedCount = result.updatedCount,
+            skippedCount = result.skippedCount, result = if (result.updatedCount > 0) ScoreImportResult.Imported else ScoreImportResult.NoChanges) }
+    }
+
+    fun unbindSgwcmaid() {
+        val profile = mutableState.value.profile ?: return
+        if (mutableState.value.isBusy) return
+        runCatching { service.unbind(profile.id) }
+            .onSuccess { refreshBindings() }
+            .onFailure { error -> mutableState.update {
+                it.copy(result = ScoreImportResult.Failed, resultDetails = error.message) } }
     }
 
     fun importSgwcmaidJson(content: String) = perform { profile ->
@@ -180,6 +205,8 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
                         resultDetails = when (error.message) {
                             "game_login_100", "game_account_already_logged_in" ->
                                 container.applicationContext.getString(R.string.import_status_game_login_busy)
+                            "sgwcmaid_binding_invalid" ->
+                                container.applicationContext.getString(R.string.import_sgwcmaid_binding_invalid)
                             else -> error.message
                         }) }
                 }

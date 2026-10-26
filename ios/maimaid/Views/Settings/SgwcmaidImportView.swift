@@ -13,6 +13,10 @@ struct SgwcmaidImportView: View {
   var body: some View {
     List {
       SgwcmaidImportSummarySection()
+      if model.binding != nil {
+        SgwcmaidBoundPlayerSection(
+          model: model, isEnabled: !profiles.isEmpty, quickImport: quickImport, unbind: unbind)
+      }
       SgwcmaidRegionSection(model: model)
       SgwcmaidImportInputSection(
         model: model, isEnabled: !profiles.isEmpty, startImport: startImport)
@@ -25,7 +29,18 @@ struct SgwcmaidImportView: View {
     .disabled(profiles.isEmpty)
     .navigationTitle("import.sgwcmaid.title")
     .navigationBarTitleDisplayMode(.inline)
+    .task(id: profiles.first?.id) { model.loadBinding(profileID: profiles.first?.id) }
     .onDisappear { model.cancel() }
+  }
+
+  private func quickImport() {
+    guard let profile = profiles.first else { return }
+    model.quickImport(profileID: profile.id, context: modelContext)
+  }
+
+  private func unbind() {
+    guard let profile = profiles.first else { return }
+    model.unbind(profileID: profile.id)
   }
 
   private func startImport() {

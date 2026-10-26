@@ -6,10 +6,17 @@ struct ScoreImportPayload {
   var rating: Int?
   var name: String?
   var plate: String?
+  /// True when the provider could not see the combo/sync badges (the user-id
+  /// only quick import). Existing badges are then kept instead of cleared.
+  var keepUnknownJudgements = false
 
-  static func decode(_ data: Data, provider: ScoreImportProvider) throws -> Self {
+  static func decode(
+    _ data: Data, provider: ScoreImportProvider, keepUnknownJudgements: Bool = false
+  ) throws -> Self {
     if provider == .sgwcmaid {
-      return try decodeSgwcmaid(data)
+      var payload = try decodeSgwcmaid(data)
+      payload.keepUnknownJudgements = keepUnknownJudgements
+      return payload
     }
     guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw ScoreImportError(code: "invalid_response")

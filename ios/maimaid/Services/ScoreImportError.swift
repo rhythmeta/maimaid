@@ -11,6 +11,8 @@ nonisolated struct ScoreImportError: LocalizedError {
       return String(localized: "import.local.profileChanged")
     case "sgwcmaid_not_configured":
       return String(localized: "import.sgwcmaid.error.notConfigured")
+    case "sgwcmaid_binding_invalid":
+      return String(localized: "import.sgwcmaid.error.bindingInvalid")
     case "sgwcmaid_requires_code":
       return String(localized: "import.sgwcmaid.error.invalidCode")
     case "invalid_sgwcmaid":

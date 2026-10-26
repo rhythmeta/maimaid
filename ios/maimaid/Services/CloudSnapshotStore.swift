@@ -57,6 +57,17 @@ enum CloudSnapshotStore {
     result.createdAt = timestamp(.now)
     result.clientVersion = AppInfo.shortVersion ?? "1"
     result.profiles = exportProfiles(profiles)
+    // The SGWCMAID binding travels with the backup so a restore keeps quick import
+    // working. It is encrypted for the signed-in account, never stored in the clear.
+    if let accountID = BackendSessionManager.shared.currentUser?.id {
+      for index in result.profiles.indices {
+        guard let profileID = UUID(uuidString: result.profiles[index].id),
+          let binding = SgwcmaidBindingStore.shared.binding(for: profileID),
+          let blob = try? SgwcmaidBackupCipher.encrypt(binding, accountID: accountID)
+        else { continue }
+        result.profiles[index].sgwcmaidBinding = blob
+      }
+    }
     result.scores = try context.fetch(FetchDescriptor<Score>()).map {
       try exportScore(
         ScoreSource(
@@ -157,6 +168,16 @@ enum CloudSnapshotStore {
       config.resetDataSyncState()
     }
     try context.save()
+    // Restore the quick-import bindings this account can decrypt. A blob from another
+    // account (or a corrupted one) is ignored and leaves the local binding untouched.
+    if let accountID = BackendSessionManager.shared.currentUser?.id {
+      for profile in snapshot.profiles {
+        guard let profileID = UUID(uuidString: profile.id), !profile.sgwcmaidBinding.isEmpty,
+          let binding = SgwcmaidBackupCipher.decrypt(profile.sgwcmaidBinding, accountID: accountID)
+        else { continue }
+        SgwcmaidBindingStore.shared.save(binding, for: profileID)
+      }
+    }
     for key in settingKeys {
       if let value = settings[key] {
         environment.defaults.set(value, forKey: key)

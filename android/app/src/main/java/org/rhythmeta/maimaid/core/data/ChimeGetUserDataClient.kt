@@ -25,6 +25,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -33,6 +34,21 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.rhythmeta.maimaid.BuildConfig
+
+/** Difficulty tiers `GetUserRivalMusicApi` accepts: Basic..Re:Master plus Utage. */
+private val RIVAL_MUSIC_LEVELS = listOf(0, 1, 2, 3, 4, 10)
+
+/**
+ * Scores fetched from the China server, plus the identity they belong to.
+ *
+ * [playerName] is what the settings page shows for a remembered player; [userId] never
+ * leaves the import pipeline.
+ */
+data class SgwcmaidFetchedMusic(
+    val music: JsonArray,
+    val userId: Long,
+    val playerName: String,
+)
 
 class ChimeGetUserDataClient(
     private val json: Json,
@@ -49,7 +65,7 @@ class ChimeGetUserDataClient(
      * retried: once a session exists the QR code has been consumed, so the game
      * fetch must not be replayed on another cabinet.
      */
-    suspend fun fetchMusic(code: String): JsonElement = withContext(Dispatchers.IO) {
+    suspend fun fetchMusic(code: String): SgwcmaidFetchedMusic = withContext(Dispatchers.IO) {
         val config = SgwcmaidBuildConfig.current
         if (!config.isComplete) throw DirectImportException("sgwcmaid_not_configured")
         if (!code.startsWith("SGWCMAID") || code.length <= 20) throw DirectImportException("invalid_sgwcmaid")
@@ -142,18 +158,45 @@ class ChimeGetUserDataClient(
         return Session(userId, token)
     }
 
+    /**
+     * Reads a player's best scores using only the remembered user id.
+     *
+     * The rival endpoint (`GetUserRivalMusicApi`) answers for a `rivalId` without opening a
+     * game session, so no QR code, token or logout is involved. That is what makes the
+     * "quick import" possible: the cabinet import already proved the player owns the id.
+     *
+     * Only achievement and best DX score come back; the cabinet-only fields stay unknown
+     * (see [SgwcmaidRivalMusic]).
+     */
+    suspend fun fetchMusicByUserId(userId: Long): SgwcmaidFetchedMusic = withContext(Dispatchers.IO) {
+        if (userId <= 0) throw DirectImportException("sgwcmaid_binding_invalid")
+        val config = SgwcmaidBuildConfig.current
+        if (!config.isComplete) throw DirectImportException("sgwcmaid_not_configured")
+        // No cabinet is involved, so the client id is only needed to build the settings
+        // request; the player id drives every other header.
+        val clientId = config.keychip.replace("-", "").take(11)
+        GameClient(
+            clientId = clientId,
+            placeId = config.placeId,
+            regionId = config.regionId,
+            gameServer = config.gameServer,
+            http = http,
+            json = json,
+        ).fetchMusicByUserId(userId)
+    }
+
     private fun fetchMusic(
         session: Session,
         cabinet: SgwcmaidCabinet,
         config: SgwcmaidConfig,
-    ): JsonElement = GameClient(
+    ): SgwcmaidFetchedMusic = GameClient(
         clientId = cabinet.keychip.replace("-", "").take(11),
         placeId = cabinet.placeId,
         regionId = cabinet.regionId,
         gameServer = config.gameServer,
         http = http,
         json = json,
-    ).fetch(session.userId, session.token)
+    ).fetchMusicBySession(session.userId, session.token)
 
     private fun postJson(url: String, body: JsonObject): JsonObject {
         val request = Request.Builder().url(url).header("user-agent", "WC_AIME_LIB")
@@ -183,16 +226,8 @@ class ChimeGetUserDataClient(
         // JSESSIONID replaces the old value instead of being appended next to it.
         private val cookies = linkedMapOf<String, String>()
 
-        fun fetch(userId: Long, token: String): JsonElement {
-            val setting = call("GetGameSettingApi", buildJsonObject { put("placeId", JsonPrimitive(placeId)); put("clientId", JsonPrimitive(clientId)) })
-            urn = setting["gameSetting"]?.jsonObject?.get("movieServerUri")?.jsonPrimitive?.contentOrNull.orEmpty()
-            if (urn.isNotEmpty() && !urn.endsWith('/')) urn += "/"
-            // The real client sends a Ping first and then carries its round-trip as
-            // the number header on every later request. A failed heartbeat leaves
-            // number at 0 (the pre-heartbeat state) without aborting the import.
-            val pingStarted = System.currentTimeMillis()
-            val pingOk = runCatching { call("Ping", buildJsonObject { }, 0) }.isSuccess
-            pingMsec = if (pingOk) (System.currentTimeMillis() - pingStarted).toInt().coerceAtLeast(0) else 0
+        fun fetchMusicBySession(userId: Long, token: String): SgwcmaidFetchedMusic {
+            prepare()
             val preview = call("GetUserPreviewApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("segaIdAuthKey", JsonPrimitive("")); put("token", JsonPrimitive(token)); put("clientId", JsonPrimitive(clientId)) }, userId)
             if ((preview["errorId"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0) != 0) throw DirectImportException("game_preview_error")
             // isLogin=true means the account is still logged in elsewhere; the server then
@@ -211,13 +246,14 @@ class ChimeGetUserDataClient(
             val returnCode = call("UserLoginApi", login, userId).returnCode()
             if (returnCode != 1) throw DirectImportException("game_login_$returnCode")
             if (BuildConfig.DEBUG) android.util.Log.d("ChimeHttp", "login returnCode=$returnCode cookies=${cookies.keys}")
+            val playerName = preview["userName"]?.jsonPrimitive?.contentOrNull.orEmpty()
             val records = mutableListOf<JsonObject>(); var index = 0
             try {
                 repeat(10000) {
                     val result = call("GetUserMusicApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("nextIndex", JsonPrimitive(index)) }, userId)
                     result["userMusicList"]?.jsonArray?.mapTo(records) { it.jsonObject }
                     val next = result["nextIndex"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
-                    if (next == 0) return JsonArray(records)
+                    if (next == 0) return SgwcmaidFetchedMusic(JsonArray(records), userId, playerName)
                     if (next == index) throw DirectImportException("game_pagination_stalled")
                     index = next
                 }
@@ -225,6 +261,70 @@ class ChimeGetUserDataClient(
             } finally {
                 logout(userId, loginStamp)
             }
+        }
+
+        /**
+         * Reads the best scores of [userId] without opening a game session.
+         *
+         * `GetUserRivalMusicApi` answers for a `rivalId` alone, so pointing it at the player
+         * returns that player's own chart table. Nothing is logged in, which also means there
+         * is no session to leak into the next import and no logout to get wrong.
+         */
+        fun fetchMusicByUserId(userId: Long): SgwcmaidFetchedMusic {
+            prepare()
+            val identity = call("GetUserRivalDataApi", buildJsonObject {
+                put("userId", JsonPrimitive(userId)); put("rivalId", JsonPrimitive(userId))
+            }, userId)
+            val data = identity["userRivalData"] as? JsonObject
+                ?: throw DirectImportException("sgwcmaid_binding_invalid")
+            val playerName = data["rivalName"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            return SgwcmaidFetchedMusic(readRivalMusic(userId), userId, playerName)
+        }
+
+        private fun prepare() {
+            val setting = call("GetGameSettingApi", buildJsonObject { put("placeId", JsonPrimitive(placeId)); put("clientId", JsonPrimitive(clientId)) })
+            urn = setting["gameSetting"]?.jsonObject?.get("movieServerUri")?.jsonPrimitive?.contentOrNull.orEmpty()
+            if (urn.isNotEmpty() && !urn.endsWith('/')) urn += "/"
+            // The real client sends a Ping first and then carries its round-trip as
+            // the number header on every later request. A failed heartbeat leaves
+            // number at 0 (the pre-heartbeat state) without aborting the import.
+            val pingStarted = System.currentTimeMillis()
+            val pingOk = runCatching { call("Ping", buildJsonObject { }, 0) }.isSuccess
+            pingMsec = if (pingOk) (System.currentTimeMillis() - pingStarted).toInt().coerceAtLeast(0) else 0
+        }
+
+        private fun readRivalMusic(userId: Long): JsonArray {
+            // The rival endpoint answers with the whole table at once (nextIndex 0), but page
+            // defensively and merge by song id so a paged answer cannot duplicate charts.
+            val songs = linkedMapOf<Int, MutableList<JsonElement>>()
+            var index = 0
+            repeat(100) {
+                val result = call("GetUserRivalMusicApi", buildJsonObject {
+                    put("userId", JsonPrimitive(userId))
+                    put("rivalId", JsonPrimitive(userId))
+                    put("nextIndex", JsonPrimitive(index))
+                    put("userRivalMusicLevelList", JsonArray(RIVAL_MUSIC_LEVELS.map { level ->
+                        buildJsonObject { put("level", JsonPrimitive(level)) }
+                    }))
+                }, userId)
+                SgwcmaidRivalMusic.songsFrom(result).forEach { song ->
+                    val musicId = song["musicId"]?.jsonPrimitive?.intOrNull ?: return@forEach
+                    val rows = (song["userRivalMusicDetailList"] as? JsonArray).orEmpty()
+                    songs.getOrPut(musicId) { mutableListOf() }.addAll(rows)
+                }
+                val next = result["nextIndex"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                if (next == 0) {
+                    return SgwcmaidRivalMusic.fromSongs(songs.map { (musicId, rows) ->
+                        buildJsonObject {
+                            put("musicId", JsonPrimitive(musicId))
+                            put("userRivalMusicDetailList", JsonArray(rows))
+                        }
+                    })
+                }
+                if (next == index) throw DirectImportException("game_pagination_stalled")
+                index = next
+            }
+            throw DirectImportException("game_pagination_limit")
         }
 
         private fun logout(userId: Long, loginStamp: Long) {

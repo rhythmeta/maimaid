@@ -39,6 +39,10 @@ message Profile {
   int32 b35_rec_limit = 15;
   int32 b15_rec_limit = 16;
   string title = 17;
+  // SGWCMAID quick-import binding (server user id + display name) as an
+  // AES-256-GCM blob keyed by the signed-in backend account. Empty when absent,
+  // and ignored when it cannot be decrypted on the restoring account.
+  bytes sgwcmaid_binding = 18;
 }
 message Score {
   string profile_id = 1;

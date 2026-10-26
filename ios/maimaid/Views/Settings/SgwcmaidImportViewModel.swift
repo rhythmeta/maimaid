@@ -15,6 +15,8 @@ final class SgwcmaidImportViewModel {
   private(set) var outcome: SgwcmaidImportOutcome?
   private(set) var errorMessage: String?
   private(set) var result: LocalScoreImportResult?
+  /// The player remembered from the last successful QR import.
+  private(set) var binding: SgwcmaidBinding?
   let provinces: [SgwcmaidProvince]
   private(set) var selectedProvinceID: Int?
 
@@ -29,6 +31,46 @@ final class SgwcmaidImportViewModel {
     self.provinces = catalog.provinces
     self.keychipStore = keychipStore
     self.selectedProvinceID = keychipStore.selectedProvinceID
+  }
+
+  /// Loads the binding of the given profile, if any.
+  func loadBinding(profileID: UUID?) {
+    binding = profileID.flatMap { SgwcmaidBindingStore.shared.binding(for: $0) }
+  }
+
+  /// Refreshes the scores of the remembered player. This path never logs in,
+  /// so it cannot trip the cabinet session lock.
+  func quickImport(profileID: UUID, context: ModelContext) {
+    guard !isImporting, let binding else { return }
+    isImporting = true
+    outcome = nil
+    errorMessage = nil
+    result = nil
+    operation = Task { @MainActor in
+      defer {
+        self.isImporting = false
+        self.operation = nil
+        self.loadBinding(profileID: profileID)
+      }
+      do {
+        let outcome = try await SgwcmaidImportService.runByBinding(
+          userID: binding.userID, profileID: profileID, context: context)
+        guard !Task.isCancelled else { return }
+        self.result = outcome.result
+        self.outcome = outcome.result.updatedCount > 0 ? .imported : .noChanges
+      } catch is CancellationError {
+        return
+      } catch {
+        guard !Task.isCancelled else { return }
+        self.errorMessage = error.localizedDescription
+      }
+    }
+  }
+
+  func unbind(profileID: UUID) {
+    guard !isImporting else { return }
+    SgwcmaidBindingStore.shared.clear(for: profileID)
+    loadBinding(profileID: profileID)
   }
 
   /// Stores the manual region choice. `nil` restores the nationwide pool.
@@ -50,13 +92,14 @@ final class SgwcmaidImportViewModel {
       defer {
         self.isImporting = false
         self.operation = nil
+        self.loadBinding(profileID: profileID)
       }
       do {
-        let result = try await SgwcmaidImportService.run(
+        let outcome = try await SgwcmaidImportService.run(
           code: normalized, profileID: profileID, context: context)
         guard !Task.isCancelled else { return }
-        self.result = result
-        self.outcome = result.updatedCount > 0 ? .imported : .noChanges
+        self.result = outcome.result
+        self.outcome = outcome.result.updatedCount > 0 ? .imported : .noChanges
       } catch is CancellationError {
         return
       } catch {

@@ -21,6 +21,7 @@ import org.rhythmeta.maimaid.BuildConfig
 import org.rhythmeta.maimaid.core.data.AppPreferencesRepository
 import org.rhythmeta.maimaid.core.data.BackendSessionManager
 import org.rhythmeta.maimaid.core.data.ProfileAvatarStore
+import org.rhythmeta.maimaid.core.data.SgwcmaidBindingStore
 import org.rhythmeta.maimaid.core.database.*
 
 @Serializable
@@ -34,6 +35,7 @@ class CloudBackupService(
     private val preferences: AppPreferencesRepository,
     private val avatars: ProfileAvatarStore,
     private val session: BackendSessionManager,
+    private val bindings: SgwcmaidBindingStore,
 ) {
     private val directory = File(context.noBackupFilesDir, "rhythmeta-backups").apply { mkdirs() }
     private val rollback = File(directory, "before-restore.pb.gz")
@@ -118,6 +120,16 @@ class CloudBackupService(
     }
 
     private suspend fun export(): Proto.Snapshot {
+        // The SGWCMAID binding travels with the backup so a restore keeps quick import
+        // working. It is encrypted for the signed-in account, never stored in the clear.
+        val accountId = session.state.value.user?.id
+        val bindingBlobs = withContext(Dispatchers.IO) {
+            if (accountId == null) emptyMap() else database.profileDao().profiles().mapNotNull { profile ->
+                bindings.load(profile.id)?.let { binding ->
+                    profile.id to SgwcmaidBackupCipher.encrypt(binding, accountId)
+                }
+            }.toMap()
+        }
         val snapshot = database.withTransaction {
             val output = Proto.Snapshot.newBuilder().setMagic("RHYTHMETA_BACKUP").setFormatVersion(1).setGame("maimaid")
                 .setCreatedAt(System.currentTimeMillis()).setClientVersion(BuildConfig.VERSION_NAME)
@@ -125,12 +137,14 @@ class CloudBackupService(
                 val avatar = profile.avatarPath?.let { path -> withContext(Dispatchers.IO) {
                     val file = File(path); require(file.length() <= 16 * 1024 * 1024); file.readBytes()
                 } }
-                output.addProfiles(Proto.Profile.newBuilder().setId(profile.id).setName(profile.name).setServer(profile.server)
+                val builder = Proto.Profile.newBuilder().setId(profile.id).setName(profile.name).setServer(profile.server)
                     .setAvatar(ByteString.copyFrom(avatar ?: byteArrayOf())).setAvatarUrl(profile.avatarUrl.orEmpty())
                     .setActive(profile.isActive).setCreatedAt(profile.createdAt).setDfUsername(profile.dfUsername)
                     .setPlayerRating(profile.playerRating).setPlate(profile.plate.orEmpty())
                     .setLastImportDf(profile.lastImportDateDf ?: 0).setLastImportLxns(profile.lastImportDateLxns ?: 0)
-                    .setB35Count(profile.b35Count).setB15Count(profile.b15Count).setB35RecLimit(profile.b35RecLimit).setB15RecLimit(profile.b15RecLimit))
+                    .setB35Count(profile.b35Count).setB15Count(profile.b15Count).setB35RecLimit(profile.b35RecLimit).setB15RecLimit(profile.b15RecLimit)
+                bindingBlobs[profile.id]?.let { builder.setSgwcmaidBinding(ByteString.copyFrom(it)) }
+                output.addProfiles(builder)
                 database.scoreDao().scores(profile.id).forEach { output.addScores(result(it)) }
                 database.scoreDao().playRecords(profile.id).forEach { row -> output.addPlayRecords(Proto.PlayRecord.newBuilder().setId(row.id).setResult(result(ScoreEntity(row.profileId,row.sheetKey,row.achievement,row.rank,row.dxScore,row.fc,row.fs,row.playedAt)))) }
             }
@@ -177,6 +191,20 @@ class CloudBackupService(
                 snapshot.collectionItemsList.forEach { database.songCollectionDao().upsertItem(SongCollectionItemEntity(it.id,it.collectionId,it.songId,it.chartType,it.difficulty,it.position,it.createdAt,it.updatedAt)) }
                 database.catalogDao().favoriteSongIds().forEach { database.catalogDao().setFavorite(it,false) }
                 snapshot.favoriteSongIdsList.forEach { database.catalogDao().setFavorite(it,true) }
+            }
+            // Restore the quick-import bindings this account can decrypt. A blob from another
+            // account (or a corrupted one) is ignored and leaves the local binding untouched.
+            val accountId = session.state.value.user?.id
+            if (accountId != null) {
+                withContext(Dispatchers.IO) {
+                    snapshot.profilesList.forEach { profile ->
+                        val blob = profile.sgwcmaidBinding
+                        if (!blob.isEmpty) {
+                            SgwcmaidBackupCipher.decrypt(blob.toByteArray(), accountId)
+                                ?.let { bindings.save(profile.id, it) }
+                        }
+                    }
+                }
             }
             preferences.restoreBackupSettings(snapshot.settingsList)
             val foreign = Proto.Snapshot.newBuilder().addAllSettings(snapshot.settingsList.filterNot { it.key.startsWith("android.maimaid.") }).build()

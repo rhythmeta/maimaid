@@ -61,8 +61,8 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 
 ### Android App (`android/`)
 
-- **Target**: minSdk 28, targetSdk 37, compileSdk 37; JVM target 17; Kotlin 2.4.1, AGP 9.4.0
-- **Toolchain**: `app/build.gradle.kts` pins `kotlin { jvmToolchain(17) }`, so the compile JDK does not depend on your `JAVA_HOME`. This is deliberate: AGP's `androidJdkImage` transform shells out to `jlink`, and GraalVM's `jlink` cannot process the Android platform's `core-for-system-modules.jar`. Without the pin, a GraalVM `JAVA_HOME` fails `:app:compileDebugJavaWithJavac`. Gradle auto-provisions a JDK 17 via the foojay resolver configured in `settings.gradle.kts` if you don't have one.
+- **Target**: minSdk 29, targetSdk 37, compileSdk 37; JVM target 21; Kotlin 2.4.21, AGP 9.4.1, Gradle 9.8.2
+- **Toolchain**: `android/gradle/gradle-daemon-jvm.properties` pins the daemon JVM to a JetBrains JDK 21 (generated with `updateDaemonJvm`), and `app/build.gradle.kts` compiles with Java/Kotlin target 21, so the compile JDK does not depend on your `JAVA_HOME`. This is deliberate: AGP's `androidJdkImage` transform shells out to `jlink`, and GraalVM's `jlink` cannot process the Android platform's `core-for-system-modules.jar`. Without the pin, a GraalVM `JAVA_HOME` fails `:app:compileDebugJavaWithJavac`. Gradle auto-provisions the JDK via the foojay resolver configured in `settings.gradle.kts` if you don't have one.
 - **Package**: `org.rhythmeta.maimaid` (both `namespace` and `applicationId`)
 - **UI**: Jetpack Compose (Compose BOM) + Miuix, Navigation Compose, Coil for images
 - **Data layer**: Room (schemas exported to `app/schemas/` via KSP) + DataStore Preferences

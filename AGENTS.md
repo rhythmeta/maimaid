@@ -93,7 +93,7 @@ This section is the persistent source of truth for porting the current iOS maima
 
 ### Technical baseline
 
-- Use Kotlin, Jetpack Compose, MIUIX 0.9.3, Room, DataStore, and ONNX Runtime.
+- Use Kotlin, Jetpack Compose, MIUIX 0.9.4, Room, DataStore, and ONNX Runtime.
 - Keep `compileSdk` and `targetSdk` at 37 or later.
 - Use modern APK packaging with legacy packaging disabled.
 - Maintain English, Simplified Chinese, Traditional Chinese, and Japanese resources together.
@@ -125,7 +125,7 @@ This section is the persistent source of truth for porting the current iOS maima
 - The app skeleton, four root tabs, basic navigation, catalog synchronization, Room entities, basic settings, vision models, Liquid Glass tab bar, and Squircle components are present.
 - Stage 1, Score domain foundation, is complete: score entry, update rules, score history, profile isolation, and focused unit/device validation are in place.
 - Stage 2, Best 50, is complete: B35/B15 version classification, Rating calculation, Room-driven cache invalidation, list presentation, and image export are in place.
-- The project currently uses `compileSdk = 37`, `targetSdk = 37`, MIUIX 0.9.3, Backdrop 2.0.0, and ONNX Runtime 1.28.0.
+- The project currently uses `compileSdk = 37`, `targetSdk = 37`, Gradle 9.8.2, Kotlin 2.4.21, MIUIX 0.9.4, Backdrop 2.0.1, and ONNX Runtime 1.31.0.
 - PLZ110 runs Android 16 and is connected through ADB for installation, interaction checks, screenshots, logs, and performance validation.
 - Existing Android worktree changes are active project work and must be preserved.
 

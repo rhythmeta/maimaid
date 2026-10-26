@@ -735,6 +735,12 @@
 "import.sgwcmaid.input.footer" = "一致した譜面のスコアは筐体の記録で置き換えられます。";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID コード";
 "import.sgwcmaid.action.import" = "楽曲をインポート";
+"import.sgwcmaid.bound.header" = "連携中のプレイヤー";
+"import.sgwcmaid.bound.unknown" = "SGWCMAID プレイヤー";
+"import.sgwcmaid.bound.notice" = "Rival 経由で個人スコアを取得します。FC/FS の状態は取得できません。";
+"import.sgwcmaid.action.quick" = "クイックインポート";
+"import.sgwcmaid.action.unbind" = "連携を解除";
+"import.sgwcmaid.error.bindingInvalid" = "連携中のプレイヤーが見つかりません。連携を解除して、新しい SGWCMAID コードをスキャンしてください。";
 "import.sgwcmaid.status.fetching" = "スコアを取得中...";
 "import.sgwcmaid.result.imported" = "インポート完了";
 "import.sgwcmaid.result.noChanges" = "スコアは最新です";

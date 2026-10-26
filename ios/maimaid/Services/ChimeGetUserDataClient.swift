@@ -1,5 +1,15 @@
 import Foundation
 
+/// The scores fetched from the China server, plus the identity they belong to.
+///
+/// `playerName` is what the settings page shows for a remembered player;
+/// `userID` never leaves the import pipeline.
+nonisolated struct SgwcmaidFetchedMusic: Sendable {
+  let data: Data
+  let userID: Int
+  let playerName: String
+}
+
 /// The user session returned by chime for one QR code, bound to a cabinet.
 nonisolated struct SgwcmaidChimeSession: Sendable, Equatable {
   let userID: Int
@@ -57,7 +67,7 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
   /// Walks the game API with an already-established session. Errors here are
   /// not retried elsewhere because the QR code is no longer reusable.
   @concurrent func fetchMusic(session: SgwcmaidChimeSession, cabinet: SgwcmaidCabinet) async throws
-    -> Data {
+    -> SgwcmaidFetchedMusic {
     do {
       return try await fetch(session: session, cabinet: cabinet)
     } catch let error as SgwcmaidHTTPError {
@@ -65,7 +75,30 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
     }
   }
 
-  private func fetch(session: SgwcmaidChimeSession, cabinet: SgwcmaidCabinet) async throws -> Data {
+  /// Reads the player's best scores using only the remembered user id.
+  ///
+  /// `GetUserRivalMusicApi` answers for a `rivalId` without opening a game
+  /// session, so this path never logs in: no QR code, no token, no session lock
+  /// and no logout to get wrong. Only the achievement and the best DX score come
+  /// back; the cabinet-only fields stay unknown.
+  @concurrent func fetchOwnMusic(userID: Int) async throws -> SgwcmaidFetchedMusic {
+    guard config.isComplete else { throw ScoreImportError(code: "sgwcmaid_not_configured") }
+    guard userID > 0 else { throw ScoreImportError(code: "sgwcmaid_binding_invalid") }
+    // No cabinet is involved, so the client id is only needed to build the
+    // settings request; the player id drives every other header.
+    let clientID = String(config.keychip.replacingOccurrences(of: "-", with: "").prefix(11))
+    var client = GameClient(
+      config: config, clientID: clientID, placeID: config.placeID, regionID: config.regionID,
+      transport: transport)
+    do {
+      return try await client.fetchOwnMusic(userID: userID)
+    } catch let error as SgwcmaidHTTPError {
+      throw Self.importError(for: error)
+    }
+  }
+
+  private func fetch(session: SgwcmaidChimeSession, cabinet: SgwcmaidCabinet) async throws
+    -> SgwcmaidFetchedMusic {
     let keychip = cabinet.keychip.trimmingCharacters(in: .whitespacesAndNewlines)
     let clientID = String(keychip.replacing("-", with: "").prefix(11))
     var client = GameClient(
@@ -182,24 +215,8 @@ fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_o
     self.transport = transport
   }
 
-  mutating func fetch(userID: Int, token: String) async throws -> Data {
-    let setting = try await call(
-      "GetGameSettingApi",
-      body: ["placeId": placeID, "clientId": clientID])
-    if let gameSetting = setting["gameSetting"] as? [String: Any],
-      let movieServerURI = gameSetting["movieServerUri"] as? String {
-      urn = movieServerURI
-    }
-    if !urn.isEmpty && !urn.hasSuffix("/") { urn += "/" }
-
-    // The real client sends the Ping round-trip as the `number` header on every
-    // subsequent request. Treat a failed heartbeat as number=0 (the pre-heartbeat
-    // state) so the preview request still gets a chance to report the real error.
-    let pingStarted = Date()
-    if (try? await call("Ping", body: [:], userID: 0)) != nil {
-      pingMsec = max(0, Int(Date().timeIntervalSince(pingStarted) * 1000))
-    }
-
+  mutating func fetch(userID: Int, token: String) async throws -> SgwcmaidFetchedMusic {
+    try await prepare()
     let preview = try await call(
       "GetUserPreviewApi",
       body: ["userId": userID, "segaIdAuthKey": "", "token": token, "clientId": clientID],
@@ -235,13 +252,53 @@ fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_o
       throw ScoreImportError(code: "game_login_\(returnCode)")
     }
 
+    let playerName = preview["userName"] as? String ?? ""
     do {
       let records = try await fetchPages(userID: userID)
       await logout(userID: userID, loginStamp: loginStamp)
-      return try JSONSerialization.data(withJSONObject: records)
+      return SgwcmaidFetchedMusic(
+        data: try JSONSerialization.data(withJSONObject: records), userID: userID,
+        playerName: playerName)
     } catch {
       await logout(userID: userID, loginStamp: loginStamp)
       throw error
+    }
+  }
+
+  /// Reads the best scores of `userID` without opening a game session.
+  ///
+  /// Pointing `GetUserRivalMusicApi` at the player itself returns that player's
+  /// own chart table, which is the only way to read scores with just a user id.
+  mutating func fetchOwnMusic(userID: Int) async throws -> SgwcmaidFetchedMusic {
+    try await prepare()
+    let identity = try await call(
+      "GetUserRivalDataApi", body: ["userId": userID, "rivalId": userID], userID: userID)
+    guard let data = identity["userRivalData"] as? [String: Any] else {
+      throw ScoreImportError(code: "sgwcmaid_binding_invalid")
+    }
+    let playerName = data["rivalName"] as? String ?? ""
+    let records = try await fetchRivalPages(userID: userID)
+    return SgwcmaidFetchedMusic(
+      data: try JSONSerialization.data(withJSONObject: records), userID: userID,
+      playerName: playerName)
+  }
+
+  private mutating func prepare() async throws {
+    let setting = try await call(
+      "GetGameSettingApi",
+      body: ["placeId": placeID, "clientId": clientID])
+    if let gameSetting = setting["gameSetting"] as? [String: Any],
+      let movieServerURI = gameSetting["movieServerUri"] as? String {
+      urn = movieServerURI
+    }
+    if !urn.isEmpty && !urn.hasSuffix("/") { urn += "/" }
+
+    // The real client sends the Ping round-trip as the `number` header on every
+    // subsequent request. Treat a failed heartbeat as number=0 (the pre-heartbeat
+    // state) so the preview request still gets a chance to report the real error.
+    let pingStarted = Date()
+    if (try? await call("Ping", body: [:], userID: 0)) != nil {
+      pingMsec = max(0, Int(Date().timeIntervalSince(pingStarted) * 1000))
     }
   }
 
@@ -260,6 +317,27 @@ fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_o
       index = next
     }
     throw ScoreImportError(code: "game_pagination_limit")
+  }
+
+  private mutating func fetchRivalPages(userID: Int) async throws -> [[String: Any]] {
+    var songs: [[String: Any]] = []
+    var index = 0
+    for _ in 0..<100 {
+      let result = try await call(
+        "GetUserRivalMusicApi",
+        body: [
+          "userId": userID, "rivalId": userID, "nextIndex": index,
+          "userRivalMusicLevelList": [0, 1, 2, 3, 4, 10].map { ["level": $0] },
+        ], userID: userID)
+      if let list = result["userRivalMusicList"] as? [[String: Any]] {
+        songs.append(contentsOf: list)
+      }
+      let next = SgwcmaidJSON.contentInt(result["nextIndex"]) ?? 0
+      if next == 0 { break }
+      if next == index { throw ScoreImportError(code: "game_pagination_stalled") }
+      index = next
+    }
+    return SgwcmaidRivalMusic.musicJSON(from: songs)
   }
 
   private mutating func logout(userID: Int, loginStamp: Int) async {

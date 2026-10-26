@@ -155,6 +155,14 @@ nonisolated struct RHYProfile: @unchecked Sendable {
     set {_uniqueStorage()._title = newValue}
   }
 
+  /// SGWCMAID quick-import binding (server user id + display name) as an
+  /// AES-256-GCM blob keyed by the signed-in backend account. Empty when absent,
+  /// and ignored when it cannot be decrypted on the restoring account.
+  var sgwcmaidBinding: Data {
+    get {_storage._sgwcmaidBinding}
+    set {_uniqueStorage()._sgwcmaidBinding = newValue}
+  }
+
   var unknownFields = SwiftProtobuf.UnknownStorage()
 
   init() {}
@@ -383,7 +391,7 @@ nonisolated extension RHYSnapshot: SwiftProtobuf.Message, SwiftProtobuf._Message
 
 nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".Profile"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}server\0\u{1}avatar\0\u{3}avatar_url\0\u{1}active\0\u{3}created_at\0\u{3}df_username\0\u{3}player_rating\0\u{1}plate\0\u{3}last_import_df\0\u{3}last_import_lxns\0\u{3}b35_count\0\u{3}b15_count\0\u{3}b35_rec_limit\0\u{3}b15_rec_limit\0\u{1}title\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{1}server\0\u{1}avatar\0\u{3}avatar_url\0\u{1}active\0\u{3}created_at\0\u{3}df_username\0\u{3}player_rating\0\u{1}plate\0\u{3}last_import_df\0\u{3}last_import_lxns\0\u{3}b35_count\0\u{3}b15_count\0\u{3}b35_rec_limit\0\u{3}b15_rec_limit\0\u{1}title\0\u{3}sgwcmaid_binding\0")
 
   fileprivate class _StorageClass {
     var _id: String = String()
@@ -403,6 +411,7 @@ nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     var _b35RecLimit: Int32 = 0
     var _b15RecLimit: Int32 = 0
     var _title: String = String()
+    var _sgwcmaidBinding: Data = Data()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -430,6 +439,7 @@ nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       _b35RecLimit = source._b35RecLimit
       _b15RecLimit = source._b15RecLimit
       _title = source._title
+      _sgwcmaidBinding = source._sgwcmaidBinding
     }
   }
 
@@ -465,6 +475,7 @@ nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         case 15: try { try decoder.decodeSingularInt32Field(value: &_storage._b35RecLimit) }()
         case 16: try { try decoder.decodeSingularInt32Field(value: &_storage._b15RecLimit) }()
         case 17: try { try decoder.decodeSingularStringField(value: &_storage._title) }()
+        case 18: try { try decoder.decodeSingularBytesField(value: &_storage._sgwcmaidBinding) }()
         default: break
         }
       }
@@ -524,6 +535,9 @@ nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       if !_storage._title.isEmpty {
         try visitor.visitSingularStringField(value: _storage._title, fieldNumber: 17)
       }
+      if !_storage._sgwcmaidBinding.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._sgwcmaidBinding, fieldNumber: 18)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -550,6 +564,7 @@ nonisolated extension RHYProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageI
         if _storage._b35RecLimit != rhs_storage._b35RecLimit {return false}
         if _storage._b15RecLimit != rhs_storage._b15RecLimit {return false}
         if _storage._title != rhs_storage._title {return false}
+        if _storage._sgwcmaidBinding != rhs_storage._sgwcmaidBinding {return false}
         return true
       }
       if !storagesAreEqual {return false}
