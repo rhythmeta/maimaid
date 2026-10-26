@@ -8,6 +8,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.*
 import org.rhythmeta.maimaid.core.database.UserProfileEntity
@@ -166,7 +167,11 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
                 if (generation == currentGeneration && mutableState.value.profile?.id == profile.id) {
                     mutableState.update { it.copy(result = if (error is DirectImportException &&
                         error.code in listOf("invalid_grant", "unauthorized")) ScoreImportResult.TokenExpired else ScoreImportResult.Failed,
-                        resultDetails = error.message) }
+                        resultDetails = when (error.message) {
+                            "game_login_100", "game_account_already_logged_in" ->
+                                container.applicationContext.getString(R.string.import_status_game_login_busy)
+                            else -> error.message
+                        }) }
                 }
             } finally {
                 if (generation == currentGeneration && mutableState.value.profile?.id == profile.id) {

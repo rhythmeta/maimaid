@@ -30,7 +30,7 @@ nonisolated struct ScoreImportError: LocalizedError {
       return String(localized: "import.sgwcmaid.error.network")
     case "chime_timeout":
       return String(localized: "import.sgwcmaid.error.timeout")
-    case "game_account_already_logged_in":
+    case "game_account_already_logged_in", "game_login_100":
       return String(localized: "import.sgwcmaid.error.sessionBusy")
     case "game_preview_error", "game_empty_response", "game_pagination_stalled",
       "game_pagination_limit":
@@ -38,6 +38,9 @@ nonisolated struct ScoreImportError: LocalizedError {
     case "catalog_empty":
       return String(localized: "import.sgwcmaid.error.catalogEmpty")
     default:
+      if code.hasPrefix("game_login_") {
+        return String(localized: "import.sgwcmaid.error.login")
+      }
       return String(localized: "import.status.failed") + " (\(code))"
     }
   }

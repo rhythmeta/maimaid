@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -90,6 +91,7 @@ class ChimeGetUserDataClient(
         private val json: Json,
     ) {
         private var urn = ""
+        private var pingMsec = 0
         // Cookies are keyed by name, like the reference client (a dict), so a refreshed
         // JSESSIONID replaces the old value instead of being appended next to it.
         private val cookies = linkedMapOf<String, String>()
@@ -98,20 +100,29 @@ class ChimeGetUserDataClient(
             val setting = call("GetGameSettingApi", buildJsonObject { put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)) })
             urn = setting["gameSetting"]?.jsonObject?.get("movieServerUri")?.jsonPrimitive?.contentOrNull.orEmpty()
             if (urn.isNotEmpty() && !urn.endsWith('/')) urn += "/"
+            // The real client sends a Ping first and then carries its round-trip as
+            // the number header on every later request. A failed heartbeat leaves
+            // number at 0 (the pre-heartbeat state) without aborting the import.
+            val pingStarted = System.currentTimeMillis()
+            val pingOk = runCatching { call("Ping", buildJsonObject { }, 0) }.isSuccess
+            pingMsec = if (pingOk) (System.currentTimeMillis() - pingStarted).toInt().coerceAtLeast(0) else 0
             val preview = call("GetUserPreviewApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("segaIdAuthKey", JsonPrimitive("")); put("token", JsonPrimitive(token)); put("clientId", JsonPrimitive(clientId)) }, userId)
             if ((preview["errorId"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0) != 0) throw DirectImportException("game_preview_error")
             // isLogin=true means the account is still logged in elsewhere; the server then
             // rejects UserLoginApi (returnCode 100) and applies a ~15 minute penalty, so
             // do not hammer it — stop here and let the lock expire.
             if (preview["isLogin"]?.jsonPrimitive?.booleanOrNull == true) throw DirectImportException("game_account_already_logged_in")
-            val stamp = System.currentTimeMillis() / 1000
-            val login = buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("dateTime", JsonPrimitive(stamp)); put("loginDateTime", JsonPrimitive(stamp)); put("isContinue", JsonPrimitive(false)); put("genericFlag", JsonPrimitive(0)); put("token", JsonPrimitive(token)) }
-            // returnCode may be absent on success; the reference client treats a missing
-            // value as 0 and keeps going even if a takeover retry still reports a code.
-            var returnCode = call("UserLoginApi", login, userId).returnCode()
-            if (returnCode !in listOf(0, 1)) {
-                returnCode = call("UserLoginApi", buildJsonObject { login.forEach { (key, value) -> put(key, value) }; put("isContinue", JsonPrimitive(true)) }, userId).returnCode()
-            }
+            // dateTime is plain Unix time; loginDateTime carries the local UTC offset
+            // (a MAI2.DateTime/DateTimeOffset quirk). UserLogoutApi must reuse the
+            // same value or the server will not close the session.
+            val now = Instant.now().epochSecond
+            val loginStamp = now + ZoneId.systemDefault().rules.getOffset(Instant.ofEpochSecond(now)).totalSeconds.toLong()
+            val login = buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("dateTime", JsonPrimitive(now)); put("loginDateTime", JsonPrimitive(loginStamp)); put("isContinue", JsonPrimitive(false)); put("genericFlag", JsonPrimitive(0)); put("token", JsonPrimitive(token)) }
+            // UserLoginApi success is returnCode 1. A 100 means the account is still
+            // logged in elsewhere; retrying with isContinue does not clear that session
+            // and only extends the server-side lock, so report it instead.
+            val returnCode = call("UserLoginApi", login, userId).returnCode()
+            if (returnCode != 1) throw DirectImportException("game_login_$returnCode")
             if (BuildConfig.DEBUG) android.util.Log.d("ChimeHttp", "login returnCode=$returnCode cookies=${cookies.keys}")
             val records = mutableListOf<JsonObject>(); var index = 0
             try {
@@ -125,13 +136,16 @@ class ChimeGetUserDataClient(
                 }
                 throw DirectImportException("game_pagination_limit")
             } finally {
-                logout(userId, stamp)
+                logout(userId, loginStamp)
             }
         }
 
         private fun logout(userId: Long, loginStamp: Long) {
             runCatching {
-                call("UserLogoutApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("loginDateTime", JsonPrimitive(loginStamp)); put("type", JsonPrimitive(1)) }, userId)
+                // LogoutType.TestIn (4) uses the simple request VO. type=1 (Logout)
+                // requires a 26-slot delayLog, and omitting it leaves the game
+                // session open even though the server may answer returnCode=1.
+                call("UserLogoutApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("loginDateTime", JsonPrimitive(loginStamp)); put("type", JsonPrimitive(4)) }, userId)
                 Unit
             }
         }
@@ -144,6 +158,9 @@ class ChimeGetUserDataClient(
                 .header("Accept", "*/*").header("charset", "UTF-8")
                 .header("Mai-Encoding", "1.55").header("Content-Encoding", "deflate")
                 .post(protect(json.encodeToString(JsonObject.serializer(), body)).toRequestBody(JSON)).apply {
+                    // number is the Ping round-trip; the real client sends it on
+                    // every non-Ping request (0 before the first heartbeat).
+                    if (api != "Ping") header("number", pingMsec.toString())
                     if (cookies.isNotEmpty()) header("Cookie", cookieHeader())
                 }.build()
             http.newCall(request).execute().use { response ->

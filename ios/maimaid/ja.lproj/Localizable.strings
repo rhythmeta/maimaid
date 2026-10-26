@@ -746,4 +746,5 @@
 "import.sgwcmaid.error.network" = "SGWCMAID サービスに接続できませんでした。";
 "import.sgwcmaid.error.timeout" = "SGWCMAID のリクエストがタイムアウトしました。";
 "import.sgwcmaid.error.catalogEmpty" = "楽曲データが空です。先に静的データを更新してください。";
+"import.sgwcmaid.error.login" = "舞萌サーバーにログインできませんでした。";
 "scanner.sgwcmaid.card.title" = "SGWCMAID コード";

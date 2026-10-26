@@ -229,12 +229,12 @@ nonisolated final class SgwcmaidHTTPTransport: Sendable {
   }
 }
 
-fileprivate nonisolated struct SgwcmaidHTTPChunk: Sendable {
+fileprivate nonisolated struct SgwcmaidHTTPChunk: Sendable {  // swiftlint:disable:this private_over_fileprivate
   let data: Data?
   let isComplete: Bool
 }
 
-fileprivate nonisolated struct SgwcmaidHTTPTarget {
+fileprivate nonisolated struct SgwcmaidHTTPTarget {  // swiftlint:disable:this private_over_fileprivate
   let host: String
   let port: UInt16
   let requestPath: String
@@ -284,6 +284,7 @@ fileprivate nonisolated struct SgwcmaidHTTPTarget {
 /// Resumes a checked continuation exactly once and cancels its timeout timer
 /// when the operation finishes first.
 fileprivate nonisolated final class SgwcmaidContinuationGate<Value: Sendable>: @unchecked Sendable {
+  // swiftlint:disable:previous private_over_fileprivate
   private let lock = NSLock()
   private var continuation: CheckedContinuation<Value, Error>?
   private var timeout: DispatchWorkItem?

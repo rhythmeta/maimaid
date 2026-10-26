@@ -746,4 +746,5 @@
 "import.sgwcmaid.error.network" = "Could not reach the SGWCMAID service.";
 "import.sgwcmaid.error.timeout" = "The SGWCMAID request timed out.";
 "import.sgwcmaid.error.catalogEmpty" = "The song catalog is empty. Update static data first.";
+"import.sgwcmaid.error.login" = "Could not log in to the maimai server.";
 "scanner.sgwcmaid.card.title" = "SGWCMAID code";

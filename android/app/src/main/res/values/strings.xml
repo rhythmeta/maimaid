@@ -337,6 +337,7 @@
 	<string name="import_status_token_expired">LXNS authorization expired. Connect the account again.</string>
 	<string name="import_status_failed">Import failed</string>
 	<string name="import_status_counts">Fetched %1$d · updated %2$d · unmatched or invalid %3$d</string>
+    <string name="import_status_game_login_busy">The maimai account is still logged in elsewhere. Wait about 15 minutes and try again.</string>
 	<string name="import_conflict_title">Choose how to handle score conflicts</string>
 	<string name="import_conflict_summary">%1$d local-only scores and %2$d different scores were
 		found.</string>

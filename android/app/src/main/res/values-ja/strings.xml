@@ -324,6 +324,7 @@
 	<string name="import_status_token_expired">LXNS 認証の有効期限が切れました。再接続してください。</string>
 	<string name="import_status_failed">インポートに失敗しました</string>
 	<string name="import_status_counts">取得 %1$d 件 · 更新 %2$d 件 · 未一致または無効 %3$d 件</string>
+    <string name="import_status_game_login_busy">舞萌アカウントが他の場所でログインしたままです。約 15 分待ってから再度お試しください。</string>
 	<string name="import_conflict_title">スコア競合の処理方法を選択</string>
 	<string name="import_conflict_summary">ローカルのみ %1$d 件、異なるスコア %2$d 件が見つかりました。</string>
 	<string name="import_conflict_merge">両方からベストを保持</string>

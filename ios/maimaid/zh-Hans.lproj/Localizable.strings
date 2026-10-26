@@ -742,4 +742,5 @@
 "import.sgwcmaid.error.network" = "无法连接 SGWCMAID 服务。";
 "import.sgwcmaid.error.timeout" = "SGWCMAID 请求超时。";
 "import.sgwcmaid.error.catalogEmpty" = "曲库数据为空，请先更新静态数据。";
+"import.sgwcmaid.error.login" = "无法登录舞萌服务器。";
 "scanner.sgwcmaid.card.title" = "SGWCMAID 码";

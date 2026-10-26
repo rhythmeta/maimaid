@@ -142,13 +142,14 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
 
 /// One session against the game API. Cookies are kept in insertion order, like
 /// the reference client's dictionary keyed by cookie name.
-fileprivate nonisolated struct GameClient {
+fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_over_fileprivate
   let config: SgwcmaidConfig
   let clientID: String
   let transport: SgwcmaidHTTPTransport
 
   private var urn = ""
   private var cookies: [(name: String, value: String)] = []
+  private var pingMsec = 0
 
   fileprivate init(config: SgwcmaidConfig, clientID: String, transport: SgwcmaidHTTPTransport) {
     self.config = config
@@ -166,6 +167,14 @@ fileprivate nonisolated struct GameClient {
     }
     if !urn.isEmpty && !urn.hasSuffix("/") { urn += "/" }
 
+    // The real client sends the Ping round-trip as the `number` header on every
+    // subsequent request. Treat a failed heartbeat as number=0 (the pre-heartbeat
+    // state) so the preview request still gets a chance to report the real error.
+    let pingStarted = Date()
+    if (try? await call("Ping", body: [:], userID: 0)) != nil {
+      pingMsec = max(0, Int(Date().timeIntervalSince(pingStarted) * 1000))
+    }
+
     let preview = try await call(
       "GetUserPreviewApi",
       body: ["userId": userID, "segaIdAuthKey": "", "token": token, "clientId": clientID],
@@ -179,31 +188,34 @@ fileprivate nonisolated struct GameClient {
       throw ScoreImportError(code: "game_account_already_logged_in")
     }
 
-    let stamp = Int(Date().timeIntervalSince1970)
-    var login: [String: Any] = [
+    // dateTime is plain Unix time, but loginDateTime carries the local UTC
+    // offset (a MAI2.DateTime/DateTimeOffset quirk). The server reuses this
+    // exact value for UserLogoutApi; a mismatch leaves the session open.
+    let now = Int(Date().timeIntervalSince1970)
+    let loginStamp = now + TimeZone.current.secondsFromGMT()
+    let login: [String: Any] = [
       "userId": userID,
       "accessCode": "",
       "regionId": config.regionID,
       "placeId": config.placeID,
       "clientId": clientID,
-      "dateTime": stamp,
-      "loginDateTime": stamp,
+      "dateTime": now,
+      "loginDateTime": loginStamp,
       "isContinue": false,
       "genericFlag": 0,
       "token": token
     ]
-    var returnCode = loginReturnCode(of: try await call("UserLoginApi", body: login, userID: userID))
-    if ![0, 1].contains(returnCode) {
-      login["isContinue"] = true
-      returnCode = loginReturnCode(of: try await call("UserLoginApi", body: login, userID: userID))
+    let returnCode = loginReturnCode(of: try await call("UserLoginApi", body: login, userID: userID))
+    guard returnCode == 1 else {
+      throw ScoreImportError(code: "game_login_\(returnCode)")
     }
 
     do {
       let records = try await fetchPages(userID: userID)
-      await logout(userID: userID, loginStamp: stamp)
+      await logout(userID: userID, loginStamp: loginStamp)
       return try JSONSerialization.data(withJSONObject: records)
     } catch {
-      await logout(userID: userID, loginStamp: stamp)
+      await logout(userID: userID, loginStamp: loginStamp)
       throw error
     }
   }
@@ -235,7 +247,9 @@ fileprivate nonisolated struct GameClient {
         "placeId": config.placeID,
         "clientId": clientID,
         "loginDateTime": loginStamp,
-        "type": 1
+        // LogoutType.TestIn (4); type 1 requires a 26-slot delayLog, which
+        // would not close the session if omitted.
+        "type": 4
       ],
       userID: userID)
   }
@@ -261,6 +275,9 @@ fileprivate nonisolated struct GameClient {
       "Content-Encoding": "deflate",
       "content-type": "application/json"
     ]
+    if api != "Ping" {
+      headers["number"] = String(pingMsec)
+    }
     if !cookies.isEmpty {
       headers["Cookie"] = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
     }

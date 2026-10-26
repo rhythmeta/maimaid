@@ -323,6 +323,7 @@
 	<string name="import_status_token_expired">LXNS 授权已过期，请重新连接账户。</string>
 	<string name="import_status_failed">导入失败</string>
 	<string name="import_status_counts">获取 %1$d 条 · 更新 %2$d 条 · 未匹配或无效 %3$d 条</string>
+    <string name="import_status_game_login_busy">舞萌账号仍在其他地方登录，请等待约 15 分钟后重试。</string>
 	<string name="import_conflict_title">选择成绩冲突处理方式</string>
 	<string name="import_conflict_summary">发现 %1$d 条仅本地成绩和 %2$d 条不同成绩。</string>
 	<string name="import_conflict_merge">两边取最佳成绩</string>
