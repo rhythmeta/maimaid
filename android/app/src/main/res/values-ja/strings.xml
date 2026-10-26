@@ -665,7 +665,7 @@
     <string name="update_share_chooser">APK のダウンロードリンクを共有</string>
     <string name="update_download">ダウンロード</string>
     <string name="update_downloading">ダウンロード中…</string>
-    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_download_percent">%1$d%%</string>
     <string name="update_verifying">APK を検証中…</string>
     <string name="update_ready">ダウンロードが完了しました。インストールできます。</string>
     <string name="update_install">インストール</string>

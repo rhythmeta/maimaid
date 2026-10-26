@@ -664,7 +664,7 @@
     <string name="update_share_chooser">分享 APK 下载链接</string>
     <string name="update_download">下载</string>
     <string name="update_downloading">正在下载…</string>
-    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_download_percent">%1$d%%</string>
     <string name="update_verifying">正在校验安装包…</string>
     <string name="update_ready">下载完成，可以安装。</string>
     <string name="update_install">安装</string>

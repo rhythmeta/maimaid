@@ -691,7 +691,7 @@
     <string name="update_share_chooser">Share APK download link</string>
     <string name="update_download">Download</string>
     <string name="update_downloading">Downloading…</string>
-    <string name="update_download_progress">%1$s / %2$s MB</string>
+    <string name="update_download_percent">%1$d%%</string>
     <string name="update_verifying">Verifying APK…</string>
     <string name="update_ready">Download complete. Ready to install.</string>
     <string name="update_install">Install</string>
