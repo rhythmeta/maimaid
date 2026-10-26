@@ -13,6 +13,7 @@ struct SgwcmaidImportView: View {
   var body: some View {
     List {
       SgwcmaidImportSummarySection()
+      SgwcmaidRegionSection(model: model)
       SgwcmaidImportInputSection(
         model: model, isEnabled: !profiles.isEmpty, startImport: startImport)
       if model.isImporting || model.outcome != nil || model.errorMessage != nil {

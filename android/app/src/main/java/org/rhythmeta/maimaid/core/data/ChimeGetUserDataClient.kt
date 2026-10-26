@@ -14,6 +14,8 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -35,18 +37,88 @@ import org.rhythmeta.maimaid.BuildConfig
 class ChimeGetUserDataClient(
     private val json: Json,
     private val keychips: ChimeCredentialStore,
+    private val keychipCatalog: SgwcmaidKeychipCatalog,
+    private val keychipStore: SgwcmaidKeychipStore,
     private val http: OkHttpClient = defaultHttpClient(),
 ) {
+    private data class Session(val userId: Long, val token: String)
+
+    /**
+     * Resolves the QR code against the selected region, then the nationwide
+     * pool, and finally the build-time keychip. Only the chime exchange is
+     * retried: once a session exists the QR code has been consumed, so the game
+     * fetch must not be replayed on another cabinet.
+     */
     suspend fun fetchMusic(code: String): JsonElement = withContext(Dispatchers.IO) {
         val config = SgwcmaidBuildConfig.current
         if (!config.isComplete) throw DirectImportException("sgwcmaid_not_configured")
-        val chimeUrl = config.chimeUrl
-        val gameServer = config.gameServer
-        val keychip = keychips.keychip().takeIf { it.isNotBlank() } ?: throw DirectImportException("chime_keychip_missing")
         if (!code.startsWith("SGWCMAID") || code.length <= 20) throw DirectImportException("invalid_sgwcmaid")
+
+        val plan = SgwcmaidKeychipSelector.plan(
+            catalog = keychipCatalog,
+            provinceId = keychipStore.selectedProvinceId(),
+            cursor = keychipStore.cursor(),
+        )
+        val candidates = plan.attempts()
+        var lastError: DirectImportException? = null
+        var attempted = 0
+
+        for (keychip in candidates) {
+            currentCoroutineContext().ensureActive()
+            attempted += 1
+            val cabinet = SgwcmaidCabinet(keychip)
+            val session = try {
+                resolveSession(code, cabinet, config)
+            } catch (error: DirectImportException) {
+                if (!SgwcmaidKeychipFailure.isRetryable(error.code)) throw error
+                lastError = error
+                continue
+            }
+            // The QR code is consumed from here on. Move the cursor before the
+            // game fetch so a retried import starts with the next cabinet.
+            keychipStore.advanceCursor(attempted)
+            return@withContext fetchMusic(session, cabinet, config)
+        }
+
+        val legacy = legacyCabinet(config, candidates)
+        if (legacy != null) {
+            val session = try {
+                resolveSession(code, legacy, config)
+            } catch (error: DirectImportException) {
+                if (!SgwcmaidKeychipFailure.isRetryable(error.code)) throw error
+                lastError = error
+                null
+            }
+            if (session != null) {
+                keychipStore.advanceCursor(attempted + 1)
+                return@withContext fetchMusic(session, legacy, config)
+            }
+        }
+
+        throw lastError ?: DirectImportException("chime_keychip_missing")
+    }
+
+    /** The build-time keychip or a stored developer override, used only last. */
+    private fun legacyCabinet(
+        config: SgwcmaidConfig,
+        candidates: List<SgwcmaidKeychip>,
+    ): SgwcmaidCabinet? {
+        val keychip = keychips.keychip().takeIf { it.isNotBlank() } ?: return null
+        if (config.placeId <= 0 || config.regionId <= 0) return null
+        if (candidates.any { it.keychip == keychip }) return null
+        return SgwcmaidCabinet(keychip, config.placeId, config.regionId)
+    }
+
+    private fun resolveSession(
+        code: String,
+        cabinet: SgwcmaidCabinet,
+        config: SgwcmaidConfig,
+    ): Session {
+        val keychip = cabinet.keychip.trim()
+        if (keychip.isEmpty()) throw DirectImportException("chime_keychip_missing")
         val timestamp = UTC_STAMP.format(Instant.now())
         val key = sha256Hex("$keychip$timestamp${config.chimeSecret}")
-        val chime = postJson(chimeUrl, buildJsonObject {
+        val chime = postJson(config.chimeUrl, buildJsonObject {
             put("chipID", JsonPrimitive(keychip)); put("openGameID", JsonPrimitive("MAID")); put("key", JsonPrimitive(key))
             put("qrCode", JsonPrimitive(code.substring(20))); put("timestamp", JsonPrimitive(timestamp)); put("titlekey", JsonPrimitive(config.titleKey))
         })
@@ -67,8 +139,21 @@ class ChimeGetUserDataClient(
             ?: throw DirectImportException("chime_empty_credentials")
         val token = chime["token"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
             ?: throw DirectImportException("chime_empty_credentials")
-        GameClient(keychip.replace("-", "").take(11), gameServer, http, json).fetch(userId, token)
+        return Session(userId, token)
     }
+
+    private fun fetchMusic(
+        session: Session,
+        cabinet: SgwcmaidCabinet,
+        config: SgwcmaidConfig,
+    ): JsonElement = GameClient(
+        clientId = cabinet.keychip.replace("-", "").take(11),
+        placeId = cabinet.placeId,
+        regionId = cabinet.regionId,
+        gameServer = config.gameServer,
+        http = http,
+        json = json,
+    ).fetch(session.userId, session.token)
 
     private fun postJson(url: String, body: JsonObject): JsonObject {
         val request = Request.Builder().url(url).header("user-agent", "WC_AIME_LIB")
@@ -86,6 +171,8 @@ class ChimeGetUserDataClient(
 
     private class GameClient(
         private val clientId: String,
+        private val placeId: Int,
+        private val regionId: Int,
         private val gameServer: String,
         private val http: OkHttpClient,
         private val json: Json,
@@ -97,7 +184,7 @@ class ChimeGetUserDataClient(
         private val cookies = linkedMapOf<String, String>()
 
         fun fetch(userId: Long, token: String): JsonElement {
-            val setting = call("GetGameSettingApi", buildJsonObject { put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)) })
+            val setting = call("GetGameSettingApi", buildJsonObject { put("placeId", JsonPrimitive(placeId)); put("clientId", JsonPrimitive(clientId)) })
             urn = setting["gameSetting"]?.jsonObject?.get("movieServerUri")?.jsonPrimitive?.contentOrNull.orEmpty()
             if (urn.isNotEmpty() && !urn.endsWith('/')) urn += "/"
             // The real client sends a Ping first and then carries its round-trip as
@@ -117,7 +204,7 @@ class ChimeGetUserDataClient(
             // same value or the server will not close the session.
             val now = Instant.now().epochSecond
             val loginStamp = now + ZoneId.systemDefault().rules.getOffset(Instant.ofEpochSecond(now)).totalSeconds.toLong()
-            val login = buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("dateTime", JsonPrimitive(now)); put("loginDateTime", JsonPrimitive(loginStamp)); put("isContinue", JsonPrimitive(false)); put("genericFlag", JsonPrimitive(0)); put("token", JsonPrimitive(token)) }
+            val login = buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(regionId)); put("placeId", JsonPrimitive(placeId)); put("clientId", JsonPrimitive(clientId)); put("dateTime", JsonPrimitive(now)); put("loginDateTime", JsonPrimitive(loginStamp)); put("isContinue", JsonPrimitive(false)); put("genericFlag", JsonPrimitive(0)); put("token", JsonPrimitive(token)) }
             // UserLoginApi success is returnCode 1. A 100 means the account is still
             // logged in elsewhere; retrying with isContinue does not clear that session
             // and only extends the server-side lock, so report it instead.
@@ -145,7 +232,7 @@ class ChimeGetUserDataClient(
                 // LogoutType.TestIn (4) uses the simple request VO. type=1 (Logout)
                 // requires a 26-slot delayLog, and omitting it leaves the game
                 // session open even though the server may answer returnCode=1.
-                call("UserLogoutApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(config.regionId)); put("placeId", JsonPrimitive(config.placeId)); put("clientId", JsonPrimitive(clientId)); put("loginDateTime", JsonPrimitive(loginStamp)); put("type", JsonPrimitive(4)) }, userId)
+                call("UserLogoutApi", buildJsonObject { put("userId", JsonPrimitive(userId)); put("accessCode", JsonPrimitive("")); put("regionId", JsonPrimitive(regionId)); put("placeId", JsonPrimitive(placeId)); put("clientId", JsonPrimitive(clientId)); put("loginDateTime", JsonPrimitive(loginStamp)); put("type", JsonPrimitive(4)) }, userId)
                 Unit
             }
         }

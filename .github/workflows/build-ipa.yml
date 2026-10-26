@@ -6,6 +6,7 @@ name: Build maimaid IPA
       - ios/**
       - scripts/build-number.sh
       - scripts/ios-sgwcmaid-settings.py
+      - scripts/ios-keychips-resource.sh
       - .github/workflows/build-ipa.yml
   workflow_dispatch:
 
@@ -45,6 +46,7 @@ jobs:
           MAIMAID_API_URL: ${{ secrets.MAIMAID_API_URL }}
           MAIMAID_AUTH_URL: https://dash.rhythmeta.org
           MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
+          MAIMAID_KEYCHIPS_GZIP: ${{ secrets.MAIMAID_KEYCHIPS_GZIP }}
         run: |
           set -euo pipefail
           mkdir -p build
@@ -71,6 +73,15 @@ jobs:
             trap 'rm -f "$SGWCMAID_XCCONFIG"' EXIT
           else
             echo "::warning::MAIMAID_SGWCMAID is not set; this IPA will ship without SGWCMAID import endpoints."
+          fi
+
+          if [ -n "${MAIMAID_KEYCHIPS_GZIP:-}" ]; then
+            export MAIMAID_KEYCHIPS_FILE="$RUNNER_TEMP/keychips.json"
+            printf '%s' "$MAIMAID_KEYCHIPS_GZIP" | base64 --decode | gunzip > "$MAIMAID_KEYCHIPS_FILE"
+            test -s "$MAIMAID_KEYCHIPS_FILE"
+            echo "Configured the SGWCMAID cabinet catalog."
+          else
+            echo "::warning::MAIMAID_KEYCHIPS_GZIP is not set; this IPA will fall back to the single keychip."
           fi
 
           if ! xcodebuild \

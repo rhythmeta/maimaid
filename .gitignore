@@ -30,6 +30,10 @@ ios/build-codex/
 
 .build-benchmark/
 
+# SGWCMAID cabinet catalog: injected as a build secret, never committed
+**/keychips.json
+**/keychip-catalog.json
+
 # Android signing keys
 *.jks
 *.jks.old

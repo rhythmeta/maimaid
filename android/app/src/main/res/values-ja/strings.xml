@@ -689,6 +689,9 @@
     <string name="settings_sgwcmaid_description">中国サーバープロフィールに成績をインポート</string>
     <string name="import_sgwcmaid_summary_title">SGWCMAID からインポート</string>
     <string name="import_sgwcmaid_summary_description">SGWCMAID コードを入力またはスキャンしてからインポートします。</string>
+    <string name="import_sgwcmaid_region_section">筐体の地域</string>
+    <string name="import_sgwcmaid_region_title">地域</string>
+    <string name="import_sgwcmaid_region_auto">自動（全国）</string>
     <string name="import_sgwcmaid_input_section">SGWCMAID コード</string>
     <string name="import_sgwcmaid_code">SGWCMAID コード</string>
     <string name="import_sgwcmaid_import">成績をインポート</string>

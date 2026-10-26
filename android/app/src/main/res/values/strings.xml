@@ -715,6 +715,9 @@
     <string name="settings_sgwcmaid_description">Import scores into the China server profile</string>
     <string name="import_sgwcmaid_summary_title">Import through SGWCMAID</string>
     <string name="import_sgwcmaid_summary_description">Enter or scan an SGWCMAID code, then start the import.</string>
+    <string name="import_sgwcmaid_region_section">Cabinet region</string>
+    <string name="import_sgwcmaid_region_title">Region</string>
+    <string name="import_sgwcmaid_region_auto">Automatic (all regions)</string>
     <string name="import_sgwcmaid_input_section">SGWCMAID code</string>
     <string name="import_sgwcmaid_code">SGWCMAID code</string>
     <string name="import_sgwcmaid_import">Import music</string>

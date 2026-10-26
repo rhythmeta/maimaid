@@ -728,6 +728,9 @@
 "import.sgwcmaid.title" = "Import through SGWCMAID";
 "import.sgwcmaid.summary.title" = "Import through SGWCMAID";
 "import.sgwcmaid.summary.description" = "Enter or scan an SGWCMAID code, then start the import.";
+"import.sgwcmaid.region.header" = "Cabinet region";
+"import.sgwcmaid.region.title" = "Region";
+"import.sgwcmaid.region.auto" = "Automatic (all regions)";
 "import.sgwcmaid.input.header" = "SGWCMAID code";
 "import.sgwcmaid.input.footer" = "Matched charts are replaced with the cabinet's copy.";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID code";

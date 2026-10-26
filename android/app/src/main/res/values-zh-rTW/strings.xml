@@ -687,6 +687,9 @@
     <string name="settings_sgwcmaid_description">為國服檔案匯入成績</string>
     <string name="import_sgwcmaid_summary_title">透過 SGWCMAID 匯入</string>
     <string name="import_sgwcmaid_summary_description">輸入或掃描 SGWCMAID 碼，然後開始匯入。</string>
+    <string name="import_sgwcmaid_region_section">機台地區</string>
+    <string name="import_sgwcmaid_region_title">地區</string>
+    <string name="import_sgwcmaid_region_auto">自動（全部地區）</string>
     <string name="import_sgwcmaid_input_section">SGWCMAID 代碼</string>
     <string name="import_sgwcmaid_code">SGWCMAID 代碼</string>
     <string name="import_sgwcmaid_import">匯入成績</string>

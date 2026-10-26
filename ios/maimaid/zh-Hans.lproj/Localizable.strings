@@ -724,6 +724,9 @@
 "import.sgwcmaid.title" = "通过 SGWCMAID 导入";
 "import.sgwcmaid.summary.title" = "通过 SGWCMAID 导入";
 "import.sgwcmaid.summary.description" = "输入或扫描 SGWCMAID 码，然后开始导入。";
+"import.sgwcmaid.region.header" = "机台地区";
+"import.sgwcmaid.region.title" = "地区";
+"import.sgwcmaid.region.auto" = "自动（全部地区）";
 "import.sgwcmaid.input.header" = "SGWCMAID 代码";
 "import.sgwcmaid.input.footer" = "匹配谱面的成绩将被机台记录覆盖。";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID 代码";

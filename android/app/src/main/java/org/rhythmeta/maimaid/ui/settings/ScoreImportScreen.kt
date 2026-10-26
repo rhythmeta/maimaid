@@ -51,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -78,6 +79,42 @@ fun SgwcmaidImportScreen(
                 title = stringResource(R.string.import_sgwcmaid_summary_title),
                 summary = stringResource(R.string.import_sgwcmaid_summary_description),
             )
+        }
+        item {
+            val provinces = state.provinces
+            if (provinces.isNotEmpty()) {
+                Column {
+                    SmallTitle(
+                        text = stringResource(R.string.import_sgwcmaid_region_section),
+                        insideMargin = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = 16.dp,
+                        insideMargin = PaddingValues(0.dp),
+                        colors = CardDefaults.defaultColors(
+                            color = MiuixTheme.colorScheme.surfaceContainer,
+                        ),
+                    ) {
+                        val labels = listOf(
+                            stringResource(R.string.import_sgwcmaid_region_auto),
+                        ) + provinces.map { it.name }
+                        WindowDropdownPreference(
+                            title = stringResource(R.string.import_sgwcmaid_region_title),
+                            items = labels,
+                            selectedIndex = provinces.indexOfFirst {
+                                it.id == state.selectedProvinceId
+                            } + 1,
+                            onSelectedIndexChange = { index ->
+                                viewModel.setSgwcmaidProvince(
+                                    if (index == 0) null else provinces[index - 1].id,
+                                )
+                            },
+                            maxHeight = 420.dp,
+                        )
+                    }
+                }
+            }
         }
         item {
             ImportSection(stringResource(R.string.import_sgwcmaid_input_section)) {

@@ -23,12 +23,14 @@ nonisolated struct SgwcmaidConfig: Sendable, Equatable {
     chimeURL: "", gameServer: "", keychip: "", aesKey: "", aesIV: "", apiSalt: "",
     chimeSecret: "", titleKey: "", placeID: 0, regionID: 0)
 
-  /// Mirrors the Android `SgwcmaidConfig.isComplete` contract. The keychip is
-  /// deliberately excluded because it can be supplied at runtime by
-  /// `ChimeCredentialStore`.
+  /// Mirrors the Android `SgwcmaidConfig.isComplete` contract.
+  ///
+  /// The keychip, place ID and region ID are deliberately excluded: the bundled
+  /// catalog supplies the cabinet-specific values, and the build-time keychip
+  /// only acts as a last-resort fallback.
   var isComplete: Bool {
     !chimeURL.isEmpty && !gameServer.isEmpty && aesKey.count == 32 && aesIV.count == 16
-      && !apiSalt.isEmpty && !chimeSecret.isEmpty && !titleKey.isEmpty && placeID > 0 && regionID > 0
+      && !apiSalt.isEmpty && !chimeSecret.isEmpty && !titleKey.isEmpty
   }
 
   static let current = SgwcmaidConfig(

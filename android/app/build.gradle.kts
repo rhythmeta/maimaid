@@ -1,3 +1,4 @@
+import java.io.File
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
@@ -25,6 +26,36 @@ val maimaidUpdateUrl = providers.gradleProperty("MAIMAID_UPDATE_URL")
 //     "aesKey":"...","aesIv":"...","apiSalt":"...","chimeSecret":"...","titleKey":"SDGB",
 //     "placeId":1971,"regionId":21}'
 val maimaidSgwcmaidConfig = providers.environmentVariable("MAIMAID_SGWCMAID").orElse("{}")
+// Cabinet catalog for the SGWCMAID import. The catalog is deployment data and
+// must never be committed. CI decodes MAIMAID_KEYCHIPS_GZIP to a file and
+// exports MAIMAID_KEYCHIPS_FILE; local testers can point the same
+// variable at a local JSON file or pass the JSON through MAIMAID_KEYCHIPS.
+val maimaidKeychipsFile = providers.environmentVariable("MAIMAID_KEYCHIPS_FILE")
+    .orElse(providers.gradleProperty("MAIMAID_KEYCHIPS_FILE"))
+val maimaidKeychipsJson = providers.environmentVariable("MAIMAID_KEYCHIPS")
+    .orElse(providers.gradleProperty("MAIMAID_KEYCHIPS"))
+val emptySgwcmaidCatalog = """{"version":0,"source":"","provinces":[],"keychips":[]}"""
+val sgwcmaidAssetsDir = layout.buildDirectory.dir("generated/sgwcmaid/assets").get().asFile
+val sgwcmaidCatalogFile = sgwcmaidAssetsDir.resolve("keychips.json")
+// Resolve inputs at configuration time so the task is configuration-cache safe.
+val maimaidKeychipsPath = maimaidKeychipsFile.orNull
+    ?.let { project.file(it).absolutePath }
+val maimaidKeychipsInline = maimaidKeychipsJson.orNull
+val prepareSgwcmaidAssets = tasks.register("prepareSgwcmaidAssets") {
+    val keychipsPath = maimaidKeychipsPath
+    val keychipsInline = maimaidKeychipsInline
+    val fallbackCatalog = emptySgwcmaidCatalog
+    val catalogFile = sgwcmaidCatalogFile
+    inputs.property("keychipsFile", keychipsPath.orEmpty())
+    inputs.property("keychipsJson", keychipsInline.orEmpty())
+    keychipsPath?.let { inputs.file(it) }
+    outputs.file(catalogFile)
+    doLast {
+        catalogFile.parentFile.mkdirs()
+        val json = keychipsPath?.let { File(it).readText() } ?: keychipsInline
+        catalogFile.writeText(json?.takeIf { it.isNotBlank() } ?: fallbackCatalog)
+    }
+}
 
 fun gitBuildValue(vararg arguments: String) = providers.exec {
     workingDir(rootProject.projectDir.parentFile)
@@ -140,7 +171,12 @@ android {
             useLegacyPackaging = false
         }
     }
+    sourceSets {
+        getByName("main").assets.directories.add(sgwcmaidAssetsDir.absolutePath)
+    }
 }
+
+tasks.named("preBuild").configure { dependsOn(prepareSgwcmaidAssets) }
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")

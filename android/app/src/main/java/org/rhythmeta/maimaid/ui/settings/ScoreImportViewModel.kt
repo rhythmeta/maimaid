@@ -41,6 +41,8 @@ data class ScoreImportUiState(
     val lxnsRefreshToken: String = "",
     val lxnsAuthorizationCode: String = "",
     val sgwcmaidCode: String = "",
+    val provinces: List<SgwcmaidProvince> = emptyList(),
+    val selectedProvinceId: Int? = null,
     val phase: ScoreImportPhase = ScoreImportPhase.Idle,
     val result: ScoreImportResult? = null,
     val resultDetails: String? = null,
@@ -54,7 +56,12 @@ data class ScoreImportUiState(
 }
 
 class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
-    private val mutableState = MutableStateFlow(ScoreImportUiState())
+    private val mutableState = MutableStateFlow(
+        ScoreImportUiState(
+            provinces = container.sgwcmaidKeychipCatalog.provinces,
+            selectedProvinceId = container.sgwcmaidKeychipStore.selectedProvinceId(),
+        ),
+    )
     val state = mutableState.asStateFlow()
     private val service = container.thirdPartyImportService
     private var verifier = ""
@@ -75,6 +82,8 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
                     mutableState.value = ScoreImportUiState(
                         profile = profile,
                         sgwcmaidCode = current.sgwcmaidCode,
+                        provinces = container.sgwcmaidKeychipCatalog.provinces,
+                        selectedProvinceId = container.sgwcmaidKeychipStore.selectedProvinceId(),
                     )
                 } else {
                     mutableState.update { it.copy(profile = profile) }
@@ -111,19 +120,20 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
     fun quickImportDivingFish() = perform { import(it.id, ScoreImportProvider.DivingFish) }
     fun quickImportLxns() = perform { import(it.id, ScoreImportProvider.Lxns) }
     fun setSgwcmaidCode(value: String) { mutableState.update { it.copy(sgwcmaidCode = value) } }
+    fun setSgwcmaidProvince(id: Int?) {
+        container.sgwcmaidKeychipStore.setSelectedProvinceId(id)
+        mutableState.update { it.copy(selectedProvinceId = id) }
+    }
     fun showError(message: String) { mutableState.update { it.copy(result = ScoreImportResult.Failed, resultDetails = message) } }
     fun importSgwcmaid() = perform { profile ->
         val code = mutableState.value.sgwcmaidCode.trim()
         check(code.startsWith("SGWCMAID")) { "invalid_sgwcmaid" }
-        check(stateKeychip().isNotBlank()) { "chime_keychip_missing" }
         val endpoint = ThirdPartyImportService.SGWCMAID_ENDPOINT
         mutableState.update { it.copy(phase = ScoreImportPhase.Fetching) }
         val result = service.importSgwcmaid(code, endpoint, profile.id)
         mutableState.update { it.copy(fetchedCount = result.fetchedCount, upsertedCount = result.updatedCount,
             skippedCount = result.skippedCount, result = if (result.updatedCount > 0) ScoreImportResult.Imported else ScoreImportResult.NoChanges) }
     }
-
-    private fun stateKeychip(): String = container.chimeCredentialStore.keychip()
 
     fun importSgwcmaidJson(content: String) = perform { profile ->
         mutableState.update { it.copy(phase = ScoreImportPhase.Fetching) }

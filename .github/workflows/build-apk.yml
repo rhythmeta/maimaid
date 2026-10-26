@@ -89,6 +89,20 @@ jobs:
             echo "SGWCMAID configuration provided."
           fi
 
+      - name: Prepare SGWCMAID cabinet catalog
+        env:
+          MAIMAID_KEYCHIPS_GZIP: ${{ secrets.MAIMAID_KEYCHIPS_GZIP }}
+        run: |
+          if [ -n "${MAIMAID_KEYCHIPS_GZIP:-}" ]; then
+            keychips_path="${RUNNER_TEMP}/keychips.json"
+            printf '%s' "${MAIMAID_KEYCHIPS_GZIP}" | base64 --decode | gunzip > "${keychips_path}"
+            test -s "${keychips_path}"
+            echo "MAIMAID_KEYCHIPS_FILE=${keychips_path}" >> "${GITHUB_ENV}"
+            echo "Configured the SGWCMAID cabinet catalog."
+          else
+            echo "::warning::MAIMAID_KEYCHIPS_GZIP is not set; this APK will fall back to a single keychip."
+          fi
+
       - name: Build release APK
         working-directory: android
         env:

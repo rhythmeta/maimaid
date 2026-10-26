@@ -23,10 +23,14 @@ internal data class SgwcmaidConfig(
     val placeId: Int = 0,
     val regionId: Int = 0,
 ) {
+    /**
+     * The keychip, place ID and region ID are excluded: the build-time cabinet
+     * catalog supplies them, and the legacy keychip only acts as a fallback.
+     */
     val isComplete: Boolean
         get() = chimeUrl.isNotBlank() && gameServer.isNotBlank() && aesKey.length == 32 &&
             aesIv.length == 16 && apiSalt.isNotBlank() && chimeSecret.isNotBlank() &&
-            titleKey.isNotBlank() && placeId > 0 && regionId > 0
+            titleKey.isNotBlank()
 }
 
 internal object SgwcmaidBuildConfig {

@@ -728,6 +728,9 @@
 "import.sgwcmaid.title" = "SGWCMAID からインポート";
 "import.sgwcmaid.summary.title" = "SGWCMAID からインポート";
 "import.sgwcmaid.summary.description" = "SGWCMAID コードを入力またはスキャンしてからインポートします。";
+"import.sgwcmaid.region.header" = "筐体の地域";
+"import.sgwcmaid.region.title" = "地域";
+"import.sgwcmaid.region.auto" = "自動（全国）";
 "import.sgwcmaid.input.header" = "SGWCMAID コード";
 "import.sgwcmaid.input.footer" = "一致した譜面のスコアは筐体の記録で置き換えられます。";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID コード";

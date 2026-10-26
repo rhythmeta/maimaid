@@ -1,5 +1,11 @@
 import Foundation
 
+/// The user session returned by chime for one QR code, bound to a cabinet.
+nonisolated struct SgwcmaidChimeSession: Sendable, Equatable {
+  let userID: Int
+  let token: String
+}
+
 /// Exchanges an `SGWCMAID` cabinet code for a China-server session and returns
 /// the player's `music.json` records.
 ///
@@ -16,19 +22,25 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
     self.transport = transport
   }
 
-  @concurrent func fetchMusic(code: String, keychip: String) async throws -> Data {
+  /// Exchanges the QR payload for a user session on one cabinet. This is the
+  /// only stage that may be retried with a different keychip: once a session
+  /// exists the QR code has been consumed, so the import must continue on the
+  /// same cabinet.
+  @concurrent func resolveSession(code: String, cabinet: SgwcmaidCabinet) async throws
+    -> SgwcmaidChimeSession {
     do {
-      return try await fetch(code: code, keychip: keychip)
+      return try await openSession(code: code, cabinet: cabinet)
     } catch let error as SgwcmaidHTTPError {
       throw Self.importError(for: error)
     }
   }
 
-  private func fetch(code: String, keychip: String) async throws -> Data {
+  private func openSession(code: String, cabinet: SgwcmaidCabinet) async throws
+    -> SgwcmaidChimeSession {
     guard config.isComplete else {
       throw ScoreImportError(code: "sgwcmaid_not_configured")
     }
-    let keychip = keychip.trimmingCharacters(in: .whitespacesAndNewlines)
+    let keychip = cabinet.keychip.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !keychip.isEmpty else {
       throw ScoreImportError(code: "chime_keychip_missing")
     }
@@ -38,19 +50,35 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
     guard let chimeURL = URL(string: config.chimeURL) else {
       throw ScoreImportError(code: "sgwcmaid_not_configured")
     }
-
-    let credentials = try await resolveCredentials(
+    return try await resolveCredentials(
       payload: payload, keychip: keychip, chimeURL: chimeURL)
+  }
+
+  /// Walks the game API with an already-established session. Errors here are
+  /// not retried elsewhere because the QR code is no longer reusable.
+  @concurrent func fetchMusic(session: SgwcmaidChimeSession, cabinet: SgwcmaidCabinet) async throws
+    -> Data {
+    do {
+      return try await fetch(session: session, cabinet: cabinet)
+    } catch let error as SgwcmaidHTTPError {
+      throw Self.importError(for: error)
+    }
+  }
+
+  private func fetch(session: SgwcmaidChimeSession, cabinet: SgwcmaidCabinet) async throws -> Data {
+    let keychip = cabinet.keychip.trimmingCharacters(in: .whitespacesAndNewlines)
     let clientID = String(keychip.replacing("-", with: "").prefix(11))
-    var client = GameClient(config: config, clientID: clientID, transport: transport)
-    return try await client.fetch(userID: credentials.userID, token: credentials.token)
+    var client = GameClient(
+      config: config, clientID: clientID, placeID: cabinet.placeID,
+      regionID: cabinet.regionID, transport: transport)
+    return try await client.fetch(userID: session.userID, token: session.token)
   }
 
   /// Exchanges the QR payload for a game session. Chime answers failures with
   /// {"errorID":1,"userID":-1,"token":""}; surface the real reason instead of
   /// reporting empty credentials.
   private func resolveCredentials(payload: String, keychip: String, chimeURL: URL) async throws
-    -> Credentials {
+    -> SgwcmaidChimeSession {
     let timestamp = Self.utcStamp()
     let key = SgwcmaidCrypto.sha256HexUpper(keychip + timestamp + config.chimeSecret)
     let body: [String: Any] = [
@@ -87,17 +115,7 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
     else {
       throw ScoreImportError(code: "chime_empty_credentials")
     }
-    return Credentials(userID: userID, token: token)
-  }
-
-  fileprivate struct Credentials {
-    let userID: Int
-    let token: String
-
-    fileprivate init(userID: Int, token: String) {
-      self.userID = userID
-      self.token = token
-    }
+    return SgwcmaidChimeSession(userID: userID, token: token)
   }
 
   private static func chimeError(for errorID: Int) -> ScoreImportError {
@@ -145,22 +163,29 @@ nonisolated final class ChimeGetUserDataClient: Sendable {
 fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_over_fileprivate
   let config: SgwcmaidConfig
   let clientID: String
+  let placeID: Int
+  let regionID: Int
   let transport: SgwcmaidHTTPTransport
 
   private var urn = ""
   private var cookies: [(name: String, value: String)] = []
   private var pingMsec = 0
 
-  fileprivate init(config: SgwcmaidConfig, clientID: String, transport: SgwcmaidHTTPTransport) {
+  fileprivate init(
+    config: SgwcmaidConfig, clientID: String, placeID: Int, regionID: Int,
+    transport: SgwcmaidHTTPTransport
+  ) {
     self.config = config
     self.clientID = clientID
+    self.placeID = placeID
+    self.regionID = regionID
     self.transport = transport
   }
 
   mutating func fetch(userID: Int, token: String) async throws -> Data {
     let setting = try await call(
       "GetGameSettingApi",
-      body: ["placeId": config.placeID, "clientId": clientID])
+      body: ["placeId": placeID, "clientId": clientID])
     if let gameSetting = setting["gameSetting"] as? [String: Any],
       let movieServerURI = gameSetting["movieServerUri"] as? String {
       urn = movieServerURI
@@ -196,8 +221,8 @@ fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_o
     let login: [String: Any] = [
       "userId": userID,
       "accessCode": "",
-      "regionId": config.regionID,
-      "placeId": config.placeID,
+      "regionId": regionID,
+      "placeId": placeID,
       "clientId": clientID,
       "dateTime": now,
       "loginDateTime": loginStamp,
@@ -243,8 +268,8 @@ fileprivate nonisolated struct GameClient {  // swiftlint:disable:this private_o
       body: [
         "userId": userID,
         "accessCode": "",
-        "regionId": config.regionID,
-        "placeId": config.placeID,
+        "regionId": regionID,
+        "placeId": placeID,
         "clientId": clientID,
         "loginDateTime": loginStamp,
         // LogoutType.TestIn (4); type 1 requires a 26-slot delayLog, which

@@ -688,6 +688,9 @@
     <string name="settings_sgwcmaid_description">为国服档案导入成绩</string>
     <string name="import_sgwcmaid_summary_title">通过 SGWCMAID 导入</string>
     <string name="import_sgwcmaid_summary_description">输入或扫描 SGWCMAID 码，然后开始导入。</string>
+    <string name="import_sgwcmaid_region_section">机台地区</string>
+    <string name="import_sgwcmaid_region_title">地区</string>
+    <string name="import_sgwcmaid_region_auto">自动（全部地区）</string>
     <string name="import_sgwcmaid_input_section">SGWCMAID 代码</string>
     <string name="import_sgwcmaid_code">SGWCMAID 代码</string>
     <string name="import_sgwcmaid_import">导入成绩</string>

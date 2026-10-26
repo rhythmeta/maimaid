@@ -23,15 +23,10 @@ enum SgwcmaidImportService {
     guard config.isComplete else {
       throw ScoreImportError(code: "sgwcmaid_not_configured")
     }
-    let keychip = ChimeCredentialStore.shared.keychip(fallback: config.keychip)
-    guard !keychip.isEmpty else {
-      throw ScoreImportError(code: "chime_keychip_missing")
-    }
 
     let data: Data
     if relayEndpoint.isEmpty {
-      data = try await ChimeGetUserDataClient(config: config).fetchMusic(
-        code: normalized, keychip: keychip)
+      data = try await fetchMusicUsingKeychips(code: normalized, config: config)
     } else {
       data = try await fetchFromRelay(relayEndpoint, code: normalized)
     }
@@ -41,6 +36,62 @@ enum SgwcmaidImportService {
     try Task.checkCancellation()
     return try LocalScoreImportService.apply(
       payload, provider: .sgwcmaid, profileID: profileID, context: context)
+  }
+
+  /// Tries cabinets in the selected region first, then the nationwide pool, and
+  /// finally the build-time keychip. Only the chime exchange is retried: once a
+  /// session exists the QR code has been consumed, so the game fetch must not be
+  /// replayed on another cabinet.
+  private static func fetchMusicUsingKeychips(code: String, config: SgwcmaidConfig) async throws
+    -> Data {
+    let store = SgwcmaidKeychipStore.shared
+    let plan = SgwcmaidKeychipSelector.plan(
+      catalog: .bundled, provinceID: store.selectedProvinceID, cursor: store.cursor)
+    let candidates = plan.attempts()
+    let client = ChimeGetUserDataClient(config: config)
+    var lastError: ScoreImportError?
+    var attempted = 0
+
+    for keychip in candidates {
+      try Task.checkCancellation()
+      attempted += 1
+      let cabinet = SgwcmaidCabinet(keychip: keychip)
+      let session: SgwcmaidChimeSession
+      do {
+        session = try await client.resolveSession(code: code, cabinet: cabinet)
+      } catch let error as ScoreImportError {
+        guard SgwcmaidKeychipFailure.isRetryable(error.code) else { throw error }
+        lastError = error
+        continue
+      }
+      // The code is consumed from here on. Move the cursor before the game
+      // fetch so a retried import starts with the next cabinet, and never
+      // replay the fetch on another cabinet.
+      store.advanceCursor(by: attempted)
+      return try await client.fetchMusic(session: session, cabinet: cabinet)
+    }
+
+    if let legacy = legacyCabinet(config: config, avoiding: candidates) {
+      let session = try await client.resolveSession(code: code, cabinet: legacy)
+      store.advanceCursor(by: attempted + 1)
+      return try await client.fetchMusic(session: session, cabinet: legacy)
+    }
+
+    throw lastError ?? ScoreImportError(code: "chime_keychip_missing")
+  }
+
+  /// The build-time keychip (or a stored developer override) is kept as an
+  /// emergency fallback so an older deployment keeps working when the bundled
+  /// catalog cannot serve an import.
+  private static func legacyCabinet(
+    config: SgwcmaidConfig, avoiding candidates: [SgwcmaidKeychip]
+  ) -> SgwcmaidCabinet? {
+    let keychip = ChimeCredentialStore.shared.keychip(fallback: config.keychip)
+    guard !keychip.isEmpty, config.placeID > 0, config.regionID > 0,
+      !candidates.contains(where: { $0.keychip == keychip })
+    else { return nil }
+    return SgwcmaidCabinet(
+      keychip: keychip, placeID: config.placeID, regionID: config.regionID)
   }
 
   private static func fetchFromRelay(_ endpoint: String, code: String) async throws -> Data {

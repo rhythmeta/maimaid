@@ -36,6 +36,8 @@ import org.rhythmeta.maimaid.core.data.RecommendationRepository
 import org.rhythmeta.maimaid.core.data.ScoreRepository
 import org.rhythmeta.maimaid.core.data.ScoreQueryRepository
 import org.rhythmeta.maimaid.core.data.ScoreSyncService
+import org.rhythmeta.maimaid.core.data.SgwcmaidKeychipCatalogLoader
+import org.rhythmeta.maimaid.core.data.SgwcmaidKeychipStore
 import org.rhythmeta.maimaid.core.data.SongCollectionRepository
 import org.rhythmeta.maimaid.core.database.MaimaidDatabase
 import org.rhythmeta.maimaid.core.ml.OnnxSessionFactory
@@ -98,6 +100,8 @@ class AppContainer(context: Context) {
     val profileAvatarStore = ProfileAvatarStore(applicationContext)
     val profileCredentialStore = ProfileCredentialStore(applicationContext)
     val chimeCredentialStore = ChimeCredentialStore(applicationContext)
+    internal val sgwcmaidKeychipStore = SgwcmaidKeychipStore(applicationContext)
+    internal val sgwcmaidKeychipCatalog = SgwcmaidKeychipCatalogLoader.load(applicationContext)
     private val chartFitStore = ChartFitStore(applicationContext, json)
     val backendApiClient = BackendApiClient(BuildConfig.BACKEND_URL, json)
     val backendSessionManager = BackendSessionManager(
@@ -115,7 +119,7 @@ class AppContainer(context: Context) {
 
     val thirdPartyImportService = org.rhythmeta.maimaid.core.data.ThirdPartyImportService(
         database, profileCredentialStore, json,
-        ChimeGetUserDataClient(json, chimeCredentialStore),
+        ChimeGetUserDataClient(json, chimeCredentialStore, sgwcmaidKeychipCatalog, sgwcmaidKeychipStore),
     )
 
     val backendImportService = BackendImportService(

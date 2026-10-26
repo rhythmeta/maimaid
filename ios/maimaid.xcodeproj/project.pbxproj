@@ -103,6 +103,7 @@
 				375868E62F4C78EB006316F5 /* Frameworks */,
 				37C9ADBF2F4CC4C2002CBF7A /* Resources */,
 				3703C0013B00000200000001 /* Set build number */,
+				37C9C3DE2F4CDAAB002CBF7B /* Copy keychip catalog */,
 			);
 			buildRules = (
 			);
@@ -221,6 +222,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -eu\nbuild_number=\"$(\"$SRCROOT/../scripts/build-number.sh\")\"\ninfo_plist=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $build_number\" \"$info_plist\"\n";
+		};
+		37C9C3DE2F4CDAAB002CBF7B /* Copy keychip catalog */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy keychip catalog";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/keychips.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n/bin/sh \"$SRCROOT/../scripts/ios-keychips-resource.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

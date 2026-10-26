@@ -728,6 +728,9 @@
 "import.sgwcmaid.title" = "透過 SGWCMAID 匯入";
 "import.sgwcmaid.summary.title" = "透過 SGWCMAID 匯入";
 "import.sgwcmaid.summary.description" = "輸入或掃描 SGWCMAID 碼，然後開始匯入。";
+"import.sgwcmaid.region.header" = "機台地區";
+"import.sgwcmaid.region.title" = "地區";
+"import.sgwcmaid.region.auto" = "自動（全部地區）";
 "import.sgwcmaid.input.header" = "SGWCMAID 代碼";
 "import.sgwcmaid.input.footer" = "符合譜面的成績將被機台紀錄覆蓋。";
 "import.sgwcmaid.code.placeholder" = "SGWCMAID 代碼";

@@ -18,6 +18,10 @@ MODEL_ASSETS_URL = https:/$()/models.rhythmeta.org
 //   SGWCMAID_TITLE_KEY = SDGB
 //   SGWCMAID_PLACE_ID = 1971
 //   SGWCMAID_REGION_ID = 21
+//
+// The optional cabinet catalog is injected as a JSON file path, never as
+// committed source data. Set SGWCMAID_KEYCHIPS_FILE in Secrets.xcconfig for
+// local testing, or MAIMAID_KEYCHIPS_FILE in the environment for CI.
 SGWCMAID_CHIME_URL =
 SGWCMAID_GAME_SERVER =
 SGWCMAID_KEYCHIP =
@@ -28,5 +32,6 @@ SGWCMAID_CHIME_SECRET =
 SGWCMAID_TITLE_KEY =
 SGWCMAID_PLACE_ID = 0
 SGWCMAID_REGION_ID = 0
+SGWCMAID_KEYCHIPS_FILE =
 
 #include? "Secrets.xcconfig"

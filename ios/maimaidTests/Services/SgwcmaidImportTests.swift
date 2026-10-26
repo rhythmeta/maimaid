@@ -200,6 +200,11 @@ struct SgwcmaidImportTests {
       aesIV: String(repeating: "i", count: 16), apiSalt: "salt", chimeSecret: "secret",
       titleKey: "SDGB", placeID: 1971, regionID: 21)
     #expect(config.isComplete)
+    // The catalog supplies the cabinet location, so the build-time place and
+    // region are only needed by the legacy fallback.
+    config.placeID = 0
+    config.regionID = 0
+    #expect(config.isComplete)
     config.aesIV = "short"
     #expect(!config.isComplete)
   }

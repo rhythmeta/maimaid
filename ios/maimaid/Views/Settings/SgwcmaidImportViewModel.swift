@@ -15,11 +15,26 @@ final class SgwcmaidImportViewModel {
   private(set) var outcome: SgwcmaidImportOutcome?
   private(set) var errorMessage: String?
   private(set) var result: LocalScoreImportResult?
+  let provinces: [SgwcmaidProvince]
+  private(set) var selectedProvinceID: Int?
 
   @ObservationIgnored private var operation: Task<Void, Never>?
+  @ObservationIgnored private let keychipStore: SgwcmaidKeychipStore
 
-  init(code: String = "") {
+  init(
+    code: String = "", catalog: SgwcmaidKeychipCatalog = .bundled,
+    keychipStore: SgwcmaidKeychipStore = .shared
+  ) {
     self.code = code
+    self.provinces = catalog.provinces
+    self.keychipStore = keychipStore
+    self.selectedProvinceID = keychipStore.selectedProvinceID
+  }
+
+  /// Stores the manual region choice. `nil` restores the nationwide pool.
+  func selectProvince(_ id: Int?) {
+    keychipStore.selectedProvinceID = id
+    selectedProvinceID = id
   }
 
   func importScores(profileID: UUID, context: ModelContext) {
