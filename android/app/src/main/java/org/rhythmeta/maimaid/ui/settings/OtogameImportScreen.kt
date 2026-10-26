@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
+import org.json.JSONTokener
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -331,7 +332,12 @@ private class OtogameWebViewClient(
     private val onAuthorizationHeader: (String) -> Unit,
 ) : WebViewClient() {
     override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? {
-        if (request.url.host.equals(OtogameHost, ignoreCase = true)) {
+        // Only the game API is authenticated with the ID token the importer needs; the app API under
+        // /api/aime uses the access token, which the game endpoints reject.
+        if (
+            request.url.host.equals(OtogameHost, ignoreCase = true) &&
+            request.url.path.orEmpty().startsWith(OtogameGameApiPath)
+        ) {
             request.requestHeaders.entries
                 .firstOrNull { (name) -> name.equals("Authorization", ignoreCase = true) }
                 ?.value
@@ -339,7 +345,58 @@ private class OtogameWebViewClient(
         }
         return super.shouldInterceptRequest(view, request)
     }
+
+    override fun onPageFinished(view: WebView, url: String) {
+        super.onPageFinished(view, url)
+        val callback = { result: String? ->
+            val header = runCatching {
+                JSONTokener(result.orEmpty()).nextValue() as? String
+            }.getOrNull()
+            if (!header.isNullOrBlank()) onAuthorizationHeader(header)
+        }
+        // The page may have been torn down while the load was finishing.
+        runCatching { view.evaluateJavascript(StoredAuthorizationScript, callback) }
+    }
 }
 
+/**
+ * Mirrors the iOS capture script by reading the bearer token that the Otogame web app keeps in
+ * origin storage (`ID_TOKEN`, either a raw token or `{"value": ...}`). The game API the importer
+ * uses is authenticated with the ID token; the access token in `TOKEN` is rejected by it.
+ * Request interception alone only sees a session once the web app issues an authenticated request.
+ */
+private const val StoredAuthorizationScript = """
+(() => {
+  const readToken = (storage) => {
+    try {
+      const raw = storage.getItem('ID_TOKEN');
+      if (!raw) return '';
+      const trimmed = raw.trim();
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'string') return parsed.trim();
+        if (!parsed || typeof parsed.value !== 'string') return '';
+        if (typeof parsed.expire === 'number' && parsed.expire < Date.now()) return '';
+        return parsed.value.trim();
+      } catch (_) {
+        return trimmed;
+      }
+    } catch (_) {
+      return '';
+    }
+  };
+  try {
+    let token = readToken(window.localStorage) || readToken(window.sessionStorage);
+    if (!token) return '';
+    token = token.replace(/^bearer\s+/i, '').trim();
+    if (!token || /\s/.test(token)) return '';
+    return 'Bearer ' + token;
+  } catch (_) {
+    return '';
+  }
+})()
+"""
+
 private const val OtogameHost = "u.otogame.net"
+private const val OtogameGameApiPath = "/api/game/"
 private const val OtogameMusicUrl = "https://u.otogame.net/maimai/music"

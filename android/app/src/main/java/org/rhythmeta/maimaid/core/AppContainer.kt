@@ -26,6 +26,7 @@ import org.rhythmeta.maimaid.core.data.DanRepository
 import org.rhythmeta.maimaid.core.data.DanStore
 import org.rhythmeta.maimaid.core.data.PlateProgressRepository
 import org.rhythmeta.maimaid.core.data.OtogameImportService
+import org.rhythmeta.maimaid.core.data.OtogameSessionStore
 import org.rhythmeta.maimaid.core.data.PresetAvatarRepository
 import org.rhythmeta.maimaid.core.data.PresetAvatarImageStore
 import org.rhythmeta.maimaid.core.data.ProfileAvatarStore
@@ -217,6 +218,8 @@ class AppContainer(context: Context) {
         thirdPartyImportService = thirdPartyImportService,
         json = json,
     )
+
+    val otogameSessionStore = OtogameSessionStore()
 
     val otogameImportService = OtogameImportService(
         database = database,

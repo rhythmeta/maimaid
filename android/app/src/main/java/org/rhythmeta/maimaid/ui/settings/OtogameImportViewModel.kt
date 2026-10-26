@@ -47,13 +47,24 @@ data class OtogameImportUiState(
 class OtogameImportViewModel(
     private val container: AppContainer,
 ) : ViewModel() {
+    private val sessionStore = container.otogameSessionStore
     private val mutableState = MutableStateFlow(OtogameImportUiState())
     val state = mutableState.asStateFlow()
 
-    @Volatile
-    private var authorizationHeader: String? = null
-
     init {
+        viewModelScope.launch {
+            sessionStore.authorizationHeader.collectLatest { header ->
+                mutableState.update { current ->
+                    current.copy(
+                        hasSession = header != null,
+                        // A session captured on the sign-in screen clears a stale expiry notice here.
+                        outcome = current.outcome.takeUnless {
+                            header != null && it == OtogameImportOutcome.LoginRequired
+                        },
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             var previousProfileId: String? = null
             container.profileRepository.activeProfile.collectLatest { profile ->
@@ -77,8 +88,7 @@ class OtogameImportViewModel(
     }
 
     fun captureAuthorizationHeader(value: String) {
-        val header = value.trim().takeIf { it.startsWith("Bearer ", ignoreCase = true) } ?: return
-        authorizationHeader = header
+        if (!sessionStore.capture(value)) return
         mutableState.update { it.copy(hasSession = true, outcome = null) }
     }
 
@@ -89,7 +99,7 @@ class OtogameImportViewModel(
             mutableState.update { it.copy(outcome = OtogameImportOutcome.IneligibleProfile) }
             return
         }
-        val header = authorizationHeader
+        val header = sessionStore.authorizationHeader.value
         if (header == null) {
             mutableState.update { it.copy(outcome = OtogameImportOutcome.LoginRequired) }
             return
@@ -131,7 +141,7 @@ class OtogameImportViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (_: OtogameUnauthorizedException) {
-                authorizationHeader = null
+                sessionStore.clear()
                 mutableState.update {
                     it.copy(
                         phase = OtogameImportPhase.Idle,
