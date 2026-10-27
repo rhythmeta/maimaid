@@ -86,6 +86,38 @@
                     android:host="collection"
                     android:scheme="maimaid" />
             </intent-filter>
+            <!--
+                Cabinet QR landing links. We do not control wq.wahlap.net, so assetlinks.json
+                cannot be published there and this must stay an unverified web link. It therefore
+                appears in the system "Open with" chooser (including WeChat's "open in other app")
+                instead of being opened automatically. Only the QR page is claimed; the app turns
+                the {code}.html segment into an SGWCMAID prefill.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="wq.wahlap.net"
+                    android:pathPrefix="/qrcode/req/"
+                    android:scheme="https" />
+                <data
+                    android:host="wq.wahlap.net"
+                    android:pathPrefix="/qrcode/req/"
+                    android:scheme="http" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="sgwcmaid"
+                    android:scheme="maimaid" />
+            </intent-filter>
         </activity>
     </application>
 

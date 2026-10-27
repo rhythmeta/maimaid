@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.ScoreInput
+import org.rhythmeta.maimaid.core.data.SgwcmaidDeepLink
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongAliasEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
@@ -45,7 +46,7 @@ data class ScannerUiState(
     val scoreEntryVisible: Boolean = false,
     val scoreSaveStatus: ScoreSaveStatus = ScoreSaveStatus.Idle,
     val message: ScannerMessage? = null,
-    /** Raw SGWCMAID payload detected by the QR scanner; null when nothing is shown. */
+    /** SGWCMAID resolved from a cabinet QR; null when nothing is shown. */
     val sgwcmaidCode: String? = null,
 )
 
@@ -344,8 +345,10 @@ class ScannerViewModel(
         return suspendCancellableCoroutine { continuation ->
             barcodeScanner.process(InputImage.fromBitmap(bitmap, 0))
                 .addOnSuccessListener { codes ->
-                    val value = codes.asSequence().mapNotNull { it.rawValue }
-                        .firstOrNull { it.startsWith(SGWCMAID_PREFIX) && it.length > SGWCMAID_MIN_HEADER }
+                    // Cabinet QRs carry either a bare SGWCMAID or a wq.wahlap.net link.
+                    val value = codes.asSequence()
+                        .mapNotNull { it.rawValue }
+                        .firstNotNullOfOrNull(SgwcmaidDeepLink::extractCode)
                     if (continuation.isActive) continuation.resume(value)
                 }
                 .addOnFailureListener { if (continuation.isActive) continuation.resume(null) }
@@ -449,8 +452,6 @@ class ScannerViewModel(
         const val PHOTO_RESULT_DURATION_MILLIS = 5_000L
         const val SgwcmaidScanIntervalMillis = 700L
         const val SgwcmaidHideDelayMillis = 1_500L
-        const val SGWCMAID_PREFIX = "SGWCMAID"
-        const val SGWCMAID_MIN_HEADER = 20
 
         fun canRecognize(state: ScannerModelState): Boolean = when (state) {
             is ScannerModelState.Ready,

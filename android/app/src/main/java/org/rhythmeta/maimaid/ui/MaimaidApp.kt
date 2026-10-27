@@ -198,6 +198,8 @@ fun MaimaidApp(
     pendingCollectionImport: SongCollectionExport? = null,
     onCollectionImportConfirmed: (SongCollectionExport) -> Unit = {},
     onCollectionImportDismissed: () -> Unit = {},
+    initialSgwcmaidCode: String? = null,
+    onInitialSgwcmaidCodeConsumed: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeSettings by viewModel.themeSettings.collectAsStateWithLifecycle()
@@ -281,6 +283,17 @@ fun MaimaidApp(
                 destination = RootDestination.Home
             }
         }
+    }
+    // A cabinet QR link ("open with" from WeChat) only prefills the import field. The hand-off is
+    // consumed once the page owns the code, and the import itself always waits for the user.
+    LaunchedEffect(initialSgwcmaidCode) {
+        val requested = initialSgwcmaidCode ?: return@LaunchedEffect
+        pendingSgwcmaidCode = requested.ifBlank { null }
+        navBackStack.clear()
+        navBackStack.add(AppRoute.Home)
+        navBackStack.add(AppRoute.SgwcmaidImport)
+        destination = RootDestination.Home
+        onInitialSgwcmaidCodeConsumed()
     }
     LaunchedEffect(currentRoute) {
         selectedDanCategoryId = currentRoute?.danCategoryId

@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.LogReportExporter
+import org.rhythmeta.maimaid.core.data.SgwcmaidDeepLink
 import org.rhythmeta.maimaid.core.data.SongCollectionExport
 import org.rhythmeta.maimaid.ui.MaimaidApp
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
@@ -28,12 +29,23 @@ class MainActivity : ComponentActivity() {
     private val pendingCollectionImport = mutableStateOf<SongCollectionExport?>(null)
     private var collectionResolutionJob: kotlinx.coroutines.Job? = null
 
+    /**
+     * SGWCMAID handed over by a cabinet QR link. An empty string means "open the import page
+     * without a code", which keeps claimed-but-undecodable links useful.
+     */
+    private val pendingSgwcmaidImport = mutableStateOf<String?>(null)
+    private var handledSgwcmaidLink: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         applyWidgetRoute(intent)
         dispatchAuthIntent(intent)
         dispatchCollectionIntent(intent)
+        // A configuration change re-delivers the same intent. Only handle it once so rotating the
+        // phone does not pull the user back to the import page.
+        handledSgwcmaidLink = savedInstanceState?.getString(STATE_HANDLED_SGWCMAID_LINK)
+        if (intent?.dataString != handledSgwcmaidLink) dispatchSgwcmaidIntent(intent)
         setContent {
             val maimaidApplication = application as MaimaidApplication
             val mainViewModel: org.rhythmeta.maimaid.ui.MainViewModel = viewModel(
@@ -63,6 +75,8 @@ class MainActivity : ComponentActivity() {
                             pendingCollectionImport = pendingCollectionImport.value,
                             onCollectionImportConfirmed = ::confirmCollectionImport,
                             onCollectionImportDismissed = { pendingCollectionImport.value = null },
+                            initialSgwcmaidCode = pendingSgwcmaidImport.value,
+                            onInitialSgwcmaidCodeConsumed = { pendingSgwcmaidImport.value = null },
                         )
                     }
                 }
@@ -76,6 +90,13 @@ class MainActivity : ComponentActivity() {
         applyWidgetRoute(intent)
         dispatchAuthIntent(intent)
         dispatchCollectionIntent(intent)
+        // A new tap must work even when it repeats the previous link.
+        dispatchSgwcmaidIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        handledSgwcmaidLink?.let { outState.putString(STATE_HANDLED_SGWCMAID_LINK, it) }
     }
 
     private fun sendLogs() {
@@ -102,6 +123,15 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             container.backendSessionManager.handleAuthRedirect(url)
         }
+    }
+
+    private fun dispatchSgwcmaidIntent(intent: Intent?) {
+        val link = intent?.dataString ?: return
+        val code = SgwcmaidDeepLink.extractCode(link)
+        if (code == null && !SgwcmaidDeepLink.isCabinetLink(link)) return
+        handledSgwcmaidLink = link
+        // The page waits for the user to press the import button; this only prefills the field.
+        pendingSgwcmaidImport.value = code.orEmpty()
     }
 
     private fun dispatchCollectionIntent(intent: Intent?) {
@@ -142,5 +172,9 @@ class MainActivity : ComponentActivity() {
         widgetDetail.value = route
             ?.takeIf { it == "best50" }
             ?.let { AppDetail.BestTable }
+    }
+
+    private companion object {
+        const val STATE_HANDLED_SGWCMAID_LINK = "handled_sgwcmaid_link"
     }
 }
