@@ -13,7 +13,6 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.jsonPrimitive
 
-@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 internal data class OtogamePlaylogResponse(
     val code: String = "",
@@ -21,7 +20,6 @@ internal data class OtogamePlaylogResponse(
     val data: OtogamePlaylogPage = OtogamePlaylogPage(),
 )
 
-@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 internal data class OtogameRatingResponse(
     val data: OtogameRatingData = OtogameRatingData(),

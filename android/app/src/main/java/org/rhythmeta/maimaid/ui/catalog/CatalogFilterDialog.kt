@@ -53,7 +53,6 @@ private data class DifficultyFilterOption(
 )
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 internal fun CatalogFilterDialog(
     show: Boolean,
     settings: CatalogFilterSettings,
@@ -328,7 +327,6 @@ private fun CatalogFilterToggleRow(
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
 private fun CatalogFilterChipGroup(
     values: List<String>,
     selectedValues: Set<String>,

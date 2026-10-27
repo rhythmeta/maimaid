@@ -61,16 +61,16 @@ class Best50Repository(
 }
 
 internal fun calculateBest50(
-    rows: List<Best50Row>,
-    versions: List<GameVersionEntity>,
-    songs: List<org.rhythmeta.maimaid.core.database.SongEntity>,
-    sheets: List<org.rhythmeta.maimaid.core.database.SheetEntity>,
-    server: String,
-    b35Count: Int,
-    b15Count: Int,
-    versionOverride: String?,
-    constantMode: Best50ConstantMode = Best50ConstantMode.Server,
-    chartFit: StaticBundleResponse.ChartFitPayload = StaticBundleResponse.ChartFitPayload(),
+	rows: List<Best50Row>,
+	versions: List<GameVersionEntity>,
+	songs: List<org.rhythmeta.maimaid.core.database.SongEntity>,
+	sheets: List<SheetEntity>,
+	server: String,
+	b35Count: Int,
+	b15Count: Int,
+	versionOverride: String?,
+	constantMode: Best50ConstantMode = Best50ConstantMode.Server,
+	chartFit: StaticBundleResponse.ChartFitPayload = StaticBundleResponse.ChartFitPayload(),
 ): Best50State {
     val versionNames = versions.sortedBy { it.sortOrder }.map { it.name }
     val latest = versionOverride?.takeIf { candidate ->

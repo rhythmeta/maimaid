@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
@@ -33,11 +35,11 @@ internal class SongCoverSource(
 ) {
     var bounds by mutableStateOf<Rect?>(null)
     var cardBounds by mutableStateOf<Rect?>(null)
-    var layoutWidth by mutableStateOf(0)
-    var layoutHeight by mutableStateOf(0)
+    var layoutWidth by mutableIntStateOf(0)
+    var layoutHeight by mutableIntStateOf(0)
     var painter by mutableStateOf<Painter?>(null)
-    var painterAlpha by mutableStateOf(1f)
-    var painterSaturation by mutableStateOf(1f)
+    var painterAlpha by mutableFloatStateOf(1f)
+    var painterSaturation by mutableFloatStateOf(1f)
     var cardColor by mutableStateOf<Color?>(null)
     var cardBorderColor by mutableStateOf<Color?>(null)
     var cardBorderWidth by mutableStateOf(1.dp)

@@ -151,9 +151,8 @@ object RatingUtils {
 
         var serverVersion = orderedVersions.first().name
 
-        for (versionEntity in orderedVersions) {
-            val version = versionEntity.name
-            val activeVersionSongs = songs.filter { song ->
+        for ((version) in orderedVersions) {
+					val activeVersionSongs = songs.filter { song ->
                 song.version.equals(version, ignoreCase = true) &&
                     !song.isUtage &&
                     sheetsBySong[song.songIdentifier]

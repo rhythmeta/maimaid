@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Owns the persistent system download independently of screens and Activity recreation. */
 class AppUpdateRepository(
@@ -169,7 +170,7 @@ class AppUpdateRepository(
                     mutableState.value = state.value.copy(downloadedBytes = snapshot.downloadedBytes,
                         totalBytes = snapshot.totalBytes.takeIf { it > 0 } ?: update.artifact.size)
                     when (snapshot.status) {
-                        AppDownloadSnapshot.Status.Running -> delay(1_000)
+                        AppDownloadSnapshot.Status.Running -> delay(1_000.milliseconds)
                         AppDownloadSnapshot.Status.Complete -> {
                             mutableState.value = state.value.copy(phase = AppUpdatePhase.Verifying)
                             verifier.verify(downloader.file(update), update.manifest, update.artifact)

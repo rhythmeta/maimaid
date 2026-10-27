@@ -198,20 +198,19 @@ class BackendSessionManager(
 
     private suspend fun refresh(staleRefreshToken: String): Boolean = refreshMutex.withLock {
         val current = tokens ?: return@withLock false
-        if (current.refreshToken != staleRefreshToken) return@withLock true
-        return@withLock try {
-            val payload = apiClient.request(
-                path = "auth/v1/refresh",
-                method = "POST",
-                body = buildJsonObject { put("refreshToken", current.refreshToken) },
-            )
-            applyTokens(apiJson.decodeFromJsonElement(BackendTokenBundle.serializer(), payload))
-            true
-        } catch (error: BackendApiException) {
-            if (error.statusCode in 400..499) clearSession()
-            false
-        }
-    }
+			return@withLock current.refreshToken != staleRefreshToken || try {
+				val payload = apiClient.request(
+					path = "auth/v1/refresh",
+					method = "POST",
+					body = buildJsonObject { put("refreshToken", current.refreshToken) },
+				)
+				applyTokens(apiJson.decodeFromJsonElement(BackendTokenBundle.serializer(), payload))
+				true
+			} catch (error: BackendApiException) {
+				if (error.statusCode in 400..499) clearSession()
+				false
+			}
+		}
 
     private fun applyTokens(bundle: BackendTokenBundle) {
         tokens = bundle

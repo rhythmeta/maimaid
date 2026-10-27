@@ -69,7 +69,6 @@ internal suspend fun saveJacketToDownloads(
     source: File,
     title: String,
 ): Boolean = withContext(Dispatchers.IO) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext false
     val resolver = context.contentResolver
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, jacketDisplayName(title, source))

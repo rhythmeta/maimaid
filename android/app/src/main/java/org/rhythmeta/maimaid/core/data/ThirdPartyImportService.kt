@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import org.rhythmeta.maimaid.core.database.MaimaidDatabase
 import org.rhythmeta.maimaid.core.database.PlayRecordEntity
+import kotlin.time.Duration.Companion.milliseconds
 
 class DirectImportException(val code: String) : Exception(code)
 data class LocalScoreImportResult(val fetchedCount: Int, val updatedCount: Int, val skippedCount: Int)
@@ -53,7 +54,7 @@ class ThirdPartyImportService(
         val deadline = android.os.SystemClock.elapsedRealtime() + device.expiresIn * 1000
         var interval = device.interval
         while (android.os.SystemClock.elapsedRealtime() < deadline) {
-            delay(interval * 1000)
+            delay((interval * 1000).milliseconds)
             try {
                 // A consumed device code cannot be reused; persist its token even if the screen closes.
                 withContext(NonCancellable) {

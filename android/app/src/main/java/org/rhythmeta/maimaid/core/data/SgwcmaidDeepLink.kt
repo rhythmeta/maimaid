@@ -48,10 +48,9 @@ object SgwcmaidDeepLink {
     fun isCabinetLink(value: String?): Boolean {
         val raw = normalize(value) ?: return false
         val uri = parse(raw) ?: return false
-        if (uri.scheme?.lowercase() !in setOf("http", "https")) return false
-        return uri.host.equals(WEB_HOST, ignoreCase = true) &&
-            uri.path.orEmpty().startsWith(WEB_PATH_PREFIX, ignoreCase = true)
-    }
+			return uri.scheme?.lowercase() in setOf("http", "https") && uri.host.equals(WEB_HOST, ignoreCase = true) &&
+							uri.path.orEmpty().startsWith(WEB_PATH_PREFIX, ignoreCase = true)
+		}
 
     private fun cabinetCodeFrom(uri: URI): String? {
         if (!uri.host.equals(WEB_HOST, ignoreCase = true)) return null

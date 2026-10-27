@@ -37,7 +37,6 @@ import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ScoreQueryFilterDialog(
     show: Boolean,
@@ -161,7 +160,6 @@ internal fun ScoreQueryFilterDialog(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScoreQueryFilterSection(
     title: String,

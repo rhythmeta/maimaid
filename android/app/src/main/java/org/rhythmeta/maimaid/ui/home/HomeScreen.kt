@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment

@@ -22,12 +22,12 @@ object SgwcmaidRivalMusic {
     fun fromResponse(response: JsonObject): JsonArray = fromSongs(songsFrom(response))
 
     fun songsFrom(response: JsonObject): List<JsonObject> =
-        (response["userRivalMusicList"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+        (response["userRivalMusicList"] as? JsonArray).orEmpty().filterIsInstance<JsonObject>()
 
     fun fromSongs(songs: List<JsonObject>): JsonArray = JsonArray(songs.mapNotNull { song ->
         val musicId = song["musicId"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
         val rows = (song["userRivalMusicDetailList"] as? JsonArray).orEmpty()
-            .mapNotNull { it as? JsonObject }
+            .filterIsInstance<JsonObject>()
             .mapNotNull { chartRow(musicId, it) }
         if (rows.isEmpty()) return@mapNotNull null
         buildJsonObject {

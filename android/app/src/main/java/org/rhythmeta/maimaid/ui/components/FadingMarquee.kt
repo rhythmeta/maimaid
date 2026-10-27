@@ -88,7 +88,7 @@ private class FadingMarqueeNode(
             // Match basicMarquee's speed regardless of the system animation duration scale.
             withContext(MarqueeMotionDurationScale) {
                 snapshotFlow {
-                    if (contentWidth > containerWidth && containerWidth > 0) {
+                    if (containerWidth in 1..<contentWidth) {
                         Triple(contentWidth + spacingPx, containerWidth, velocityPx)
                     } else {
                         null

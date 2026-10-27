@@ -126,7 +126,7 @@ internal fun ExpandableBottomSheet(
 }
 
 @Composable
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 private fun ExpandableBottomSheetLayout(
     visible: Boolean,
     expandActionLabel: String,
@@ -274,7 +274,6 @@ private fun ExpandableBottomSheetLayout(
 }
 
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
 private fun ExpandableBottomSheetHeader(
     state: AnchoredDraggableState<BottomSheetAnchor>,
     backdrop: Backdrop,

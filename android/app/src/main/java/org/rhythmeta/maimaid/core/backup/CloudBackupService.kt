@@ -133,20 +133,22 @@ class CloudBackupService(
         val snapshot = database.withTransaction {
             val output = Proto.Snapshot.newBuilder().setMagic("RHYTHMETA_BACKUP").setFormatVersion(1).setGame("maimaid")
                 .setCreatedAt(System.currentTimeMillis()).setClientVersion(BuildConfig.VERSION_NAME)
-            for (profile in database.profileDao().profiles()) {
-                val avatar = profile.avatarPath?.let { path -> withContext(Dispatchers.IO) {
+            for ((id, name, server, avatarPath, avatarUrl, isActive, createdAt, dfUsername, playerRating, plate, lastImportDateDf, lastImportDateLxns, b35Count, b15Count, b35RecLimit, b15RecLimit) in database.profileDao().profiles()) {
+                val avatar = avatarPath?.let { path -> withContext(Dispatchers.IO) {
                     val file = File(path); require(file.length() <= 16 * 1024 * 1024); file.readBytes()
                 } }
-                val builder = Proto.Profile.newBuilder().setId(profile.id).setName(profile.name).setServer(profile.server)
-                    .setAvatar(ByteString.copyFrom(avatar ?: byteArrayOf())).setAvatarUrl(profile.avatarUrl.orEmpty())
-                    .setActive(profile.isActive).setCreatedAt(profile.createdAt).setDfUsername(profile.dfUsername)
-                    .setPlayerRating(profile.playerRating).setPlate(profile.plate.orEmpty())
-                    .setLastImportDf(profile.lastImportDateDf ?: 0).setLastImportLxns(profile.lastImportDateLxns ?: 0)
-                    .setB35Count(profile.b35Count).setB15Count(profile.b15Count).setB35RecLimit(profile.b35RecLimit).setB15RecLimit(profile.b15RecLimit)
-                bindingBlobs[profile.id]?.let { builder.setSgwcmaidBinding(ByteString.copyFrom(it)) }
+                val builder = Proto.Profile.newBuilder().setId(id).setName(name).setServer(server)
+                    .setAvatar(ByteString.copyFrom(avatar ?: byteArrayOf())).setAvatarUrl(avatarUrl.orEmpty())
+                    .setActive(isActive).setCreatedAt(createdAt).setDfUsername(dfUsername)
+                    .setPlayerRating(playerRating).setPlate(plate.orEmpty())
+                    .setLastImportDf(lastImportDateDf ?: 0).setLastImportLxns(lastImportDateLxns ?: 0)
+                    .setB35Count(b35Count).setB15Count(b15Count).setB35RecLimit(b35RecLimit).setB15RecLimit(
+		                b15RecLimit
+	                )
+                bindingBlobs[id]?.let { builder.setSgwcmaidBinding(ByteString.copyFrom(it)) }
                 output.addProfiles(builder)
-                database.scoreDao().scores(profile.id).forEach { output.addScores(result(it)) }
-                database.scoreDao().playRecords(profile.id).forEach { row -> output.addPlayRecords(Proto.PlayRecord.newBuilder().setId(row.id).setResult(result(ScoreEntity(row.profileId,row.sheetKey,row.achievement,row.rank,row.dxScore,row.fc,row.fs,row.playedAt)))) }
+                database.scoreDao().scores(id).forEach { output.addScores(result(it)) }
+                database.scoreDao().playRecords(id).forEach { row -> output.addPlayRecords(Proto.PlayRecord.newBuilder().setId(row.id).setResult(result(ScoreEntity(row.profileId,row.sheetKey,row.achievement,row.rank,row.dxScore,row.fc,row.fs,row.playedAt)))) }
             }
             val collections = database.songCollectionDao().collectionsIncludingDeleted().filter { it.deletedAt == null }
             val ids = collections.map { it.id }.toSet()

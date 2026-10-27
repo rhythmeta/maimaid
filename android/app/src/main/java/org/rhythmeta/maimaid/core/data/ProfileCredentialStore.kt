@@ -9,7 +9,6 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import androidx.core.content.edit
 
 data class ProfileCredentials(
     val lxnsToken: String = "",

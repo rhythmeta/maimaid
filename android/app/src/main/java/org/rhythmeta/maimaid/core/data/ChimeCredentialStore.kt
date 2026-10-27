@@ -9,9 +9,5 @@ class ChimeCredentialStore(context: Context) {
     fun keychip(): String = preferences.getString(KEYCHIP, "").orEmpty()
         .ifBlank { SgwcmaidBuildConfig.current.keychip }
 
-    fun setKeychip(value: String) {
-        preferences.edit().putString(KEYCHIP, value.trim()).apply()
-    }
-
-    private companion object { const val KEYCHIP = "keychip" }
+	private companion object { const val KEYCHIP = "keychip" }
 }

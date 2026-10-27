@@ -15,7 +15,7 @@ import org.rhythmeta.maimaid.core.data.SgwcmaidBinding
  * Unlike the local binding (Android Keystore, device-bound), the backup must be readable
  * after a reinstall or on another device, so the key is derived from the signed-in backend
  * account instead: only the same account can decrypt its own snapshot. This keeps the id
- * opaque inside the stored object; it is not a defence against the account owner or the
+ * opaque inside the stored object; it is not a defense against the account owner or the
  * backend that already knows that account id.
  *
  * Layout: `version(1) | iv(12) | AES-256-GCM ciphertext + tag(16)`.

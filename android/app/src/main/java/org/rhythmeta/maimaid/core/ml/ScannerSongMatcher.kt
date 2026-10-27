@@ -567,28 +567,24 @@ object ScannerSongMatcher {
         val normalizedSongTitle = normalizeMatchTitle(song.title)
         return candidates.any { candidate ->
             val cleaned = candidate.trim()
-            if (cleaned.isEmpty()) {
-                false
-            } else {
-                generateOcrVariants(cleaned).any { searchCandidate ->
-                    val normalizedSearch = normalizeMatchTitle(searchCandidate)
-                    val exact = normalizedSongTitle == normalizedSearch ||
-                        song.title.equals(searchCandidate, ignoreCase = true) ||
-                        aliases.any { it.equals(searchCandidate, ignoreCase = true) }
-                    val partial = cleaned.length >= 2 && (
-                        normalizedSongTitle.startsWith(normalizedSearch) ||
-                            normalizedSearch.startsWith(normalizedSongTitle) ||
-                            song.title.contains(searchCandidate, ignoreCase = true) ||
-                            searchCandidate.contains(song.title, ignoreCase = true) ||
-                            aliases.any { it.contains(searchCandidate, ignoreCase = true) }
-                        )
-                    val fuzzy = cleaned.length > 4 && (
-                        fuzzyMatch(cleaned, song.title) ||
-                            aliases.any { fuzzyMatch(cleaned, it) }
-                        )
-                    exact || partial || fuzzy
-                }
-            }
+					cleaned.isNotEmpty() && generateOcrVariants(cleaned).any { searchCandidate ->
+						val normalizedSearch = normalizeMatchTitle(searchCandidate)
+						val exact = normalizedSongTitle == normalizedSearch ||
+							song.title.equals(searchCandidate, ignoreCase = true) ||
+							aliases.any { it.equals(searchCandidate, ignoreCase = true) }
+						val partial = cleaned.length >= 2 && (
+							normalizedSongTitle.startsWith(normalizedSearch) ||
+								normalizedSearch.startsWith(normalizedSongTitle) ||
+								song.title.contains(searchCandidate, ignoreCase = true) ||
+								searchCandidate.contains(song.title, ignoreCase = true) ||
+								aliases.any { it.contains(searchCandidate, ignoreCase = true) }
+							)
+						val fuzzy = cleaned.length > 4 && (
+							fuzzyMatch(cleaned, song.title) ||
+								aliases.any { fuzzyMatch(cleaned, it) }
+							)
+						exact || partial || fuzzy
+					}
         }
     }
 
@@ -636,9 +632,8 @@ object ScannerSongMatcher {
     private fun fuzzyMatch(first: String, second: String): Boolean {
         val left = first.lowercase(Locale.ROOT).filterNot(Char::isWhitespace)
         val right = second.lowercase(Locale.ROOT).filterNot(Char::isWhitespace)
-        if (abs(left.length - right.length) > 2) return false
-        return levenshtein(left, right) <= maxOf(1, left.length / 4)
-    }
+			return abs(left.length - right.length) <= 2 && levenshtein(left, right) <= maxOf(1, left.length / 4)
+		}
 
     private const val MAX_OCR_VARIANTS = 6
     private const val BLANK_TITLE_PROVIDER_SONG_ID = 11_422

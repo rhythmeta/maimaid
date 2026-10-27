@@ -1,7 +1,6 @@
 package org.rhythmeta.maimaid.core.data
 
 import android.content.Context
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import org.rhythmeta.maimaid.BuildConfig
 
