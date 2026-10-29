@@ -63,6 +63,7 @@ private struct StaticManifestResponse: Decodable {
     let createdAt: Date?
     let bundle: String
     let assets: StaticAssetConfiguration?
+    let sizes: StaticManifestSizes?
 }
 
 private struct StaticBundleResponse: Decodable {
@@ -202,6 +203,19 @@ class MaimaiDataFetcher {
     var syncLogs: String = ""
     var estimatedTimeRemaining: TimeInterval?
 
+    private(set) var manifestSizes: StaticManifestSizes?
+    /// Bytes pulled by the current run: the JSON bundle plus every cover and preset avatar.
+    private(set) var downloadedBytes: Int64 = 0
+    /// Whole first-run download size from the manifest; nil when the manifest publishes no sizes.
+    private(set) var totalDownloadBytes: Int64?
+
+    private var bundleBytesDownloaded: Int64 = 0
+    private var imageBytesDownloaded: Int64 = 0
+
+    private func publishByteProgress() {
+        downloadedBytes = bundleBytesDownloaded + imageBytesDownloaded
+    }
+
     func log(_ message: String) {
         logger.info("\(message, privacy: .public)")
         self.syncLogs += "[\(Date().formatted(date: .omitted, time: .standard))] \(message)\n"
@@ -236,6 +250,14 @@ class MaimaiDataFetcher {
     private func updateStage(_ stage: SyncStage, base: Double, message: String) {
         self.currentStage = stage
         self.progress = base
+        self.statusMessage = message
+        self.log(message)
+    }
+
+    /// Switches stage without moving the bar backwards, only catching it up to `minimum`.
+    private func updateStagePreservingProgress(_ stage: SyncStage, minimum: Double, message: String) {
+        self.currentStage = stage
+        self.progress = max(self.progress, minimum)
         self.statusMessage = message
         self.log(message)
     }
@@ -284,6 +306,8 @@ class MaimaiDataFetcher {
             throw BackendAPIError.badResponse
         }
         let manifest = try BackendAPIClient.decoder.decode(StaticManifestResponse.self, from: manifestData)
+        manifestSizes = manifest.sizes
+        totalDownloadBytes = manifest.sizes.flatMap { $0.totalBytes > 0 ? $0.totalBytes : nil }
         StaticAssetURL.update(manifest.assets)
 
         if !forceApply,
@@ -304,14 +328,51 @@ class MaimaiDataFetcher {
         var request = URLRequest(url: bundleURL)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("maimaid-ios", forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Streamed rather than `data(for:)` so the onboarding screen can show byte progress while
+        // the largest single file of the run arrives.
+        let delegate = ByteProgressDelegate { [weak self] written, expected in
+            Task { @MainActor in self?.updateBundleDownloadProgress(written: written, expected: expected) }
+        }
+        let (temporaryURL, response) = try await URLSession.shared.download(for: request, delegate: delegate)
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             throw BackendAPIError.badResponse
         }
+        let data = try Data(contentsOf: temporaryURL)
         let bundle = try BackendAPIClient.decoder.decode(StaticBundleResponse.self, from: data)
         try validate(bundle: bundle, manifest: manifest)
+        bundleBytesDownloaded = Int64(data.count)
+        publishByteProgress()
         return bundle
+    }
+
+    private func updateBundleDownloadProgress(written: Int64, expected: Int64) {
+        // Callbacks hop to the main actor, so they can land out of order; never move backwards.
+        bundleBytesDownloaded = max(bundleBytesDownloaded, written)
+        publishByteProgress()
+        let total = manifestSizes?.bundleBytes ?? expected
+        guard total > 0 else { return }
+        let fraction = min(max(Double(bundleBytesDownloaded) / Double(total), 0), 1)
+        updateProgress(
+            fraction,
+            totalForStage: 0.1,
+            baseForStage: 0,
+            status: String(localized: "data.sync.status.fetchingData")
+        )
+    }
+
+    /// Fraction of the image download already on disk, falling back to item progress when the
+    /// manifest publishes no sizes.
+    private func imageDownloadFraction(itemFraction: Double) -> Double {
+        guard let sizes = manifestSizes, sizes.imageBytes > 0 else { return itemFraction }
+        let imageBytes = max(downloadedBytes - sizes.bundleBytes, 0)
+        return min(max(Double(imageBytes) / Double(sizes.imageBytes), 0), 1)
+    }
+
+    nonisolated private static func fileSize(of url: URL) -> Int64 {
+        let values = try? url.resourceValues(forKeys: [.fileSizeKey])
+        return Int64(values?.fileSize ?? 0)
     }
 
     private func validate(bundle: StaticBundleResponse, manifest: StaticManifestResponse) throws {
@@ -354,6 +415,11 @@ class MaimaiDataFetcher {
         syncStartTime = Date()
         estimatedTimeRemaining = nil
         syncLogs = ""
+        manifestSizes = nil
+        totalDownloadBytes = nil
+        bundleBytesDownloaded = 0
+        imageBytesDownloaded = 0
+        publishByteProgress()
         log(String(localized: "data.sync.log.start"))
 
         do {
@@ -369,6 +435,10 @@ class MaimaiDataFetcher {
             var nameToProviderIdsByNormalized: [String: [Int]] = [:]
             var utageStatsById: [Int: UtageChartStatsItem] = [:]
             var utageStatsByKey: [String: [UtageChartStatsItem]] = [:]
+            // The bundle is the first thing on the wire, so it owns 0 → 0.10 of the bar.
+            updateStage(
+                .fetchingRemoteData, base: 0,
+                message: String(localized: "data.sync.status.fetchingData"))
             let staticBundle = try? await fetchBackendStaticBundleIfNeeded(forceApply: forceBundleApply)
             let bundleResources = staticBundle?.bundle?.payload.resources
 
@@ -380,7 +450,12 @@ class MaimaiDataFetcher {
 
             // --- 阶段 1: 远程 data.json ---
             if options.updateRemoteData {
-                updateStage(.fetchingRemoteData, base: 0.1, message: String(localized: "data.sync.status.fetchingData"))
+                updateProgress(
+                    1.0,
+                    totalForStage: 0.1,
+                    baseForStage: 0,
+                    status: String(localized: "data.sync.status.fetchingData")
+                )
                 let response = try await loadRemoteData(bundleResources: bundleResources)
                 remoteSongs = response.songs
                 log(String(localized: "data.sync.log.fetchedData \(remoteSongs.count)"))
@@ -893,32 +968,58 @@ class MaimaiDataFetcher {
             }
 
             // --- 阶段 5: 下载图片资源 ---
+            // With byte sizes the two image stages share one continuous range so the bar keeps
+            // climbing into the avatars; without them each stage keeps its own item-based slice.
+            let hasImageByteSizes = (manifestSizes?.imageBytes ?? 0) > 0
+            let coversSpan = hasImageByteSizes ? 0.20 : 0.15
+            let iconsBase = hasImageByteSizes ? 0.75 : 0.90
+            let iconsSpan = hasImageByteSizes ? 0.20 : 0.05
             if options.updateCovers {
                 updateStage(
                     .downloadingImages, base: 0.75, message: String(localized: "data.sync.status.scanningCovers"))
                 let descriptor = FetchDescriptor<Song>()
                 let allSongs = try modelContext.fetch(descriptor)
                 var coverDownloadTasks: [([URL], String)] = []
+                // Several songs can share one jacket; enqueue each file once so the byte counter and
+                // the task list stay in sync.
+                var queuedImageNames = Set<String>()
                 for song in allSongs where !ImageDownloader.shared.imageExists(imageName: song.imageName) {
+                    guard queuedImageNames.insert(song.imageName).inserted else { continue }
                     coverDownloadTasks.append((StaticAssetURL.coverURLs(for: song.imageName), song.imageName))
                 }
 
                 if !coverDownloadTasks.isEmpty {
+                    let coverCount = coverDownloadTasks.count
+                    let totalCovers = Double(coverCount)
+                    var completed = 0
                     let batchSize = 30
-                    for chunk in stride(from: 0, to: coverDownloadTasks.count, by: batchSize) {
-                        let endIndex = min(chunk + batchSize, coverDownloadTasks.count)
+                    for chunk in stride(from: 0, to: coverCount, by: batchSize) {
+                        let endIndex = min(chunk + batchSize, coverCount)
                         let subTasks = coverDownloadTasks[chunk..<endIndex]
-                        updateProgress(
-                            Double(chunk) / Double(max(coverDownloadTasks.count, 1)),
-                            totalForStage: 0.15,
-                            baseForStage: 0.75,
-                            status: String(
-                                localized: "data.sync.status.downloadingCovers \(chunk) \(coverDownloadTasks.count)")
-                        )
-                        await withTaskGroup(of: Void.self) { group in
+                        await withTaskGroup(of: Int64.self) { group in
                             for task in subTasks {
                                 group.addTask {
-                                    _ = try? await ImageDownloader.shared.downloadImage(from: task.0, as: task.1)
+                                    guard let url = try? await ImageDownloader.shared.downloadImage(
+                                        from: task.0, as: task.1
+                                    ) else { return 0 }
+                                    return Self.fileSize(of: url)
+                                }
+                            }
+
+                            for await size in group {
+                                imageBytesDownloaded += size
+                                publishByteProgress()
+                                completed += 1
+                                if completed % 10 == 0 || completed == coverCount {
+                                    let status = String(
+                                        localized: "data.sync.status.downloadingCovers \(completed) \(coverCount)"
+                                    )
+                                    updateProgress(
+                                        imageDownloadFraction(itemFraction: Double(completed) / max(totalCovers, 1)),
+                                        totalForStage: coversSpan,
+                                        baseForStage: 0.75,
+                                        status: status
+                                    )
                                 }
                             }
                         }
@@ -928,8 +1029,13 @@ class MaimaiDataFetcher {
 
             // --- 阶段 6: 下载预设头像 ---
             if options.updateIcons {
-                updateStage(
-                    .downloadingIcons, base: 0.85, message: String(localized: "data.sync.status.downloadingIcons"))
+                // Covers and avatars share one byte range, so the bar keeps climbing into this stage
+                // instead of jumping back to its own base.
+                updateStagePreservingProgress(
+                    .downloadingIcons,
+                    minimum: iconsBase,
+                    message: String(localized: "data.sync.status.downloadingIcons")
+                )
                 let descriptor = FetchDescriptor<MaimaiIcon>()
                 let allIcons = try modelContext.fetch(descriptor)
                 var iconDownloadTasks: [([URL], Int)] = []
@@ -948,24 +1054,30 @@ class MaimaiDataFetcher {
                         let endIndex = min(chunk + batchSize, iconDownloadTasks.count)
                         let subTasks = iconDownloadTasks[chunk..<endIndex]
 
-                        await withTaskGroup(of: Void.self) { group in
+                        await withTaskGroup(of: Int64.self) { group in
                             for task in subTasks {
                                 group.addTask {
                                     do {
-                                        _ = try await ImageDownloader.shared.downloadIcon(from: task.0, id: task.1)
+                                        let url = try await ImageDownloader.shared.downloadIcon(
+                                            from: task.0, id: task.1
+                                        )
+                                        return Self.fileSize(of: url)
                                     } catch {
                                         print("Failed to download icon \(task.1): \(error)")
+                                        return 0
                                     }
                                 }
                             }
 
-                            for await _ in group {
+                            for await size in group {
+                                imageBytesDownloaded += size
+                                publishByteProgress()
                                 completed += 1
                                 if completed % 10 == 0 || completed == iconDownloadTasks.count {
                                     updateProgress(
-                                        Double(completed) / max(total, 1),
-                                        totalForStage: 0.10,
-                                        baseForStage: 0.85,
+                                        imageDownloadFraction(itemFraction: Double(completed) / max(total, 1)),
+                                        totalForStage: iconsSpan,
+                                        baseForStage: iconsBase,
                                         status: String(
                                             localized:
                                                 "data.sync.status.downloadingIconsProgress \(completed) \(totalCount)")
@@ -1404,4 +1516,30 @@ class MaimaiDataFetcher {
 
         return true
     }
+}
+
+/// Reports download byte progress for a single file so the onboarding screen can show real bytes
+/// instead of jumping from 0 to the full size when the transfer finishes.
+nonisolated private final class ByteProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let onProgress: @Sendable (Int64, Int64) -> Void
+
+    init(onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        onProgress(totalBytesWritten, totalBytesExpectedToWrite)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {}
 }

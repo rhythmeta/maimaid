@@ -146,36 +146,52 @@ struct FirstLaunchView: View {
     }
 
     private var bottomAction: some View {
-        Button {
-            guard !isSyncing else { return }
-            downloadError = nil
-            Task {
-                await startInitialDownload()
+        VStack(spacing: 8) {
+            if isSyncing, let byteProgressText = fetcher.byteProgressText {
+                Text(byteProgressText)
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
-        } label: {
-            GeometryReader { proxy in
-                let progress = min(max(fetcher.progress, 0), 1)
-                let progressWidth = proxy.size.width * progress
 
-                ZStack(alignment: .leading) {
-                    Capsule(style: .continuous)
-                        .fill(Color.accentColor.opacity(0.24))
+            Button {
+                guard !isSyncing else { return }
+                downloadError = nil
+                Task {
+                    await startInitialDownload()
+                }
+            } label: {
+                GeometryReader { proxy in
+                    let progress = min(max(fetcher.progress, 0), 1)
+                    let progressWidth = proxy.size.width * progress
 
-                    Capsule(style: .continuous)
-                        .fill(Color.accentColor)
-                        .frame(width: isSyncing ? progressWidth : proxy.size.width)
+                    ZStack(alignment: .leading) {
+                        Capsule(style: .continuous)
+                            .fill(Color.accentColor.opacity(0.24))
 
-                    if isSyncing {
-                        if fetcher.statusMessage.isEmpty {
-                            Text(LocalizedStringKey(fetcher.currentStage.rawValue))
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity)
-                                .padding(.horizontal, 12)
+                        Capsule(style: .continuous)
+                            .fill(Color.accentColor)
+                            .frame(width: isSyncing ? progressWidth : proxy.size.width)
+
+                        if isSyncing {
+                            if fetcher.statusMessage.isEmpty {
+                                Text(LocalizedStringKey(fetcher.currentStage.rawValue))
+                                    .font(.headline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 12)
+                            } else {
+                                Text(fetcher.statusMessage)
+                                    .font(.headline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.horizontal, 12)
+                            }
                         } else {
-                            Text(fetcher.statusMessage)
+                            Text(actionTitleKey)
                                 .font(.headline.weight(.bold))
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
@@ -183,21 +199,13 @@ struct FirstLaunchView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.horizontal, 12)
                         }
-                    } else {
-                        Text(actionTitleKey)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, 12)
                     }
                 }
+                .frame(height: 54)
             }
-            .frame(height: 54)
+            .buttonStyle(.plain)
+            .disabled(isSyncing)
         }
-        .buttonStyle(.plain)
-        .disabled(isSyncing)
         .padding(.horizontal, 16)
         .padding(.top, 12)
         .padding(.bottom, 8)

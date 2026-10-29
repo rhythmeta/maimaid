@@ -392,6 +392,7 @@
 "data.sync.eta.calculating" = "計算中...";
 "data.sync.eta.minutes %lld %02lld" = "約剩餘 %lld分%02lld秒";
 "data.sync.eta.seconds %lld" = "約剩餘 %lld秒";
+"data.sync.byteProgress %@ %@" = "%@ / %@";
 "data.sync.log.start" = "開始更新流程...";
 "data.sync.status.fetchingData" = "下載遠程 data.json...";
 "data.sync.log.fetchedData %lld" = "成功下載資料，共 %lld 首歌曲";

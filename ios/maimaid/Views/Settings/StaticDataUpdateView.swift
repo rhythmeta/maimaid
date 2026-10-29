@@ -67,6 +67,12 @@ struct StaticDataUpdateView: View {
                         )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+
+                        if let byteProgressText = fetcher.byteProgressText {
+                            Text(byteProgressText)
+                                .font(.footnote.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.vertical, 4)
                 } else {
