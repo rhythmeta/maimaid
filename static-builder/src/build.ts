@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { collectStaticAssetCandidates, type StaticAssetCandidate } from "./assets.js";
 import { composeBundlePayload } from "./bundle.js";
 import { communityIndex } from "./community-index.js";
+import { downloadFirstAvailableImage, downloadImageFromSource } from "./download.js";
 import {
 	assetDestination,
 	createStaticManifest,
@@ -53,21 +54,18 @@ const retry = async (operation: () => Promise<void>, attempts = 3) => {
 	throw lastError;
 };
 
+/**
+ * Tries every source of the candidate in order. The dxrating fallback returns JPEG bytes that are
+ * stored under the original `.png` name, because the published path is derived from the catalog's
+ * `imageName`; every client sniffs the format from the content, so the mismatch is harmless.
+ */
 const downloadAsset = async (candidate: StaticAssetCandidate) => {
 	const destination = assetDestination(outputDirectory, candidate);
-	await retry(async () => {
-		const response = await fetch(candidate.sourceUrl, {
-			headers: { accept: "image/*", "user-agent": "maimaid-static-bundle-builder" },
-			signal: AbortSignal.timeout(assetRequestTimeoutMs),
-		});
-		if (!response.ok) throw new Error(`HTTP ${response.status} ${candidate.sourceUrl}`);
-		const contentType = response.headers.get("content-type") ?? "";
-		if (!contentType.toLocaleLowerCase().startsWith("image/")) {
-			throw new Error(`Unexpected content type ${contentType || "unknown"}: ${candidate.sourceUrl}`);
-		}
-		const body = Buffer.from(await response.arrayBuffer());
-		if (body.byteLength === 0) throw new Error(`Empty image: ${candidate.sourceUrl}`);
-		await writeFile(destination, body);
+	await downloadFirstAvailableImage({
+		label: `${candidate.kind} ${candidate.name}`,
+		sourceUrls: candidate.sourceUrls,
+		attempt: (sourceUrl) => retry(() => downloadImageFromSource(sourceUrl, destination, assetRequestTimeoutMs)),
+		onFallback: (sourceUrl) => console.log(`[assets] recovered ${candidate.name} from ${sourceUrl}`),
 	});
 };
 
