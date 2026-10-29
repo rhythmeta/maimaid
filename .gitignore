@@ -40,3 +40,5 @@ ios/build-codex/
 *.p12
 *.pfx
 *.keystore
+
+.workbuddy-ai

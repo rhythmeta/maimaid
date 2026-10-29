@@ -78,7 +78,7 @@ private fun catalogDownloadDetail(progress: CatalogSyncProgress): String {
                 ),
             )
         }
-        if (progress.downloadedBytes > 0L) {
+        if (progress.downloadedBytes > 0L || progress.totalBytes != null) {
             val downloaded = Formatter.formatShortFileSize(context, progress.downloadedBytes)
             val total = progress.totalBytes?.let { Formatter.formatShortFileSize(context, it) }
             add(

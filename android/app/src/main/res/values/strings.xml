@@ -132,6 +132,11 @@
 	<string name="catalog_sync_download_speed">%1$s/s</string>
 	<string name="catalog_sync_download_speed_waiting">Calculating speed…</string>
 	<string name="catalog_sync_processing">Processing…</string>
+	<string name="catalog_sync_total_download_size">Total download: about %1$s</string>
+	<string name="catalog_asset_sync_channel_name">Cover and icon downloads</string>
+	<string name="catalog_asset_sync_channel_description">Shows progress while song covers and preset
+		icons download in the background.</string>
+	<string name="catalog_asset_sync_notification_preparing">Preparing…</string>
 	<string name="onboarding_title_prefix">Welcome to</string>
 	<string name="onboarding_subtitle">See the core value at a glance, then jump right in.</string>
 	<string name="onboarding_feature_fast_scan">Fast scanning</string>

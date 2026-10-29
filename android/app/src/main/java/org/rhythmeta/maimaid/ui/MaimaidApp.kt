@@ -217,6 +217,7 @@ fun MaimaidApp(
         InitialCatalogGate(
             state = initialCatalogState,
             syncStatus = uiState.catalogSyncStatus,
+            totalDownloadBytes = uiState.catalogDownloadTotalBytes,
             onStartDownload = viewModel::startInitialCatalogSync,
         )
         return

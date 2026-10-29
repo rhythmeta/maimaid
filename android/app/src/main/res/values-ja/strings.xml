@@ -134,6 +134,10 @@
 	<string name="catalog_sync_download_speed">%1$s/秒</string>
 	<string name="catalog_sync_download_speed_waiting">速度を計算中…</string>
 	<string name="catalog_sync_processing">処理中…</string>
+	<string name="catalog_sync_total_download_size">合計約 %1$s をダウンロードします</string>
+	<string name="catalog_asset_sync_channel_name">カバーとアイコンのダウンロード</string>
+	<string name="catalog_asset_sync_channel_description">楽曲カバーとプリセットアイコンをバックグラウンドでダウンロードする際の進捗を表示します。</string>
+	<string name="catalog_asset_sync_notification_preparing">準備中…</string>
 	<string name="onboarding_title_prefix">ようこそ</string>
 	<string name="onboarding_subtitle">コア機能をすぐ把握して、すぐに記録と分析を始められます。</string>
 	<string name="onboarding_feature_fast_scan">高速スキャン</string>

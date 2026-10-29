@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.CatalogSortOption
 import org.rhythmeta.maimaid.core.data.CatalogSyncStatus
+import org.rhythmeta.maimaid.core.sync.CatalogAssetSyncService
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import org.rhythmeta.maimaid.ui.theme.ColorMode
@@ -80,12 +81,14 @@ class MainViewModel(
         container.catalogRepository.sheetCount,
         container.catalogRepository.featuredSongs,
         container.catalogRepository.syncStatus,
-    ) { songCount, sheetCount, featuredSongs, syncStatus ->
+        container.catalogRepository.knownDownloadTotalBytes,
+    ) { songCount, sheetCount, featuredSongs, syncStatus, downloadTotalBytes ->
         MainUiState(
             songCount = songCount,
             sheetCount = sheetCount,
             featuredSongs = featuredSongs,
             catalogSyncStatus = syncStatus,
+            catalogDownloadTotalBytes = downloadTotalBytes,
         )
     }
 
@@ -144,7 +147,10 @@ class MainViewModel(
                 container.catalogRepository.refresh()
             } else {
                 mutableInitialCatalogState.value = InitialCatalogState.Required
+                // Resolve the whole-download size up front so onboarding can state it before the tap.
+                container.catalogRepository.prefetchManifestForDownloadSize()
             }
+            startAssetSyncIfNeeded()
         }
         viewModelScope.launch {
             container.backendSessionManager.state
@@ -169,11 +175,21 @@ class MainViewModel(
                 container.catalogRepository.syncStatus.value is CatalogSyncStatus.Ready &&
                 container.catalogRepository.hasCompletedInitialSync()
             ) {
+                // The catalog is usable as soon as it is imported; covers and preset avatars are
+                // warmed in a foreground service and never hold the onboarding gate closed.
                 mutableInitialCatalogState.value = InitialCatalogState.Ready
+                startAssetSyncIfNeeded()
             } else {
                 mutableInitialCatalogState.value = InitialCatalogState.Required
             }
         }
+    }
+
+    private suspend fun startAssetSyncIfNeeded() {
+        if (!container.catalogRepository.isImageAssetsSyncPending()) return
+        // A background start is rejected by the platform on Android 12+; the pending marker keeps the
+        // run recoverable on the next foreground launch instead of crashing.
+        runCatching { CatalogAssetSyncService.start(container.applicationContext) }
     }
 
     fun setColorMode(colorMode: ColorMode) {

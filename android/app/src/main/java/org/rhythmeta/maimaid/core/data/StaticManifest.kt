@@ -10,4 +10,6 @@ data class StaticManifest(
     val createdAt: String? = null,
     val bundle: String,
     val assets: StaticAssetConfiguration? = null,
+    /** Absent on manifests produced before the build started measuring download sizes. */
+    val sizes: StaticManifestSizes? = null,
 )

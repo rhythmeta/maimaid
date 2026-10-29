@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.CancellationException
@@ -23,7 +24,6 @@ class CatalogRepository(
     private val database: MaimaidDatabase,
     private val client: StaticBundleClient,
     private val syncStateStore: CatalogSyncStateStore,
-    private val coverImageStore: CoverImageStore,
     private val presetAvatarRepository: PresetAvatarRepository,
     private val chartFitStore: ChartFitStore,
     private val danStore: DanStore,
@@ -33,8 +33,12 @@ class CatalogRepository(
     private val mutableSyncStatus = MutableStateFlow<CatalogSyncStatus>(CatalogSyncStatus.Idle)
     private val mutableChartFit = MutableSharedFlow<StaticBundleResponse.ChartFitPayload>(replay = 1)
     private val mutableDanCategories = MutableSharedFlow<List<DanCategory>>(replay = 1)
+    private val mutableKnownDownloadTotalBytes = MutableStateFlow<Long?>(null)
 
     val syncStatus = mutableSyncStatus.asStateFlow()
+
+    /** Total bytes of a whole first-run download, once a manifest carrying `sizes` has been seen. */
+    val knownDownloadTotalBytes: StateFlow<Long?> = mutableKnownDownloadTotalBytes.asStateFlow()
     val songCount: Flow<Int> = catalogDao.observeSongCount()
     val sheetCount: Flow<Int> = catalogDao.observeSheetCount()
     val featuredSongs: Flow<List<SongEntity>> = catalogDao.observeFeaturedSongs(limit = 6)
@@ -58,7 +62,28 @@ class CatalogRepository(
 
     suspend fun fetchStaticManifest(): StaticManifest = client.fetchManifest()
 
+    /**
+     * Resolves the download size before the user starts, so onboarding can state how much the whole
+     * first-run download will be. Deliberately leaves [syncStatus] untouched.
+     */
+    suspend fun prefetchManifestForDownloadSize() {
+        val manifest = try {
+            client.fetchManifest()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            return
+        }
+        publishKnownDownloadTotalBytes(manifest)
+    }
+
+    private fun publishKnownDownloadTotalBytes(manifest: StaticManifest) {
+        manifest.sizes?.totalBytes?.takeIf { it > 0L }?.let { mutableKnownDownloadTotalBytes.value = it }
+    }
+
     suspend fun currentStaticDataMd5(): String? = syncStateStore.currentMd5()
+
+    suspend fun isImageAssetsSyncPending(): Boolean = syncStateStore.isImageAssetsSyncPending()
 
     // Existing installations may predate the sync metadata store, while a populated catalog
     // remains sufficient to enter the app and refresh in the background.
@@ -68,11 +93,18 @@ class CatalogRepository(
         catalogDao.setFavorite(songIdentifier, isFavorite)
     }
 
+    /**
+     * Downloads and imports the catalog only. Cover and preset-avatar images are deliberately left
+     * out: they are a cache warm-up rather than a correctness requirement (every cover falls back to
+     * a network fetch), so they must never block entering the app. [CatalogAssetSyncer] picks them
+     * up afterwards and sets [CatalogSyncStateStore.isImageAssetsSyncPending] to false when done.
+     */
     suspend fun refresh(force: Boolean = false) = syncMutex.withLock {
         val localSongCount = catalogDao.songCount()
         mutableSyncStatus.value = CatalogSyncStatus.Checking
         try {
             val manifest = client.fetchManifest()
+            publishKnownDownloadTotalBytes(manifest)
             val currentMd5 = syncStateStore.currentMd5()
             if (
                 localSongCount > 0 &&
@@ -82,64 +114,45 @@ class CatalogRepository(
                 danStore.hasCache() &&
                 !force
             ) {
-                downloadMissingCovers(
-                    imageNames = catalogDao.imageNames(),
-                    assets = manifest.assets,
-                    reporter = StageProgressReporter(
-                        version = manifest.version,
-                        stage = CatalogSyncStage.Covers,
-                        overallStart = 0f,
-                        overallEnd = 0.72f,
-                    ),
-                )
-                syncPresetAvatars(
-                    assets = manifest.assets,
-                    reporter = StageProgressReporter(
-                        version = manifest.version,
-                        stage = CatalogSyncStage.PresetAvatars,
-                        overallStart = 0.72f,
-                        overallEnd = 0.98f,
-                    ),
-                )
-                showSimpleStage(manifest.version, CatalogSyncStage.Finalizing, 0.99f)
                 mutableSyncStatus.value = CatalogSyncStatus.Ready(manifest.version, fromCache = true)
                 return@withLock
             }
 
-            val bundleReporter = StageProgressReporter(
-                version = manifest.version,
+            val bundleReporter = CatalogSyncProgressReporter(
                 stage = CatalogSyncStage.CatalogBundle,
                 overallStart = 0f,
-                overallEnd = 0.32f,
+                overallEnd = 0.7f,
                 useByteProgress = true,
+                // Scope the denominator to this stage: onboarding closes as soon as the catalog is
+                // imported, so a whole-download denominator here would stall the bar at a few percent.
+                byteBudget = CatalogSyncByteBudget(totalBytes = manifest.sizes?.bundleBytes),
+                onProgress = { progress ->
+                    mutableSyncStatus.value = CatalogSyncStatus.Downloading(manifest.version, progress)
+                },
             )
             bundleReporter.start(totalItems = 1)
             val bundle = client.fetchBundle(manifest, bundleReporter::onTransfer)
             bundleReporter.complete()
-            showSimpleStage(bundle.version, CatalogSyncStage.ImportingCatalog, 0.4f)
+            showSimpleStage(
+                version = bundle.version,
+                stage = CatalogSyncStage.ImportingCatalog,
+                fraction = 0.9f,
+                downloadedBytes = bundleReporter.transferredBytes(),
+                totalBytes = manifest.sizes?.bundleBytes,
+            )
             applyBundle(bundle)
-            downloadMissingCovers(
-                imageNames = bundle.payload.resources.catalog.songs.map { it.imageName.orEmpty() },
-                assets = manifest.assets,
-                reporter = StageProgressReporter(
-                    version = bundle.version,
-                    stage = CatalogSyncStage.Covers,
-                    overallStart = 0.44f,
-                    overallEnd = 0.78f,
-                ),
-            )
-            syncPresetAvatars(
-                bundledAvatars = bundle.payload.resources.presetAvatars?.icons,
-                assets = manifest.assets,
-                reporter = StageProgressReporter(
-                    version = bundle.version,
-                    stage = CatalogSyncStage.PresetAvatars,
-                    overallStart = 0.78f,
-                    overallEnd = 0.98f,
-                ),
-            )
-            showSimpleStage(bundle.version, CatalogSyncStage.Finalizing, 0.99f)
+            // Persist the avatar catalog only; the images themselves belong to the asset syncer.
+            try {
+                presetAvatarRepository.refresh(bundle.payload.resources.presetAvatars?.icons)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // The avatar list is a nice-to-have for the asset sync; never fail the catalog on it.
+            }
+            // The catalog is committed at this point, so record it before any image work starts.
+            // A failed image download must not force the whole catalog to be fetched again.
             syncStateStore.save(bundle.version, bundle.md5)
+            syncStateStore.setImageAssetsSyncPending(true)
             mutableSyncStatus.value = CatalogSyncStatus.Ready(bundle.version, fromCache = false)
         } catch (error: CancellationException) {
             throw error
@@ -151,42 +164,21 @@ class CatalogRepository(
         }
     }
 
-    private suspend fun downloadMissingCovers(
-        imageNames: Iterable<String>,
-        assets: StaticAssetConfiguration?,
-        reporter: StageProgressReporter,
+    private fun showSimpleStage(
+        version: String,
+        stage: CatalogSyncStage,
+        fraction: Float,
+        downloadedBytes: Long = 0L,
+        totalBytes: Long? = null,
     ) {
-        reporter.start()
-        coverImageStore.downloadMissing(imageNames, reporter::onItemsProgress) { imageName, destination ->
-            client.downloadCover(imageName, destination, assets, reporter::onTransfer)
-        }
-        reporter.complete()
-    }
-
-    private suspend fun syncPresetAvatars(
-        bundledAvatars: List<PresetAvatar>? = null,
-        assets: StaticAssetConfiguration?,
-        reporter: StageProgressReporter,
-    ) {
-        reporter.start()
-        val avatars = try {
-            presetAvatarRepository.refresh(bundledAvatars)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            reporter.complete()
-            return
-        }
-        presetAvatarRepository.downloadMissing(avatars, reporter::onItemsProgress) { id, destination ->
-            client.downloadPresetAvatar(id, destination, assets, reporter::onTransfer)
-        }
-        reporter.complete()
-    }
-
-    private fun showSimpleStage(version: String, stage: CatalogSyncStage, fraction: Float) {
         mutableSyncStatus.value = CatalogSyncStatus.Downloading(
             version = version,
-            progress = CatalogSyncProgress(stage = stage, overallFraction = fraction),
+            progress = CatalogSyncProgress(
+                stage = stage,
+                overallFraction = fraction,
+                downloadedBytes = downloadedBytes,
+                totalBytes = totalBytes,
+            ),
         )
     }
 
@@ -346,71 +338,6 @@ class CatalogRepository(
         if (value == null) return ""
         val trimmed = value.trim()
         return trimmed.ifEmpty { value.ifEmpty { "" } }
-    }
-
-    private inner class StageProgressReporter(
-        private val version: String,
-        private val stage: CatalogSyncStage,
-        private val overallStart: Float,
-        private val overallEnd: Float,
-        private val useByteProgress: Boolean = false,
-    ) {
-        private val speedTracker = DownloadSpeedTracker()
-        private var completedItems = 0
-        private var totalItems = 0
-        private var downloadedBytes = 0L
-        private var totalBytes = 0L
-        private var bytesPerSecond = 0L
-
-        @Synchronized
-        fun start(totalItems: Int = 0) {
-            this.totalItems = totalItems.coerceAtLeast(0)
-            publish()
-        }
-
-        @Synchronized
-        fun onItemsProgress(completedItems: Int, totalItems: Int) {
-            this.completedItems = completedItems.coerceAtLeast(0)
-            this.totalItems = totalItems.coerceAtLeast(0)
-            publish()
-        }
-
-        @Synchronized
-        fun onTransfer(byteCount: Long, expectedBytes: Long?) {
-            if (expectedBytes != null) totalBytes += expectedBytes.coerceAtLeast(0L)
-            val snapshot = speedTracker.addBytes(byteCount)
-            downloadedBytes = snapshot.downloadedBytes
-            bytesPerSecond = snapshot.bytesPerSecond
-            publish()
-        }
-
-        @Synchronized
-        fun complete() {
-            if (totalItems > 0) completedItems = totalItems
-            publish(stageFraction = 1f)
-        }
-
-        private fun publish(stageFraction: Float = calculatedStageFraction()) {
-            val overallFraction = overallStart + (overallEnd - overallStart) * stageFraction
-            mutableSyncStatus.value = CatalogSyncStatus.Downloading(
-                version = version,
-                progress = CatalogSyncProgress(
-                    stage = stage,
-                    overallFraction = overallFraction.coerceIn(0f, 1f),
-                    completedItems = completedItems,
-                    totalItems = totalItems,
-                    downloadedBytes = downloadedBytes,
-                    totalBytes = totalBytes.takeIf { it > 0L },
-                    bytesPerSecond = bytesPerSecond,
-                ),
-            )
-        }
-
-        private fun calculatedStageFraction(): Float = when {
-            useByteProgress && totalBytes > 0L -> downloadedBytes.toFloat() / totalBytes
-            totalItems > 0 -> completedItems.toFloat() / totalItems
-            else -> 0f
-        }.coerceIn(0f, 1f)
     }
 
     companion object {

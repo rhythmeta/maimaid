@@ -1,6 +1,12 @@
 package org.rhythmeta.maimaid.ui.onboarding
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -38,10 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.data.CatalogSyncStatus
@@ -62,6 +70,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun InitialCatalogGate(
     state: InitialCatalogState,
     syncStatus: CatalogSyncStatus,
+    totalDownloadBytes: Long?,
     onStartDownload: () -> Unit,
 ) {
     when (state) {
@@ -77,6 +86,7 @@ fun InitialCatalogGate(
         InitialCatalogState.Synchronizing,
         -> FirstLaunchScreen(
             syncStatus = syncStatus,
+            totalDownloadBytes = totalDownloadBytes,
             isSyncRequested = state == InitialCatalogState.Synchronizing,
             onStartDownload = onStartDownload,
         )
@@ -87,6 +97,7 @@ fun InitialCatalogGate(
 @Composable
 fun FirstLaunchScreen(
     syncStatus: CatalogSyncStatus,
+    totalDownloadBytes: Long?,
     isSyncRequested: Boolean,
     onStartDownload: () -> Unit,
 ) {
@@ -131,6 +142,7 @@ fun FirstLaunchScreen(
 
         OnboardingBottomAction(
             syncStatus = syncStatus,
+            totalDownloadBytes = totalDownloadBytes,
             isSyncRequested = isSyncRequested,
             onStartDownload = onStartDownload,
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -273,6 +285,7 @@ private fun OnboardingDivider() {
 @Composable
 private fun OnboardingBottomAction(
     syncStatus: CatalogSyncStatus,
+    totalDownloadBytes: Long?,
     isSyncRequested: Boolean,
     onStartDownload: () -> Unit,
     modifier: Modifier = Modifier,
@@ -280,6 +293,24 @@ private fun OnboardingBottomAction(
     val isWorking = isSyncRequested ||
         syncStatus == CatalogSyncStatus.Checking ||
         syncStatus is CatalogSyncStatus.Downloading
+    val context = LocalContext.current
+    // Ask for notification permission right where the download starts, because the progress is
+    // surfaced as an ongoing notification. The download itself runs either way.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { onStartDownload() }
+    val requestStart = {
+        val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        if (needsNotificationPermission) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            onStartDownload()
+        }
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -290,8 +321,20 @@ private fun OnboardingBottomAction(
         if (syncStatus is CatalogSyncStatus.Downloading) {
             CatalogDownloadProgressContent(progress = syncStatus.progress)
         }
+        if (totalDownloadBytes != null && totalDownloadBytes > 0L) {
+            // The bar above tracks "getting the catalog ready"; this states how much the whole
+            // first-run download is, including the artwork that keeps downloading afterwards.
+            Text(
+                text = stringResource(
+                    R.string.catalog_sync_total_download_size,
+                    Formatter.formatShortFileSize(context, totalDownloadBytes),
+                ),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+        }
         Button(
-            onClick = onStartDownload,
+            onClick = requestStart,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp),

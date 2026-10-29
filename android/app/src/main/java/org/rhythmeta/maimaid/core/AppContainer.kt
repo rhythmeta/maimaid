@@ -45,6 +45,7 @@ import org.rhythmeta.maimaid.core.ml.OnnxSessionFactory
 import org.rhythmeta.maimaid.core.ml.RemoteModelStore
 import org.rhythmeta.maimaid.core.network.BackendApiClient
 import org.rhythmeta.maimaid.core.network.StaticBundleClient
+import org.rhythmeta.maimaid.core.sync.CatalogAssetSyncer
 import org.rhythmeta.maimaid.widget.WidgetUpdateCoordinator
 
 class AppContainer(context: Context) {
@@ -98,6 +99,8 @@ class AppContainer(context: Context) {
     val onnxSessionFactory = OnnxSessionFactory(remoteModelStore)
     val coverImageStore = CoverImageStore(applicationContext)
     val presetAvatarImageStore = PresetAvatarImageStore(applicationContext)
+    private val staticBundleClient = StaticBundleClient(BuildConfig.STATIC_ASSETS_URL, json)
+    private val catalogSyncStateStore = CatalogSyncStateStore(applicationContext)
     val profileAvatarStore = ProfileAvatarStore(applicationContext)
     val profileCredentialStore = ProfileCredentialStore(applicationContext)
     val chimeCredentialStore = ChimeCredentialStore(applicationContext)
@@ -162,12 +165,19 @@ class AppContainer(context: Context) {
 
     val catalogRepository = CatalogRepository(
         database = database,
-        client = StaticBundleClient(BuildConfig.STATIC_ASSETS_URL, json),
-        syncStateStore = CatalogSyncStateStore(applicationContext),
-        coverImageStore = coverImageStore,
+        client = staticBundleClient,
+        syncStateStore = catalogSyncStateStore,
         presetAvatarRepository = presetAvatarRepository,
         chartFitStore = chartFitStore,
         danStore = DanStore(applicationContext, json),
+    )
+
+    val catalogAssetSyncer = CatalogAssetSyncer(
+        database = database,
+        client = staticBundleClient,
+        coverImageStore = coverImageStore,
+        presetAvatarRepository = presetAvatarRepository,
+        syncStateStore = catalogSyncStateStore,
     )
 
     val best50Repository = Best50Repository(

@@ -52,6 +52,10 @@ class PresetAvatarRepository(
 
     fun imageFileFor(url: String?): File? = PresetAvatarUrl.iconId(url)?.let(imageStore::fileFor)
 
+    /** Bytes already cached for these avatars, used as the baseline of a resumable sync progress. */
+    fun installedBytes(avatars: Iterable<PresetAvatar>): Long =
+        imageStore.installedBytes(avatars.map(PresetAvatar::id))
+
     suspend fun downloadMissing(
         avatars: Iterable<PresetAvatar>,
         onProgress: (completedItems: Int, totalItems: Int) -> Unit = { _, _ -> },

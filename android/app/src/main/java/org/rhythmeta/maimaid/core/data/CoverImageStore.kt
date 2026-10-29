@@ -19,6 +19,11 @@ class CoverImageStore(context: Context) {
         return file.takeIf { it.isFile && it.length() > 0L }
     }
 
+    /** Bytes already cached for these names, used as the baseline of a resumable sync progress. */
+    fun installedBytes(imageNames: Iterable<String>): Long = imageNames.sumOf { name ->
+        fileFor(name)?.length() ?: 0L
+    }
+
     suspend fun downloadMissing(
         imageNames: Iterable<String>,
         onProgress: (completedItems: Int, totalItems: Int) -> Unit = { _, _ -> },

@@ -11,6 +11,9 @@ object StaticAssetUrls {
         configuration = value
     }
 
+    /** The last manifest-provided configuration, or null when no manifest has been fetched yet. */
+    fun currentConfiguration(): StaticAssetConfiguration? = configuration
+
     fun coverUrl(imageName: String): String = coverCandidates(imageName).first()
 
     fun presetAvatarUrl(id: Int): String = presetAvatarCandidates(id).first()

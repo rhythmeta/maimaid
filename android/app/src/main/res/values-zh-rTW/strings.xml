@@ -134,6 +134,10 @@
 	<string name="catalog_sync_download_speed">%1$s/秒</string>
 	<string name="catalog_sync_download_speed_waiting">正在計算速度…</string>
 	<string name="catalog_sync_processing">正在處理…</string>
+	<string name="catalog_sync_total_download_size">本次共需下載約 %1$s</string>
+	<string name="catalog_asset_sync_channel_name">封面與頭像下載</string>
+	<string name="catalog_asset_sync_channel_description">在背景下載歌曲封面和預設頭像時顯示進度。</string>
+	<string name="catalog_asset_sync_notification_preparing">正在準備…</string>
 	<string name="onboarding_title_prefix">歡迎使用</string>
 	<string name="onboarding_subtitle">一眼看懂核心能力，立即開始記錄與分析。</string>
 	<string name="onboarding_feature_fast_scan">快速掃描</string>

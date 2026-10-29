@@ -23,4 +23,6 @@ data class MainUiState(
     val songCategories: List<SongCategoryEntity> = emptyList(),
     val gameVersions: List<GameVersionEntity> = emptyList(),
     val catalogSyncStatus: CatalogSyncStatus = CatalogSyncStatus.Idle,
+    /** Whole first-run download size from the static manifest; null until it has been resolved. */
+    val catalogDownloadTotalBytes: Long? = null,
 )
