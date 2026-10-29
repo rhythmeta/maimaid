@@ -43,8 +43,8 @@ struct StaticDataUpdateView: View {
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
 
-                    if let versionText {
-                        Text(versionText)
+                    if let buildTimeText {
+                        Text(buildTimeText)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -229,7 +229,7 @@ struct StaticDataUpdateView: View {
         }
     }
 
-    private var versionText: String? {
+    private var buildTimeText: String? {
         let manifest: StaticManifestSummary? = {
             switch updateState {
             case let .upToDate(manifest), let .available(manifest):
@@ -242,7 +242,7 @@ struct StaticDataUpdateView: View {
         guard let manifest else { return nil }
         let createdText = manifest.createdAt?.formatted(date: .numeric, time: .shortened)
             ?? String(localized: "update.version.unknownTime")
-        return String(localized: "update.version \(manifest.version) \(createdText)")
+        return String(localized: "update.buildTime \(createdText)")
     }
 
     private var actionButtonTitle: String {

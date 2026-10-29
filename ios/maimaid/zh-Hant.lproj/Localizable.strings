@@ -319,7 +319,7 @@
 "update.description.unconfigured" = "請先在設定中配置後端位址。";
 "update.description.failed" = "請檢查網路或後端狀態後重試。";
 "update.version.unknownTime" = "未知時間";
-"update.version %@ %@" = "版本：%@ · 建置：%@";
+"update.buildTime %@" = "建置時間：%@";
 "update.action.download" = "下載並更新";
 "update.action.reinstall" = "重新安裝目前版本";
 "update.action.updateNow" = "立即更新";

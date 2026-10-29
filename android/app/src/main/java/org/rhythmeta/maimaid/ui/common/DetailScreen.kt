@@ -513,8 +513,7 @@ private fun StaticDataDetail(
                             manifest?.let {
                                 Text(
                                     text = stringResource(
-                                        R.string.static_update_version,
-                                        it.version,
+                                        R.string.static_update_build_time,
                                         staticManifestCreatedText(
                                             it,
                                             stringResource(R.string.static_update_unknown_time),

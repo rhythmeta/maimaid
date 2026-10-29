@@ -320,7 +320,7 @@
 "update.description.unconfigured" = "Configure the backend address in Settings first.";
 "update.description.failed" = "Check the network or backend status, then try again.";
 "update.version.unknownTime" = "Unknown Time";
-"update.version %@ %@" = "Version: %@ · Built: %@";
+"update.buildTime %@" = "Built: %@";
 "update.action.download" = "Download and Update";
 "update.action.reinstall" = "Reinstall Current Version";
 "update.action.updateNow" = "Update Now";

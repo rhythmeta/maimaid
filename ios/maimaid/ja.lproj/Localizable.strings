@@ -319,7 +319,7 @@
 "update.description.unconfigured" = "先に設定でバックエンドのアドレスを設定してください。";
 "update.description.failed" = "ネットワークまたはバックエンドの状態を確認して、再試行してください。";
 "update.version.unknownTime" = "時刻不明";
-"update.version %@ %@" = "バージョン：%@ · ビルド：%@";
+"update.buildTime %@" = "ビルド日時：%@";
 "update.action.download" = "ダウンロードして更新";
 "update.action.reinstall" = "現在のバージョンを再インストール";
 "update.action.updateNow" = "今すぐ更新";

@@ -316,7 +316,7 @@
 "update.description.unconfigured" = "请先在设置中配置后端地址。";
 "update.description.failed" = "请检查网络或后端状态后重试。";
 "update.version.unknownTime" = "未知时间";
-"update.version %@ %@" = "版本：%@ · 构建：%@";
+"update.buildTime %@" = "构建时间：%@";
 "update.action.download" = "下载并更新";
 "update.action.reinstall" = "重新安装当前版本";
 "update.action.updateNow" = "立即更新";

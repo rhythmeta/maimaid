@@ -595,7 +595,7 @@
 	<string name="static_update_description_available">點擊下方按鈕下載並套用完整更新。</string>
 	<string name="static_update_description_failed">請檢查網路或後端狀態後重試。</string>
 	<string name="static_update_unknown_time">未知時間</string>
-	<string name="static_update_version">版本：%1$s · 建置：%2$s</string>
+	<string name="static_update_build_time">建置時間：%1$s</string>
 	<string name="static_update_download">下載並更新</string>
 	<string name="static_update_reinstall">重新安裝目前版本</string>
 	<string name="static_update_now">立即更新</string>

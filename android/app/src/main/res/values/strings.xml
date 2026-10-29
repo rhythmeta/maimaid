@@ -620,7 +620,7 @@
 	<string name="static_update_description_failed">Check the network or backend status, then try
 		again.</string>
 	<string name="static_update_unknown_time">Unknown time</string>
-	<string name="static_update_version">Version: %1$s · Built: %2$s</string>
+	<string name="static_update_build_time">Built: %1$s</string>
 	<string name="static_update_download">Download and update</string>
 	<string name="static_update_reinstall">Reinstall current version</string>
 	<string name="static_update_now">Update now</string>
