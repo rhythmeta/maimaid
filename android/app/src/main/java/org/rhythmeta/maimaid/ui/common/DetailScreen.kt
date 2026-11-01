@@ -101,6 +101,7 @@ internal fun DetailScreen(
     constantTableListState: LazyListState,
     recommendationSelectedPage: Int,
     danSelectedPage: Int,
+    onTrueDanAvailabilityChanged: (Boolean) -> Unit = {},
     scoreQueryViewModel: ScoreQueryViewModel?,
     showScoreQueryFilter: Boolean,
     showConstantTableFilter: Boolean = false,
@@ -301,6 +302,7 @@ internal fun DetailScreen(
                 contentTopPadding = songContentTopPadding,
                 selectedPage = danSelectedPage,
                 server = state.activeProfile?.server ?: "jp",
+                onTrueDanAvailabilityChanged = onTrueDanAvailabilityChanged,
                 onOpenSong = onOpenSong,
             )
         }

@@ -412,6 +412,49 @@ fun MaimaidApp(
             }
         }
     }
+    val danSwitcherScrollConnection = remember(
+        catalogSearchShowThreshold,
+        catalogSearchHideThreshold,
+    ) {
+        object : NestedScrollConnection {
+            private var downwardDistance = 0f
+            private var upwardDistance = 0f
+
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
+
+                when {
+                    available.y > 0f -> {
+                        upwardDistance = 0f
+                        if (danSwitcherVisible) {
+                            downwardDistance = 0f
+                        } else {
+                            downwardDistance += available.y
+                            if (downwardDistance >= catalogSearchShowThreshold) {
+                                danSwitcherVisible = true
+                                downwardDistance = 0f
+                            }
+                        }
+                    }
+                    available.y < 0f -> {
+                        downwardDistance = 0f
+                        if (danSwitcherVisible) {
+                            upwardDistance -= available.y
+                            if (upwardDistance >= catalogSearchHideThreshold) {
+                                danSwitcherVisible = false
+                                upwardDistance = 0f
+                            }
+                        } else {
+                            upwardDistance = 0f
+                        }
+                    }
+                }
+                return super.onPreScroll(available, source)
+            }
+        }
+    }
     val scoreQuerySearchScrollConnection = remember(
         catalogSearchShowThreshold,
         catalogSearchHideThreshold,
@@ -921,6 +964,7 @@ fun MaimaidApp(
                     .then(
                     when (activeDetail) {
                         AppDetail.Recommendations -> Modifier.nestedScroll(recommendationSwitcherScrollConnection)
+                        AppDetail.DanDetail -> Modifier.nestedScroll(danSwitcherScrollConnection)
                         AppDetail.ScoreQuery -> Modifier.nestedScroll(scoreQuerySearchScrollConnection)
                         else -> Modifier
                     },
@@ -942,6 +986,10 @@ fun MaimaidApp(
                     constantTableListState = constantTableListState,
                     recommendationSelectedPage = recommendationSelectedPage,
                     danSelectedPage = danSelectedPage,
+                    onTrueDanAvailabilityChanged = { hasTruePage ->
+                        danHasTruePage = hasTruePage
+                        if (!hasTruePage) danSelectedPage = DanRegularPage
+                    },
                     scoreQueryViewModel = scoreQueryViewModel,
                     showScoreQueryFilter = showScoreQueryFilter,
                     showConstantTableFilter = showConstantTableFilter,
