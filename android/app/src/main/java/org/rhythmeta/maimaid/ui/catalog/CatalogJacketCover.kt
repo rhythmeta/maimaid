@@ -26,12 +26,12 @@ internal object CatalogJacketCover {
     val Shape: Shape = squircleShape(CornerRadius)
 
     private val ShadowRadius = 24.dp
-    private val ShadowOffsetY = 12.dp
+    private val ShadowOffsetY = 6.dp
 
     val Shadow: Shadow = Shadow(
         radius = ShadowRadius,
         color = Color.Black,
-        alpha = 0.3f,
+        alpha = 0.15f,
         offset = DpOffset(0.dp, ShadowOffsetY),
     )
 
@@ -43,7 +43,7 @@ internal object CatalogJacketCover {
      */
     val ShadowOutsets: LayerOutsets = LayerOutsets(
         left = ShadowRadius,
-        top = ShadowRadius,
+        top = 0.dp,
         right = ShadowRadius,
         bottom = ShadowRadius + ShadowOffsetY,
     )
