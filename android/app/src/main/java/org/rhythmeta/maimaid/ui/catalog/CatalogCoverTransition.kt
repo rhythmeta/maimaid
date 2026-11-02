@@ -180,6 +180,11 @@ internal class CatalogCoverTransition(
             val sourceRadius = containerCornerRadiusPx(scope.density)
             val radius = interpolate(sourceRadius, with(scope.density) { deviceCornerRadius.toPx() }, progress)
             alpha = if (progress > 0f) 1f else 0f
+            // Follow the finger's vertical drift during a back gesture, bell-weighted so the
+            // card sits exactly on its path at both ends of the transition.
+            scope.gesture?.let { gesture ->
+                translationY = catalogContainerDragOffset(gesture.touchY - gesture.initialTouchY, progress)
+            }
             clip = progress < 1f
             val bounds = containerBounds(Size(size.width, size.height), progress)
             shape = CoverContainerShape(bounds, if (usesListMotion) radius else radius.coerceAtLeast(sourceRadius))
@@ -196,6 +201,17 @@ internal fun catalogContainerProgress(relativeDepth: Float): Float = (1f + relat
 internal fun catalogDetailAlpha(progress: Float): Float = ((progress - 0.28f) / 0.28f).coerceIn(0f, 1f)
 internal fun catalogCoverAlpha(progress: Float): Float = 1f - ((progress - 0.10f) / 0.18f).coerceIn(0f, 1f)
 internal fun catalogListContentAlpha(progress: Float): Float = (1f - progress / 0.18f).coerceIn(0f, 1f)
+
+/**
+ * Vertical follow of the finger during a back gesture. The `fraction * (1 - fraction)` weight peaks
+ * at the middle of the transition and vanishes at both ends, so the card never drifts away from
+ * its shared-cover path when the gesture starts or settles, and the peak drift is 35% of the
+ * finger's own vertical travel.
+ */
+internal fun catalogContainerDragOffset(deltaY: Float, progress: Float): Float {
+    val fraction = progress.coerceIn(0f, 1f)
+    return deltaY * 0.35f * 4f * fraction * (1f - fraction)
+}
 
 private data class CoverContainerShape(val bounds: Rect, val cornerRadius: Float) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
