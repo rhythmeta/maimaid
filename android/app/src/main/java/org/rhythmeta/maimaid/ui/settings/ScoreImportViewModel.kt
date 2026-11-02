@@ -197,6 +197,16 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
         operation = viewModelScope.launch {
             try { body(profile) }
             catch (error: CancellationException) { throw error }
+            // An import step can hit a missing platform API on older Android releases
+            // (LinkageError, e.g. NoSuchMethodError). Those are Errors, so a plain
+            // `catch (Exception)` lets them escape the view model scope and kill the
+            // process; degrade them to a failed import instead.
+            catch (error: LinkageError) {
+                android.util.Log.e("ScoreImport", "import aborted by a missing platform API", error)
+                if (generation == currentGeneration && mutableState.value.profile?.id == profile.id) {
+                    mutableState.update { it.copy(result = ScoreImportResult.Failed, resultDetails = null) }
+                }
+            }
             catch (error: Exception) {
                 android.util.Log.e("ScoreImport", "import failed: ${error.message}", error)
                 if (generation == currentGeneration && mutableState.value.profile?.id == profile.id) {

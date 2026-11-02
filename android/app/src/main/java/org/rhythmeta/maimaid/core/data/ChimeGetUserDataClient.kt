@@ -1,18 +1,11 @@
 package org.rhythmeta.maimaid.core.data
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
-import java.util.zip.Deflater
-import java.util.zip.Inflater
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -394,17 +387,14 @@ class ChimeGetUserDataClient(
         private val JSON = "application/json".toMediaType()
         internal val config: SgwcmaidConfig get() = SgwcmaidBuildConfig.current
         private val UTC_STAMP = DateTimeFormatter.ofPattern("yyMMddHHmmss").withZone(ZoneOffset.UTC)
+
         private fun md5Hex(value: String) = MessageDigest.getInstance("MD5").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
         private fun sha256Hex(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02X".format(it) }
-        private fun protect(value: String): ByteArray {
-            val input = value.toByteArray(); val deflater = Deflater(Deflater.DEFAULT_COMPRESSION, true).apply { setInput(input); finish() }; val compressed = ByteArrayOutputStream().also { out -> val buffer = ByteArray(4096); while (!deflater.finished()) out.write(buffer, 0, deflater.deflate(buffer)) }.toByteArray(); deflater.end()
-            val zlib = byteArrayOf(0x78.toByte(), 0x9c.toByte()) + compressed + adler32(input)
-            return Cipher.getInstance("AES/CBC/PKCS5Padding").apply { init(Cipher.ENCRYPT_MODE, SecretKeySpec(config.aesKey.toByteArray(), "AES"), IvParameterSpec(config.aesIv.toByteArray())) }.doFinal(zlib)
-        }
-        private fun unprotect(value: ByteArray): String {
-            val plain = Cipher.getInstance("AES/CBC/PKCS5Padding").apply { init(Cipher.DECRYPT_MODE, SecretKeySpec(config.aesKey.toByteArray(), "AES"), IvParameterSpec(config.aesIv.toByteArray())) }.doFinal(value)
-            val inflater = Inflater(true).apply { setInput(plain, 2, plain.size - 6) }; val out = ByteArrayOutputStream(); val buffer = ByteArray(4096); while (!inflater.finished()) out.write(buffer, 0, inflater.inflate(buffer)) ; inflater.end(); return out.toString(StandardCharsets.UTF_8)
-        }
-        private fun adler32(input: ByteArray): ByteArray { var a = 1; var b = 0; input.forEach { a = (a + (it.toInt() and 255)) % 65521; b = (b + a) % 65521 }; val value = (b shl 16) or a; return byteArrayOf((value ushr 24).toByte(), (value ushr 16).toByte(), (value ushr 8).toByte(), value.toByte()) }
+
+        private fun protect(value: String): ByteArray =
+            SgwcmaidPayloadCodec.protect(value, config.aesKey, config.aesIv)
+
+        private fun unprotect(value: ByteArray): String =
+            SgwcmaidPayloadCodec.unprotect(value, config.aesKey, config.aesIv)
     }
 }
