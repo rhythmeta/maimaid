@@ -48,10 +48,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
-import com.materialkolor.rememberDynamicColorScheme
+import com.materialkolor.material3.rememberDynamicColorScheme
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.ui.theme.AppThemeSettings
 import org.rhythmeta.maimaid.ui.theme.ColorMode
+import org.rhythmeta.maimaid.ui.theme.ThemePaletteStyles
+import org.rhythmeta.maimaid.ui.theme.displayLabel
+import org.rhythmeta.maimaid.ui.theme.effectiveFor
+import org.rhythmeta.maimaid.ui.theme.hasFixedColorSpec
+import org.rhythmeta.maimaid.ui.theme.supportedSpecs
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Icon
@@ -164,18 +169,25 @@ fun ThemeSettingsScreen(
                             onSelectedIndexChange = { index -> onKeyColorChange(keyColorOptions[index]) },
                             startAction = { ThemeIcon(Icons.Rounded.Colorize) },
                         )
+                        val paletteStyles = ThemePaletteStyles
                         OverlayDropdownPreference(
                             title = stringResource(R.string.settings_color_style),
-                            items = PaletteStyle.entries.map { it.name },
-                            selectedIndex = PaletteStyle.entries.indexOf(settings.paletteStyle).coerceAtLeast(0),
-                            onSelectedIndexChange = { index -> onPaletteStyleChange(PaletteStyle.entries[index]) },
+                            items = paletteStyles.map { it.displayLabel },
+                            selectedIndex = paletteStyles
+                                .indexOfFirst { it.name == settings.paletteStyle.name }
+                                .coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> onPaletteStyleChange(paletteStyles[index]) },
                             startAction = { ThemeIcon(Icons.Rounded.Style) },
                         )
+                        // CMF is defined by the 2026 spec only, so the spec row below it is
+                        // pinned instead of offering choices the style cannot render.
+                        val colorSpecOptions = settings.paletteStyle.supportedSpecs
                         OverlayDropdownPreference(
                             title = stringResource(R.string.settings_color_spec),
-                            items = ColorSpec.SpecVersion.entries.map { it.name },
-                            selectedIndex = ColorSpec.SpecVersion.entries.indexOf(settings.colorSpec).coerceAtLeast(0),
-                            onSelectedIndexChange = { index -> onColorSpecChange(ColorSpec.SpecVersion.entries[index]) },
+                            items = colorSpecOptions.map { it.name },
+                            selectedIndex = colorSpecOptions.indexOf(settings.colorSpec).coerceAtLeast(0),
+                            enabled = !settings.paletteStyle.hasFixedColorSpec,
+                            onSelectedIndexChange = { index -> onColorSpecChange(colorSpecOptions[index]) },
                             startAction = { ThemeIcon(Icons.Rounded.DesignServices) },
                         )
                     }
@@ -273,7 +285,9 @@ private fun ThemePreviewCard(settings: AppThemeSettings) {
         seedColor = seedColor,
         isDark = isDark,
         style = settings.paletteStyle,
-        specVersion = settings.colorSpec,
+        // CMF always renders with the 2026 spec, so request the resolved spec to keep the
+        // preview in step with the theme.
+        specVersion = settings.colorSpec.effectiveFor(settings.paletteStyle),
     )
     val backgroundColor = when {
         settings.colorMode.isAmoled -> Color.Black

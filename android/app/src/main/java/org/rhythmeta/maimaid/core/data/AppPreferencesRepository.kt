@@ -89,7 +89,9 @@ class AppPreferencesRepository(
     val themeSettings: Flow<AppThemeSettings> = context.appPreferencesDataStore.data.map { preferences ->
         val colorMode = ColorMode.fromValue(preferences[ColorModeKey] ?: ColorMode.SYSTEM.value)
         val paletteStyle = preferences[ColorStyleKey]
-            ?.let { value -> runCatching { PaletteStyle.valueOf(value) }.getOrNull() }
+            // PaletteStyle is no longer an enum, so the stored text is read back through its
+            // stable round-trip format and unknown values fall back to the default style.
+            ?.let { value -> PaletteStyle.parseOrNull(value) }
             ?: DefaultAppThemeSettings.paletteStyle
         val colorSpec = preferences[ColorSpecKey]
             ?.let { value -> runCatching { ColorSpec.SpecVersion.valueOf(value) }.getOrNull() }
@@ -114,7 +116,7 @@ class AppPreferencesRepository(
         context.appPreferencesDataStore.edit { preferences ->
             preferences[ColorModeKey] = settings.colorMode.value
             preferences[KeyColorKey] = settings.keyColor
-            preferences[ColorStyleKey] = settings.paletteStyle.name
+            preferences[ColorStyleKey] = settings.paletteStyle.toString()
             preferences[ColorSpecKey] = settings.colorSpec.effectiveFor(settings.paletteStyle).name
             preferences[EnableBlurKey] = settings.enableBlur
             preferences[EnableFloatingBottomBarKey] = settings.enableFloatingBottomBar

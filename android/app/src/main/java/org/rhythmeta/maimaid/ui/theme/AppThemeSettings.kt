@@ -38,18 +38,54 @@ enum class ColorMode(val value: Int) {
     }
 }
 
-val PaletteStyle.supportsSpec2025: Boolean
-    get() = this == PaletteStyle.TonalSpot ||
-        this == PaletteStyle.Neutral ||
-        this == PaletteStyle.Vibrant ||
-        this == PaletteStyle.Expressive
+/**
+ * Palette styles the appearance settings can offer, in menu order.
+ *
+ * The CMF entry is a [PaletteStyle.Cmf] instance rather than an enum constant, so the list is the
+ * only stable source of truth for the picker.
+ */
+val ThemePaletteStyles: List<PaletteStyle>
+    get() = PaletteStyle.KnownStyles
 
-fun ColorSpec.SpecVersion.effectiveFor(style: PaletteStyle): ColorSpec.SpecVersion =
-    if (this == ColorSpec.SpecVersion.SPEC_2025 && !style.supportsSpec2025) {
-        ColorSpec.SpecVersion.SPEC_2021
-    } else {
-        this
+/** Label shown in the palette style picker. Only the CMF style needs its brand casing. */
+val PaletteStyle.displayLabel: String
+    get() = if (this is PaletteStyle.Cmf) "CMF" else name
+
+/**
+ * Color specifications a palette style can render.
+ *
+ * Mirrors the InstallerX contract the CMF palette is ported from: the 2025 spec is limited to the
+ * classic M3 styles, CMF is defined only by the 2026 spec, and everything else stays on the 2021
+ * spec.
+ */
+val PaletteStyle.supportedSpecs: List<ColorSpec.SpecVersion>
+    get() = when (this) {
+        PaletteStyle.TonalSpot,
+        PaletteStyle.Neutral,
+        PaletteStyle.Vibrant,
+        PaletteStyle.Expressive,
+        -> listOf(ColorSpec.SpecVersion.SPEC_2021, ColorSpec.SpecVersion.SPEC_2025)
+        is PaletteStyle.Cmf -> listOf(ColorSpec.SpecVersion.SPEC_2026)
+        PaletteStyle.Rainbow,
+        PaletteStyle.FruitSalad,
+        PaletteStyle.Monochrome,
+        PaletteStyle.Fidelity,
+        PaletteStyle.Content,
+        -> listOf(ColorSpec.SpecVersion.SPEC_2021)
     }
+
+/**
+ * Resolve the spec actually used for [style] without overwriting the user's preference.
+ *
+ * CMF is fixed to [ColorSpec.SpecVersion.SPEC_2026]; a 2026 request for any other style falls back
+ * to the newest spec that style supports.
+ */
+fun ColorSpec.SpecVersion.effectiveFor(style: PaletteStyle): ColorSpec.SpecVersion =
+    takeIf { it in style.supportedSpecs } ?: style.supportedSpecs.last()
+
+/** True when the style's spec cannot be chosen by the user, e.g. CMF and its 2026 spec. */
+val PaletteStyle.hasFixedColorSpec: Boolean
+    get() = supportedSpecs.size == 1
 
 data class AppThemeSettings(
     val colorMode: ColorMode = ColorMode.SYSTEM,

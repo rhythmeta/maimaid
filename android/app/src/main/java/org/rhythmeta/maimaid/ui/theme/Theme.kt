@@ -14,18 +14,19 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowInsetsControllerCompat
-import com.materialkolor.dynamiccolor.ColorSpec
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.theme.ThemeColorSpec
 import top.yukonga.miuix.kmp.theme.ThemeController
-import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 
 val LocalEnableBlur = staticCompositionLocalOf { true }
 val LocalEnableFloatingBottomBar = staticCompositionLocalOf { true }
 val LocalEnableFloatingBottomBarBlur = staticCompositionLocalOf { true }
 val LocalEnablePredictiveBack = staticCompositionLocalOf { true }
 val LocalPageScale = staticCompositionLocalOf { 1f }
+
+/** Light and dark MIUIX color roles generated for one seed color. */
+private class MiuixColorPair(val light: Colors, val dark: Colors)
 
 @SuppressLint("NewApi")
 @Composable
@@ -36,39 +37,62 @@ fun MaimaidTheme(
     val context = LocalContext.current
     val systemDarkTheme = isSystemInDarkTheme()
     val darkTheme = settings.colorMode.isDark || (settings.colorMode.isSystem && systemDarkTheme)
-    val paletteStyle = runCatching {
-        ThemePaletteStyle.valueOf(settings.paletteStyle.name)
-    }.getOrDefault(ThemePaletteStyle.TonalSpot)
-    val colorSpec = when (settings.colorSpec.effectiveFor(settings.paletteStyle)) {
-        ColorSpec.SpecVersion.SPEC_2025 -> ThemeColorSpec.Spec2025
-        ColorSpec.SpecVersion.SPEC_2021 -> ThemeColorSpec.Spec2021
-		}
+    val effectiveColorSpec = settings.colorSpec.effectiveFor(settings.paletteStyle)
     // KernelSU leaves the seed unspecified for the built-in Miuix palette. A
     // system dynamic seed is only resolved for Monet modes.
-    val resolvedKeyColor: Color? = when {
+    val dynamicallyGenerated = settings.colorMode.isMonet
+    val monetSeedColor: Color? = when {
+        !dynamicallyGenerated -> null
         settings.keyColor != 0 -> Color(settings.keyColor)
-        settings.colorMode.isMonet && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context).primary else dynamicLightColorScheme(context).primary
         }
-        settings.colorMode.isMonet -> Color(0xFF3F8C8E)
-        else -> null
+        else -> Color(0xFF3F8C8E)
     }
     val schemeMode = when (settings.colorMode) {
-        ColorMode.SYSTEM -> ColorSchemeMode.System
-        ColorMode.LIGHT -> ColorSchemeMode.Light
-        ColorMode.DARK -> ColorSchemeMode.Dark
-        ColorMode.MONET_SYSTEM -> ColorSchemeMode.MonetSystem
-        ColorMode.MONET_LIGHT -> ColorSchemeMode.MonetLight
-        ColorMode.MONET_DARK, ColorMode.DARK_AMOLED -> ColorSchemeMode.MonetDark
+        ColorMode.SYSTEM, ColorMode.MONET_SYSTEM -> ColorSchemeMode.System
+        ColorMode.LIGHT, ColorMode.MONET_LIGHT -> ColorSchemeMode.Light
+        ColorMode.DARK, ColorMode.MONET_DARK, ColorMode.DARK_AMOLED -> ColorSchemeMode.Dark
     }
-    val controller = remember(settings, darkTheme, resolvedKeyColor, paletteStyle, colorSpec) {
-        ThemeController(
-            colorSchemeMode = schemeMode,
-            keyColor = resolvedKeyColor,
-            colorSpec = colorSpec,
-            paletteStyle = paletteStyle,
-            isDark = darkTheme,
-        )
+    // MIUIX 0.9.4 generates its Monet palettes against the 5.x material-color-utilities class
+    // layout, which no longer matches the 6.x palette engine that provides the CMF style and the
+    // 2026 spec. The app therefore generates every dynamic palette itself and hands the resulting
+    // roles to the controller as explicit colors; only the seed-less Miuix palette still comes
+    // from MIUIX untouched.
+    val dynamicColors = if (monetSeedColor != null) {
+        remember(monetSeedColor, settings.paletteStyle, effectiveColorSpec) {
+            MiuixColorPair(
+                light = paletteColorScheme(
+                    seedColor = monetSeedColor,
+                    isDark = false,
+                    style = settings.paletteStyle,
+                    spec = effectiveColorSpec,
+                ).toMiuixColors(isDark = false),
+                dark = paletteColorScheme(
+                    seedColor = monetSeedColor,
+                    isDark = true,
+                    style = settings.paletteStyle,
+                    spec = effectiveColorSpec,
+                ).toMiuixColors(isDark = true),
+            )
+        }
+    } else {
+        null
+    }
+    val controller = remember(settings.colorMode, darkTheme, schemeMode, dynamicColors) {
+        if (dynamicColors != null) {
+            ThemeController(
+                colorSchemeMode = schemeMode,
+                lightColors = dynamicColors.light,
+                darkColors = dynamicColors.dark,
+                isDark = darkTheme,
+            )
+        } else {
+            ThemeController(
+                colorSchemeMode = schemeMode,
+                isDark = darkTheme,
+            )
+        }
     }
     val generatedColors = controller.currentColors()
     val resolvedController = if (settings.colorMode.isAmoled) {
