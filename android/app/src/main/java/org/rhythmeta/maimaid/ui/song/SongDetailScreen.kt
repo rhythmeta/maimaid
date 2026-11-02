@@ -88,7 +88,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
@@ -145,6 +144,7 @@ import org.rhythmeta.maimaid.ui.community.CommunityAliasMessage
 import org.rhythmeta.maimaid.ui.community.SongCommunityAliasUiState
 import org.rhythmeta.maimaid.ui.community.SongCommunityAliasViewModel
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
+import org.rhythmeta.maimaid.ui.components.softDropShadow
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -661,7 +661,7 @@ private fun SongHeader(
                     .size(CatalogJacketCover.Size)
                     .onGloballyPositioned { coverTransition?.updateDetailCover(it, viewportTop) }
                     .graphicsLayer { alpha = if (coverTransition?.hidesDetailCover == true) 0f else 1f }
-                    .dropShadow(
+                    .softDropShadow(
                         shape = jacketShape,
                         shadow = CatalogJacketCover.Shadow,
                     )
