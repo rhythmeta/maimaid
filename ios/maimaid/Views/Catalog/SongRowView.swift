@@ -126,25 +126,12 @@ struct SongRowView: View {
         let context: ModelContext
         @Environment(\.colorScheme) private var colorScheme
 
-        private var color: Color {
-            ThemeUtils.colorForDifficulty(sheet.difficulty, sheet.type, colorScheme)
-        }
-
         var body: some View {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.3), lineWidth: 1)
-                    .frame(width: 8, height: 8)
-
-                if let score = ScoreService.shared.score(for: sheet, context: context), score.rate > 0 {
-                    let progress = min(1.0, score.rate - 100)
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .butt))
-                        .frame(width: 4, height: 4)
-                        .rotationEffect(.degrees(-90))
-                }
-            }
+            ScoreProgressDotRing(
+                rate: ScoreService.shared.score(for: sheet, context: context)?.rate ?? 0,
+                color: ThemeUtils.colorForDifficulty(sheet.difficulty, sheet.type, colorScheme),
+                ringLineWidth: 1
+            )
         }
     }
 }
@@ -165,19 +152,9 @@ struct ScoreProgressDotOptimized: View {
     }
 
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(color.opacity(0.3), lineWidth: 1.2)
-                .frame(width: 8, height: 8)
-
-            if let score = scoreCache[sheetId], score.rate > 0 {
-                let progress = min(1.0, score.rate - 100)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 4, lineCap: .butt))
-                    .frame(width: 4, height: 4)
-                    .rotationEffect(.degrees(-90))
-            }
-        }
+        ScoreProgressDotRing(
+            rate: scoreCache[sheetId]?.rate ?? 0,
+            color: ThemeUtils.colorForDifficulty(sheet.difficulty, sheet.type, colorScheme)
+        )
     }
 }
