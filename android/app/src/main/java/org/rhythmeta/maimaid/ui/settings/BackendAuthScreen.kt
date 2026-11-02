@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -114,14 +113,23 @@ fun BackendAuthScreen(container: AppContainer, contentTopPadding: androidx.compo
                     CloudActionRow(Icons.Rounded.Key, stringResource(R.string.cloud_forgot_password), !busy) { openWebAuth(context, container, BackendWebAuthMode.Forgot, ::message) }
                 } }
             } else {
-                item { CloudSection(stringResource(R.string.cloud_sync_section)) {
-                    CloudActionRow(Icons.Rounded.CloudUpload, stringResource(R.string.cloud_backup), !busy) {
-                        run { container.cloudBackupService.backup(); snapshots = container.cloudBackupService.list(); message(context.getString(R.string.cloud_message_backup_success)) }
+                item {
+                    Column {
+                        CloudSection(stringResource(R.string.cloud_sync_section)) {
+                            CloudActionRow(Icons.Rounded.CloudUpload, stringResource(R.string.cloud_backup), !busy) {
+                                run { container.cloudBackupService.backup(); snapshots = container.cloudBackupService.list(); message(context.getString(R.string.cloud_message_backup_success)) }
+                            }
+                            CloudActionRow(Icons.Rounded.Sync, stringResource(R.string.cloud_snapshots_refresh), !busy) { run { snapshots = container.cloudBackupService.list() } }
+                            if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                        Text(
+                            text = stringResource(R.string.cloud_snapshot_hint),
+                            modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
                     }
-                    CloudActionRow(Icons.Rounded.Sync, stringResource(R.string.cloud_snapshots_refresh), !busy) { run { snapshots = container.cloudBackupService.list() } }
-                    Text(stringResource(R.string.cloud_snapshot_hint), modifier = Modifier.padding(16.dp), style = MiuixTheme.textStyles.footnote1)
-                    if (busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                } }
+                }
                 if (snapshots.isEmpty()) item { Text(stringResource(R.string.cloud_snapshots_empty), modifier = Modifier.padding(16.dp)) }
                 snapshots.forEach { snapshot -> item(key = snapshot.id) {
                     CloudSection(formatBackupDate(snapshot.committedAt)) {
@@ -154,44 +162,48 @@ fun BackendAuthScreen(container: AppContainer, contentTopPadding: androidx.compo
 
 @Composable
 private fun AccountSummaryCard(user: BackendAuthUser?) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp,
-        insideMargin = PaddingValues(20.dp),
-        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = if (user == null) Icons.Rounded.AccountCircle else Icons.Rounded.Person,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = user?.displayHandle ?: stringResource(R.string.cloud_login_title),
-                    style = MiuixTheme.textStyles.title3,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            cornerRadius = 20.dp,
+            insideMargin = PaddingValues(20.dp),
+            colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (user == null) Icons.Rounded.AccountCircle else Icons.Rounded.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
                 )
-                Text(
-                    text = user?.email ?: stringResource(R.string.cloud_login_subtitle),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = user?.displayHandle ?: stringResource(R.string.cloud_login_title),
+                        style = MiuixTheme.textStyles.title3,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = user?.email ?: stringResource(R.string.cloud_login_subtitle),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 Icons.Rounded.Lock,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(14.dp),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.cloud_privacy_hint),
                 style = MiuixTheme.textStyles.footnote1,
