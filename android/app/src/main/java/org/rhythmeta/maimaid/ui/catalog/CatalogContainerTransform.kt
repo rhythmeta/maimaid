@@ -3,14 +3,16 @@ package org.rhythmeta.maimaid.ui.catalog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
@@ -27,7 +29,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import top.yukonga.miuix.kmp.nav.core.LocalNavTransitionScope
+import top.yukonga.miuix.kmp.squircle.addSquircleRect
 import kotlin.math.max
 
 @Composable
@@ -75,6 +79,7 @@ internal fun CatalogContainerTransform(
                 }
             }
         }
+        CatalogCoverShadowLayer(state = state, progress = { catalogContainerProgress(navigation.relativeDepth) })
         Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
             val progress = catalogContainerProgress(navigation.relativeDepth)
             val target = state.detailBounds
@@ -100,8 +105,18 @@ internal fun CatalogContainerTransform(
                     bounds
                 }
                 val sourceRadius = state.coverCornerRadiusPx(this)
-                val radius = if (shared) interpolate(sourceRadius, 26.dp.toPx(), progress) else sourceRadius
-                val path = Path().apply { addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
+                val radius = if (shared) interpolate(sourceRadius, CatalogJacketCover.CornerRadius.toPx(), progress) else sourceRadius
+                // Match the resting jacket's silhouette (MIUIX squircle, not a circular round rect) so
+                // the corners do not change shape on the hand-off frame.
+                val path = Path().apply {
+                    addSquircleRect(
+                        width = bounds.width,
+                        height = bounds.height,
+                        cornerRadius = radius,
+                        extension = SquircleExtension,
+                    )
+                }
+                path.translate(Offset(bounds.left, bounds.top))
                 val source = state.genericSource
                 val painterAlpha = source?.painterAlpha?.let { interpolate(it, 1f, progress) } ?: 1f
                 val painterSaturation = source?.painterSaturation?.let { interpolate(it, 1f, progress) } ?: 1f
@@ -136,7 +151,7 @@ internal fun CatalogContainerTransform(
                     val cornerRadius = (state.containerCornerRadiusPx(this, progress) - inset).coerceAtLeast(0f)
                     drawRoundRect(
                         color = borderColor.copy(alpha = borderColor.alpha * borderAlpha),
-                        topLeft = androidx.compose.ui.geometry.Offset(bounds.left + inset, bounds.top + inset),
+                        topLeft = Offset(bounds.left + inset, bounds.top + inset),
                         size = Size(
                             (bounds.width - borderWidth).coerceAtLeast(0f),
                             (bounds.height - borderWidth).coerceAtLeast(0f),
@@ -153,4 +168,43 @@ internal fun CatalogContainerTransform(
             pageSize = { Size(navigation.layoutSize.width.toFloat(), navigation.layoutSize.height.toFloat()) },
         )
     }
+}
+
+/**
+ * Shadow of the cover that flies between the catalog and the song detail page.
+ *
+ * The resting jacket paints [CatalogJacketCover.Shape] with [CatalogJacketCover.Shadow], so this
+ * layer draws exactly the same shadow at the interpolated cover bounds: the shadow travels with the
+ * cover instead of popping into existence on the frame the real jacket takes over, and at the
+ * hand-off ([catalogCoverShadowAlpha] reaches 1 while the bounds reach the jacket's layout position)
+ * the two are identical. It is hidden whenever the cover is not the shared element or the cover has
+ * already handed over to the real jacket.
+ */
+@Composable
+private fun CatalogCoverShadowLayer(
+    state: CatalogCoverTransition,
+    progress: () -> Float,
+) {
+    Box(
+        modifier = Modifier
+            .requiredSize(CatalogJacketCover.Size)
+            .clearAndSetSemantics {}
+            .graphicsLayer {
+                val fraction = progress()
+                val target = state.detailBounds
+                if (target == null || fraction >= 1f) {
+                    alpha = 0f
+                    return@graphicsLayer
+                }
+                val bounds = state.sharedCoverBounds(target, fraction)
+                alpha = catalogCoverShadowAlpha(fraction)
+                outsets = CatalogJacketCover.ShadowOutsets
+                transformOrigin = TransformOrigin(0f, 0f)
+                scaleX = bounds.width / size.width.coerceAtLeast(1f)
+                scaleY = bounds.height / size.height.coerceAtLeast(1f)
+                translationX = bounds.left
+                translationY = bounds.top
+            }
+            .dropShadow(shape = CatalogJacketCover.Shape, shadow = CatalogJacketCover.Shadow),
+    )
 }

@@ -88,7 +88,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
@@ -134,6 +134,7 @@ import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.SongCollectionEntity
 import org.rhythmeta.maimaid.ui.catalog.ScoreEntrySongCard
 import org.rhythmeta.maimaid.ui.catalog.CatalogCoverTransition
+import org.rhythmeta.maimaid.ui.catalog.CatalogJacketCover
 import org.rhythmeta.maimaid.ui.common.openExternalApp
 import org.rhythmeta.maimaid.ui.components.ExpandableBottomSheet
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
@@ -628,7 +629,7 @@ private fun SongHeader(
     val density = LocalDensity.current
     val viewportTop = with(density) { coverViewportTop.toPx() }
     var artistLineStartPx by remember(song.songIdentifier) { mutableStateOf<Float?>(null) }
-    val jacketShape = remember { squircleShape(26.dp) }
+    val jacketShape = CatalogJacketCover.Shape
     DisposableEffect(coverTransition) {
         onDispose { coverTransition?.updateDetailCover(null, 0f) }
     }
@@ -656,19 +657,16 @@ private fun SongHeader(
             }
             Box(
                 modifier = Modifier
-                    .size(220.dp)
+                    .size(CatalogJacketCover.Size)
                     .onGloballyPositioned { coverTransition?.updateDetailCover(it, viewportTop) }
                     .graphicsLayer { alpha = if (coverTransition?.hidesDetailCover == true) 0f else 1f }
-                    .shadow(
-                        elevation = 18.dp,
+                    .dropShadow(
                         shape = jacketShape,
-                        clip = false,
-                        ambientColor = Color.Black.copy(alpha = 0.18f),
-                        spotColor = Color.Black.copy(alpha = 0.28f),
+                        shadow = CatalogJacketCover.Shadow,
                     )
                     .squircleSurface(
                         color = MiuixTheme.colorScheme.surfaceContainer,
-                        cornerRadius = 26.dp,
+                        cornerRadius = CatalogJacketCover.CornerRadius,
                         extension = SquircleExtension,
                     )
                     .semantics {
