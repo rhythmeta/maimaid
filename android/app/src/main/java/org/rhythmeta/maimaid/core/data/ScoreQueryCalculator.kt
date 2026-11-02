@@ -56,6 +56,7 @@ data class ScoreQueryEntry(
     val fc: String?,
     val fs: String?,
     val dxScore: Int,
+    val maxDxScore: Int = 0,
 )
 
 data class ScoreQueryResponse(
@@ -106,6 +107,7 @@ object ScoreQueryCalculator {
                 fc = ScoreRules.canonicalFc(score.fc),
                 fs = ScoreRules.canonicalFs(score.fs),
                 dxScore = score.dxScore,
+                maxDxScore = ScoreRules.effectiveMaxDxScore(sheet.total),
             )
         }
 

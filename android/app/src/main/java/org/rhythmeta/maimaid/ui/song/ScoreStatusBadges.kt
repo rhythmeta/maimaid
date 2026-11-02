@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
@@ -32,7 +31,7 @@ internal fun ScoreStatusBadges(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (stars > 0) ScoreTintBadge(text = "$stars ★", color = Color(0xFFFFB300), compact = compact)
+        if (stars > 0) ScoreTintBadge(text = "$stars ★", color = ScoreStatusColors.DxStar, compact = compact)
         combo?.let {
             ScoreTintBadge(it, ScoreStatusColors.combo(fc) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary, compact)
         }

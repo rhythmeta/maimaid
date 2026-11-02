@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,6 +61,7 @@ import org.rhythmeta.maimaid.ui.components.ZoomableCoverGrid
 import org.rhythmeta.maimaid.ui.components.ZoomableCoverImage
 import org.rhythmeta.maimaid.ui.components.fadingMarquee
 import org.rhythmeta.maimaid.ui.components.squircleShape
+import org.rhythmeta.maimaid.ui.song.ScoreTintBadge
 import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Card
@@ -423,7 +425,7 @@ private fun ScoreQueryListRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .heightIn(min = 76.dp)
                 .then(if (showCover) coverNavigation.cardModifier else Modifier)
                 .squircleSurface(
                     color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else Color.Transparent,
@@ -475,24 +477,12 @@ private fun ScoreQueryListRow(
                     .fillMaxWidth()
                     .fadingMarquee(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = String.format(Locale.ROOT, "%.4f%%", entry.achievement),
-                    style = MiuixTheme.textStyles.footnote2.copy(fontFamily = FontFamily.Monospace),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-                ScoreRules.displayFc(entry.fc)?.let {
-                    Text(it, style = MiuixTheme.textStyles.footnote2, fontWeight = FontWeight.Bold, color = ScoreStatusColors.combo(entry.fc) ?: MiuixTheme.colorScheme.onSurface)
-                }
-                ScoreRules.displayFs(entry.fs)?.let {
-                    Text(
-                        displaySyncStatus(it),
-                        style = MiuixTheme.textStyles.footnote2,
-                        fontWeight = FontWeight.Bold,
-                        color = ScoreStatusColors.sync(entry.fs) ?: MiuixTheme.colorScheme.onSurface,
-                    )
-                }
-            }
+            Text(
+                text = String.format(Locale.ROOT, "%.4f%%", entry.achievement),
+                style = MiuixTheme.textStyles.footnote2.copy(fontFamily = FontFamily.Monospace),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            ScoreQueryStatusBadges(entry)
         }
         Column(
             modifier = Modifier.padding(end = 12.dp),
@@ -511,6 +501,44 @@ private fun ScoreQueryListRow(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
+        }
+    }
+}
+
+/**
+ * DX star / FC / FS tint badges for the list-mode score card, rendered on their own row below the
+ * achievement. Badge metrics follow the chunithmd score query list.
+ */
+@Composable
+private fun ScoreQueryStatusBadges(entry: ScoreQueryEntry) {
+    val stars = ScoreRules.dxStars(entry.dxScore, entry.maxDxScore)
+    val combo = ScoreRules.displayFc(entry.fc)
+    val sync = ScoreRules.displayFs(entry.fs)?.let(::displaySyncStatus)
+    if (stars == 0 && combo == null && sync == null) return
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (stars > 0) {
+            ScoreTintBadge(
+                text = "$stars ★",
+                color = ScoreStatusColors.DxStar,
+                fontSize = 9.sp,
+            )
+        }
+        combo?.let {
+            ScoreTintBadge(
+                text = it,
+                color = ScoreStatusColors.combo(entry.fc) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 9.sp,
+            )
+        }
+        sync?.let {
+            ScoreTintBadge(
+                text = it,
+                color = ScoreStatusColors.sync(entry.fs) ?: MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 9.sp,
+            )
         }
     }
 }

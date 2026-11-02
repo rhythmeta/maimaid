@@ -1884,7 +1884,7 @@ private fun SheetScorePreview(score: ScoreEntity, maxDxScore: Int) {
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )
-        ScoreStatusBadges(score.dxScore, maxDxScore, score.fc, score.fs, showStars = false)
+        ScoreStatusBadges(score.dxScore, maxDxScore, score.fc, score.fs)
     }
 }
 

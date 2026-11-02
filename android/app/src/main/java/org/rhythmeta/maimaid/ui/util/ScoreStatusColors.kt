@@ -8,6 +8,7 @@ object ScoreStatusColors {
     val AllPerfect = Color(0xFFFF9900)
     val FullSync = Color(0xFF4D80FF)
     val FullSyncDx = Color(0xFFFFD700)
+    val DxStar = Color(0xFFFFB300)
 
     private val RankSss = Color(0xFFFFD900)
     private val RankSs = Color(0xFFFFBF00)

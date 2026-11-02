@@ -27,6 +27,22 @@ class ScoreQueryCalculatorTest {
     }
 
     @Test
+    fun `build derives max dx score for star badges`() {
+        val sheet = sheet("song", 13.0).copy(total = 100)
+        val response = ScoreQueryCalculator.build(
+            songs = listOf(song("song", "Song")),
+            sheets = listOf(sheet),
+            scores = listOf(score(sheet, 100.5, dxScore = 285)),
+            aliases = emptyList(),
+        )
+
+        val entry = response.entries.single()
+        assertEquals(300, entry.maxDxScore)
+        assertEquals(285, entry.dxScore)
+        assertEquals(4, ScoreRules.dxStars(entry.dxScore, entry.maxDxScore))
+    }
+
+    @Test
     fun `cn build uses cn constant and excludes charts unavailable in cn`() {
         val cnSong = song("cn", "CN Song")
         val jpOnlySong = song("jp", "JP Song")
@@ -177,12 +193,18 @@ class ScoreQueryCalculatorTest {
         regionCn = true,
     )
 
-    private fun score(sheet: SheetEntity, achievement: Double, fc: String? = null, fs: String? = null) = ScoreEntity(
+    private fun score(
+        sheet: SheetEntity,
+        achievement: Double,
+        fc: String? = null,
+        fs: String? = null,
+        dxScore: Int = 0,
+    ) = ScoreEntity(
         profileId = "profile",
         sheetKey = sheet.sheetKey,
         achievement = achievement,
         rank = RatingUtils.rank(achievement),
-        dxScore = 0,
+        dxScore = dxScore,
         fc = fc,
         fs = fs,
         achievedAt = 0,

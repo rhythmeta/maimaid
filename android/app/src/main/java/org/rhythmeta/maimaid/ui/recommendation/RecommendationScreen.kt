@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -238,7 +239,7 @@ private fun RecommendationRow(
                 .height(84.dp)
                 .then(if (showCover) coverNavigation.cardModifier else Modifier)
                 .squircleSurface(
-                    color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else androidx.compose.ui.graphics.Color.Transparent,
+                    color = if (showCover) MiuixTheme.colorScheme.surfaceContainer else Color.Transparent,
                     cornerRadius = 16.dp,
                     extension = SquircleExtension,
                 )
@@ -321,31 +322,13 @@ private fun RecommendationRow(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                RecommendationBadge(
                     text = result.sheet.type.uppercase(),
-                    style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
-                    fontWeight = FontWeight.Bold,
                     color = typeColor,
-                    modifier = Modifier
-                        .squircleSurface(
-                            color = typeColor.copy(alpha = 0.13f),
-                            cornerRadius = 4.dp,
-                            extension = SquircleExtension,
-                        )
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
                 )
-                Text(
+                RecommendationBadge(
                     text = String.format(Locale.ROOT, "%.1f", result.constant),
-                    style = MiuixTheme.textStyles.footnote2.copy(fontSize = 10.sp),
-                    fontWeight = FontWeight.Bold,
                     color = difficultyColor,
-                    modifier = Modifier
-                        .squircleSurface(
-                            color = difficultyColor.copy(alpha = 0.13f),
-                            cornerRadius = 4.dp,
-                            extension = SquircleExtension,
-                        )
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
                 )
             }
         }
@@ -372,6 +355,26 @@ private fun RecommendationRow(
     }
 }
 
+/**
+ * Chart type / constant badge shown on a recommendation card. Both badges share the same metrics.
+ */
+@Composable
+private fun RecommendationBadge(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MiuixTheme.textStyles.footnote2.copy(fontSize = 9.sp),
+        fontWeight = FontWeight.Bold,
+        color = color,
+        modifier = Modifier
+            .squircleSurface(
+                color = color.copy(alpha = 0.13f),
+                cornerRadius = 4.dp,
+                extension = SquircleExtension,
+            )
+            .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
+}
+
 internal const val RecommendationNewPage = 0
 private const val PageSize = 10
-private val RecommendationAccent = androidx.compose.ui.graphics.Color(0xFFFF9500)
+private val RecommendationAccent = Color(0xFFFF9500)

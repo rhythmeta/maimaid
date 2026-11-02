@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import top.yukonga.miuix.kmp.basic.Text
@@ -16,10 +17,12 @@ internal fun ScoreTintBadge(
     text: String,
     color: Color,
     compact: Boolean = false,
+    fontSize: TextUnit? = null,
 ) {
     Text(
         text = text,
-        style = MiuixTheme.textStyles.footnote2,
+        style = fontSize?.let { MiuixTheme.textStyles.footnote2.copy(fontSize = it) }
+            ?: MiuixTheme.textStyles.footnote2,
         fontWeight = FontWeight.Bold,
         color = color,
         maxLines = 1,
