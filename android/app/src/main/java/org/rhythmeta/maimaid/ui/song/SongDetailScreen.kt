@@ -692,6 +692,7 @@ private fun SongHeader(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                     onSuccess = { result ->
+                        coverTransition?.updateDetailCoverPainter(result.painter)
                         val bitmap = runCatching {
                             result.result.drawable.toBitmap(config = Bitmap.Config.ARGB_8888)
                         }.getOrNull()

@@ -46,6 +46,15 @@ internal class CatalogCoverTransition(
     var detailClip by mutableStateOf<Rect?>(null)
         private set
 
+    /**
+     * The jacket image the detail page decodes for itself. It is far sharper than the list cell's
+     * painter, so the flying cover draws it as soon as it is available and only falls back to
+     * [coverPainter] until then — otherwise the cover stays blurry for the whole flight and snaps
+     * into focus on the last frame.
+     */
+    var detailCoverPainter by mutableStateOf<Painter?>(null)
+        private set
+
     val hidesSource: Boolean
         get() = isPresented && navigation?.let { catalogContainerProgress(it.relativeDepth) > 0f } == true
 
@@ -91,6 +100,10 @@ internal class CatalogCoverTransition(
         updateDetailBounds()
     }
 
+    fun updateDetailCoverPainter(painter: Painter?) {
+        detailCoverPainter = painter
+    }
+
     private fun updateDetailBounds() {
         val root = detailRoot?.takeIf { it.isAttached }
         val cover = detailCover?.takeIf { it.isAttached }
@@ -118,6 +131,7 @@ internal class CatalogCoverTransition(
         detailCover = null
         detailBounds = null
         detailClip = null
+        detailCoverPainter = null
     }
 
     fun sharedCoverBounds(target: Rect, progress: Float): Rect = Rect(

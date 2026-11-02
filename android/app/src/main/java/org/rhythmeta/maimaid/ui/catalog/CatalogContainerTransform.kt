@@ -1,5 +1,7 @@
 package org.rhythmeta.maimaid.ui.catalog
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
@@ -21,11 +24,13 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -79,6 +84,11 @@ internal fun CatalogContainerTransform(
                 }
             }
         }
+        val coverSharpness = animateFloatAsState(
+            targetValue = if (state.detailCoverPainter != null) 1f else 0f,
+            animationSpec = tween(CoverSharpnessFadeMillis),
+            label = "coverSharpness",
+        )
         CatalogCoverShadowLayer(state = state, progress = { catalogContainerProgress(navigation.relativeDepth) })
         Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
             val progress = catalogContainerProgress(navigation.relativeDepth)
@@ -89,16 +99,9 @@ internal fun CatalogContainerTransform(
             } else {
                 catalogCoverAlpha(progress)
             }
-            val painter = state.coverPainter
-            val intrinsic = painter.intrinsicSize
-            val imageSize = if (intrinsic.isSpecified && intrinsic.width.isFinite() && intrinsic.height.isFinite() &&
-                intrinsic.width > 0f && intrinsic.height > 0f
-            ) intrinsic else Size(1f, 1f)
             if (coverAlpha > 0f) {
                 val bounds = if (target != null) state.sharedCoverBounds(target, progress)
                     else state.fallbackCoverBounds(Size(size.width, size.height), progress)
-                val drawScale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
-                val drawSize = Size(imageSize.width * drawScale, imageSize.height * drawScale)
                 val visible = if (shared) {
                     state.sharedCoverBounds(state.detailClip ?: target, progress)
                 } else {
@@ -118,7 +121,11 @@ internal fun CatalogContainerTransform(
                 }
                 path.translate(Offset(bounds.left, bounds.top))
                 val source = state.genericSource
-                val painterAlpha = source?.painterAlpha?.let { interpolate(it, 1f, progress) } ?: 1f
+                val detailPainter = state.detailCoverPainter
+                // The jacket the detail page decodes for itself is much sharper than the list cell's
+                // painter, so swap to it (over a short fade) instead of keeping the flight blurry
+                // until the hand-off reveals the real jacket.
+                val sharpness = if (detailPainter == null) 0f else coverSharpness.value
                 val painterSaturation = source?.painterSaturation?.let { interpolate(it, 1f, progress) } ?: 1f
                 val colorFilter = if (painterSaturation < 0.999f) {
                     ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(painterSaturation) })
@@ -132,8 +139,22 @@ internal fun CatalogContainerTransform(
                                 drawRect(surface, topLeft = bounds.topLeft, size = bounds.size, alpha = coverAlpha)
                             }
                         }
-                        translate(bounds.center.x - drawSize.width / 2f, bounds.center.y - drawSize.height / 2f) {
-                            with(painter) { draw(drawSize, alpha = coverAlpha * painterAlpha, colorFilter = colorFilter) }
+                        if (sharpness < 1f) {
+                            val painterAlpha = source?.painterAlpha?.let { interpolate(it, 1f, progress) } ?: 1f
+                            drawCoverPainter(
+                                painter = state.coverPainter,
+                                bounds = bounds,
+                                alpha = coverAlpha * painterAlpha * (1f - sharpness),
+                                colorFilter = colorFilter,
+                            )
+                        }
+                        if (detailPainter != null && sharpness > 0f) {
+                            drawCoverPainter(
+                                painter = detailPainter,
+                                bounds = bounds,
+                                alpha = coverAlpha * sharpness,
+                                colorFilter = null,
+                            )
                         }
                     }
                 }
@@ -208,3 +229,27 @@ private fun CatalogCoverShadowLayer(
             .dropShadow(shape = CatalogJacketCover.Shape, shadow = CatalogJacketCover.Shadow),
     )
 }
+
+/** Draws [painter] center-cropped into [bounds], matching `ContentScale.Crop`. */
+private fun DrawScope.drawCoverPainter(
+    painter: Painter,
+    bounds: Rect,
+    alpha: Float,
+    colorFilter: ColorFilter?,
+) {
+    val intrinsic = painter.intrinsicSize
+    val imageSize = if (intrinsic.isSpecified && intrinsic.width.isFinite() && intrinsic.height.isFinite() &&
+        intrinsic.width > 0f && intrinsic.height > 0f
+    ) {
+        intrinsic
+    } else {
+        Size(1f, 1f)
+    }
+    val drawScale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
+    val drawSize = Size(imageSize.width * drawScale, imageSize.height * drawScale)
+    translate(bounds.center.x - drawSize.width / 2f, bounds.center.y - drawSize.height / 2f) {
+        with(painter) { draw(drawSize, alpha = alpha, colorFilter = colorFilter) }
+    }
+}
+
+private const val CoverSharpnessFadeMillis = 120
