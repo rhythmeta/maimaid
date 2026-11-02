@@ -273,6 +273,39 @@ class CatalogQueryTest {
         )
     }
 
+    @Test
+    fun `progress dot sheets prefer dx then std then utage`() {
+        val song = song("utage-song")
+
+        val mixed = listOf(
+            sheet(song, type = "std", difficulty = "master", constant = 13.0),
+            sheet(song, type = "dx", difficulty = "basic", constant = 5.0),
+            sheet(song, type = "dx", difficulty = "expert", constant = 11.0),
+        )
+        assertEquals(
+            listOf("expert", "basic"),
+            CatalogQuery.prioritizedSheets(mixed).map(SheetEntity::difficulty),
+        )
+
+        val standardOnly = listOf(
+            sheet(song, type = "std", difficulty = "master", constant = 13.0),
+            sheet(song, type = "std", difficulty = "basic", constant = 5.0),
+        )
+        assertEquals(
+            listOf("master", "basic"),
+            CatalogQuery.prioritizedSheets(standardOnly).map(SheetEntity::difficulty),
+        )
+
+        val utageOnly = listOf(
+            sheet(song, type = "utage", difficulty = "協", constant = 13.0),
+            sheet(song, type = "utage", difficulty = "狂", constant = 14.0),
+        )
+        assertEquals(
+            setOf("協", "狂"),
+            CatalogQuery.prioritizedSheets(utageOnly).map(SheetEntity::difficulty).toSet(),
+        )
+    }
+
     private fun query(
         songs: List<SongEntity>,
         sheets: Map<String, List<SheetEntity>> = emptyMap(),

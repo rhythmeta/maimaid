@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,6 +44,12 @@ import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val ProgressDotLightSurface = Color(0xFFF9F7FC)
+
+/** Ring size of [SongScoreProgressDot]; the utage label is capped to it so badges stay the same height. */
+private val ProgressDotSize = 8.dp
+
+/** 宴 label size; the glyph is centered in [ProgressDotSize] and may overflow into the badge padding. */
+private val UtageLabelFontSize = 9.sp
 
 @Composable
 internal fun SongGridCell(
@@ -176,9 +184,7 @@ internal fun SongGridCell(
                             transformOrigin = TransformOrigin(1f, 1f)
                         }
                         .squircleSurface(
-                            color = if (isUtage) {
-                                SongVisualUtils.utageColor(darkTheme).copy(alpha = 0.68f)
-                            } else if (darkTheme) {
+                            color = if (darkTheme) {
                                 ProgressDotLightSurface.copy(alpha = 0.88f)
                             } else {
                                 MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f)
@@ -193,27 +199,36 @@ internal fun SongGridCell(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (isUtage) {
-                        Text(
-                            text = "宴",
-                            fontSize = when (columnCount) {
-                                in 0..3 -> 14.sp
-                                4 -> 8.sp
-                                5 -> 7.sp
-                                else -> 6.sp
-                            },
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                        )
-                    } else {
-                        prioritizedSheets.forEachIndexed { index, sheet ->
-                            SongScoreProgressDot(
-                                sheet = sheet,
-                                score = scoresBySheetKey[sheet.sheetKey],
-                                darkTheme = darkTheme,
+                        // Center the glyph in the dot height instead of constraining the text box,
+                        // otherwise the text is clipped at the bottom of the badge.
+                        Box(
+                            modifier = Modifier.height(ProgressDotSize),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "宴",
+                                color = SongVisualUtils.utageColor(darkTheme),
+                                style = MiuixTheme.textStyles.footnote2.copy(
+                                    fontSize = UtageLabelFontSize,
+                                    lineHeight = UtageLabelFontSize,
+                                    fontWeight = FontWeight.Black,
+                                ),
+                                modifier = Modifier.wrapContentHeight(
+                                    Alignment.CenterVertically,
+                                    unbounded = true,
+                                ),
                             )
-                            if (index < prioritizedSheets.lastIndex) {
-                                Box(Modifier.width(2.dp))
-                            }
+                        }
+                        if (prioritizedSheets.isNotEmpty()) Box(Modifier.width(2.dp))
+                    }
+                    prioritizedSheets.forEachIndexed { index, sheet ->
+                        SongScoreProgressDot(
+                            sheet = sheet,
+                            score = scoresBySheetKey[sheet.sheetKey],
+                            darkTheme = darkTheme,
+                        )
+                        if (index < prioritizedSheets.lastIndex) {
+                            Box(Modifier.width(2.dp))
                         }
                     }
                 }

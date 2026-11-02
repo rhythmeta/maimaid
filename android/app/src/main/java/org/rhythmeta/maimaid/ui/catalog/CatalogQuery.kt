@@ -127,6 +127,9 @@ internal object CatalogQuery {
             sheets.filter {
                 it.type.equals("std", ignoreCase = true) ||
                     it.type.equals("standard", ignoreCase = true)
+            }.ifEmpty {
+                // 宴谱只有 utage 谱面，同样展示进度点。
+                sheets.filter { it.type.contains("utage", ignoreCase = true) }
             }
         }
         return pool.sortedByDescending { SongVisualUtils.difficultyOrder(it.difficulty) }

@@ -644,14 +644,10 @@ struct SongGridCell: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
 
-    private var utageFontSize: CGFloat {
-        switch columnCount {
-        case ...3: return 14
-        case 4: return 8
-        case 5: return 7
-        default: return 6
-        }
-    }
+    /// Height of the progress dots; the 宴 label is capped to it so utage badges match regular ones.
+    private static let progressDotHeight: CGFloat = 8
+
+    private static let utageLabelFontSize: CGFloat = 9
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -673,43 +669,27 @@ struct SongGridCell: View {
 
             if showDots {
                 let isUtage = song.songId > 100000
+                let prioritizedSheets = actualSheet.map { [$0] } ?? song.progressDotSheets
 
                 HStack(spacing: 2) {
                     if isUtage {
                         Text("宴")
-                            .font(.system(size: utageFontSize, weight: .black))
-                            .foregroundStyle(.white)
+                            .font(.system(size: Self.utageLabelFontSize, weight: .black))
+                            .foregroundStyle(ThemeUtils.utageColor())
+                            .frame(height: Self.progressDotHeight)
                             .padding(.horizontal, 2)
-                    } else {
-                        let prioritizedSheets: [Sheet] = {
-                            if let actualSheet { return [actualSheet] }
-                            let dxSheets = song.sheets.filter { $0.type.lowercased() == "dx" }
-                            if !dxSheets.isEmpty {
-                                return dxSheets.sorted(by: {
-                                    ThemeUtils.difficultyOrder($0.difficulty)
-                                        > ThemeUtils.difficultyOrder($1.difficulty)
-                                })
-                            }
-                            return song.sheets
-                                .filter { $0.type.lowercased() == "std" }
-                                .sorted(by: {
-                                    ThemeUtils.difficultyOrder($0.difficulty)
-                                        > ThemeUtils.difficultyOrder($1.difficulty)
-                                })
-                        }()
+                    }
 
-                        ForEach(prioritizedSheets) { sheet in
-                            if scoreCache.isEmpty {
-                                SongRowView.ScoreProgressDot(sheet: sheet, context: modelContext)
-                            } else {
-                                ScoreProgressDotOptimized(sheet: sheet, scoreCache: scoreCache)
-                            }
+                    ForEach(prioritizedSheets) { sheet in
+                        if scoreCache.isEmpty {
+                            SongRowView.ScoreProgressDot(sheet: sheet, context: modelContext)
+                        } else {
+                            ScoreProgressDotOptimized(sheet: sheet, scoreCache: scoreCache)
                         }
                     }
                 }
                 .padding(.horizontal, columnCount <= 3 ? 6 : 4)
                 .padding(.vertical, columnCount <= 3 ? 3 : 2)
-                .background(song.songId > 100000 ? Color.pink.opacity(0.5) : Color.clear)
                 .background(.ultraThickMaterial)
                 .environment(\.colorScheme, .light)
                 .clipShape(Capsule())

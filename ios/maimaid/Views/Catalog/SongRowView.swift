@@ -72,22 +72,7 @@ struct SongRowView: View {
 
                     // Difficulty dots - use cached scores for better performance
                     HStack(spacing: 3) {
-                        let prioritizedSheets: [Sheet] = {
-                            if let actualSheet { return [actualSheet] }
-                            let dxSheets = song.sheets.filter { $0.type.lowercased() == "dx" }
-                            if !dxSheets.isEmpty {
-                                return dxSheets.sorted(by: {
-                                    ThemeUtils.difficultyOrder($0.difficulty)
-                                        > ThemeUtils.difficultyOrder($1.difficulty)
-                                })
-                            }
-                            return song.sheets
-                                .filter { $0.type.lowercased() == "std" }
-                                .sorted(by: {
-                                    ThemeUtils.difficultyOrder($0.difficulty)
-                                        > ThemeUtils.difficultyOrder($1.difficulty)
-                                })
-                        }()
+                        let prioritizedSheets = actualSheet.map { [$0] } ?? song.progressDotSheets
 
                         ForEach(prioritizedSheets) { sheet in
                             if scoreCache.isEmpty {
