@@ -12,6 +12,8 @@ data class SheetScoreUiState(
     val history: List<PlayRecordEntity>,
     val chartFit: StaticBundleResponse.ChartFitStat? = null,
     val resolvedMetadata: ResolvedSheetMetadata? = null,
+    /** Rating earned by [score] at the current chart level, including the post-circle AP bonus. */
+    val currentRating: Int? = null,
 )
 
 enum class ScoreSaveStatus {

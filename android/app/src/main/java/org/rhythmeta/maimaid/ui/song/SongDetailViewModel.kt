@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.RatingUtils
 import org.rhythmeta.maimaid.core.data.ScoreInput
 import org.rhythmeta.maimaid.core.data.ServerChartPolicy
 import org.rhythmeta.maimaid.core.data.StaticBundleResponse
@@ -25,8 +26,9 @@ class SongDetailViewModel(
     private val sheetsWithServer = combine(
         container.catalogRepository.observeSheetsForSong(songIdentifier),
         container.profileRepository.activeProfile,
-    ) { sheets, profile ->
-        sheets to (profile?.server ?: "jp")
+        container.catalogRepository.versions,
+    ) { sheets, profile, versions ->
+        Triple(sheets, profile?.server ?: "jp", versions)
     }
 
     val uiState = combine(
@@ -35,9 +37,12 @@ class SongDetailViewModel(
         container.catalogRepository.chartFit,
         entrySheetKey,
         saveStatus,
-    ) { (sheets, server), scoreData, chartFit, selectedSheetKey, status ->
+    ) { (sheets, server, versions), scoreData, chartFit, selectedSheetKey, status ->
         val scoresBySheet = scoreData.scores.associateBy { it.sheetKey }
         val historyBySheet = scoreData.playRecords.groupBy { it.sheetKey }
+        val versionNames = versions.sortedBy { it.sortOrder }.map { it.name }
+        // AP/AP+ charts earn +1 rating once the game version reached "circle".
+        val afterCircle = RatingUtils.isAfterCircle(versionNames.lastOrNull(), versionNames)
         SongDetailUiState(
             profileId = scoreData.profileId,
             charts = sheets
@@ -47,12 +52,21 @@ class SongDetailViewModel(
                     }.thenByDescending { SongVisualUtils.difficultyOrder(it.difficulty) },
                 )
                 .map { sheet ->
+                    val metadata = ServerChartPolicy.metadata(sheet, server)
+                    val score = scoresBySheet[sheet.sheetKey]
                     SheetScoreUiState(
                         sheet = sheet,
-                        score = scoresBySheet[sheet.sheetKey],
+                        score = score,
                         history = historyBySheet[sheet.sheetKey].orEmpty(),
                         chartFit = chartFit.findFor(sheet),
-                        resolvedMetadata = ServerChartPolicy.metadata(sheet, server),
+                        resolvedMetadata = metadata,
+                        currentRating = metadata.ratingLevel
+                            ?.takeIf { it > 0.0 }
+                            ?.let { level ->
+                                score
+                                    ?.takeIf { it.achievement > 0.0 }
+                                    ?.let { RatingUtils.calculate(level, it.achievement, it.fc, afterCircle) }
+                            },
                     )
                 },
             entrySheetKey = selectedSheetKey,

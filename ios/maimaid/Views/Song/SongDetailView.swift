@@ -1446,7 +1446,20 @@ struct SheetCardView: View {
     // MARK: - Rating Table
 
     private func ratingTable(level: Double) -> some View {
-        SongDetailRatingTableSection(level: level, isExpanded: $isRatingExpanded)
+        let currentRating: Int? = currentScore.flatMap { score -> Int? in
+            guard score.rate > 0 else { return nil }
+            return RatingUtils.calculateRating(
+                internalLevel: level,
+                achievement: score.rate,
+                fc: score.fc,
+                afterCircle: RatingUtils.isAfterCircle(version: ThemeUtils.latestVersion)
+            )
+        }
+        return SongDetailRatingTableSection(
+            level: level,
+            currentRating: currentRating,
+            isExpanded: $isRatingExpanded
+        )
     }
 
     // MARK: - Play History Table
@@ -1568,6 +1581,8 @@ struct SheetCardView: View {
 
 private struct SongDetailRatingTableSection: View {
     let level: Double
+    /// Rating earned by the current best score, shown next to the section title.
+    let currentRating: Int?
     @Binding var isExpanded: Bool
 
     private struct Row: Identifiable {
@@ -1614,6 +1629,12 @@ private struct SongDetailRatingTableSection: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.primary)
                     Spacer()
+                    if let currentRating {
+                        Text("\(currentRating)")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 8)
+                    }
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.secondary.opacity(0.4))

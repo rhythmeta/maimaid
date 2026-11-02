@@ -1659,7 +1659,9 @@ private fun SheetScoreCard(
                 if (!isUtage) {
                     metadata.ratingLevel
                         ?.takeIf { it > 0.0 }
-                        ?.let { level -> RatingTableSection(level) }
+                        ?.let { level ->
+                            RatingTableSection(level = level, currentRating = chart.currentRating)
+                        }
                 }
 
                 if (chart.sheet.hasNoteData()) {
@@ -2083,7 +2085,7 @@ private fun BestScoreRow(score: ScoreEntity?, sheet: SheetEntity) {
 }
 
 @Composable
-private fun RatingTableSection(level: Double) {
+private fun RatingTableSection(level: Double, currentRating: Int?) {
     var expanded by rememberSaveable(level) { mutableStateOf(false) }
     val rows = remember(level) {
         val values = RatingUtils.rankThresholds.asReversed().map { threshold ->
@@ -2106,6 +2108,17 @@ private fun RatingTableSection(level: Double) {
         title = stringResource(R.string.score_rating_table),
         expanded = expanded,
         onExpandedChange = { expanded = it },
+        headerActions = {
+            currentRating?.let { rating ->
+                Text(
+                    text = rating.toString(),
+                    style = MiuixTheme.textStyles.footnote2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
+        },
     ) {
         Column {
             Row(
