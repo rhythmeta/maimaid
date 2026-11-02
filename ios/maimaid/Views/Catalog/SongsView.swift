@@ -56,12 +56,6 @@ struct SongsView: View {
     // Performance: Cache score map to avoid repeated lookups
     @State private var scoreCache: [String: Score] = [:]
 
-    /// Namespace for matched geometry zoom transition (iOS 18+)
-    @Namespace private var songTransitionNamespace
-
-    /// The song selected for fullScreenCover detail presentation
-    @State private var selectedSong: Song?
-
     /// Task for background score cache refresh
     @State private var scoreCacheTask: Task<Void, Never>?
 
@@ -478,24 +472,6 @@ struct SongsView: View {
                     }
                 }
             }
-            // fullScreenCover for song detail — used for zoom transition
-            .fullScreenCover(item: $selectedSong) { song in
-                NavigationStack {
-                    SongDetailView(song: song)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button {
-                                    selectedSong = nil
-                                } label: {
-                                    Image(systemName: "chevron.left")
-                                        .font(.system(size: 18))
-                                        .symbolRenderingMode(.hierarchical)
-                                }
-                            }
-                        }
-                }
-                .applyZoomTransition(id: song.songIdentifier, namespace: songTransitionNamespace)
-            }
         }
         .sheet(isPresented: $showFilterSheet) {
             FilterView(settings: $filterSettings, allCategories: allCategories, allVersions: allVersions)
@@ -537,13 +513,9 @@ struct SongsView: View {
     private var listContent: some View {
         LazyVStack(spacing: 8) {
             ForEach(displayedSongs) { song in
-                Button {
-                    selectedSong = song
-                } label: {
+                SongDetailLink(song: song) {
                     SongRowView(song: song, scoreCache: scoreCache)
                 }
-                .buttonStyle(.plain)
-                .applyMatchedTransitionSource(id: song.songIdentifier, namespace: songTransitionNamespace)
             }
         }
         .padding(.vertical, 12)
@@ -577,10 +549,7 @@ struct SongsView: View {
         cellSize: CGFloat,
         transforming: Bool
     ) -> some View {
-        Button {
-            guard !transforming else { return }
-            selectedSong = song
-        } label: {
+        SongDetailLink(song: song, isEnabled: !transforming) {
             SongGridCell(
                 song: song,
                 scoreCache: scoreCache,
@@ -590,8 +559,6 @@ struct SongsView: View {
                 showDots: true
             )
         }
-        .buttonStyle(.plain)
-        .applyMatchedTransitionSource(id: song.songIdentifier, namespace: songTransitionNamespace)
     }
 }
 
@@ -602,28 +569,6 @@ extension View {
     func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
         if condition {
             transform(self)
-        } else {
-            self
-        }
-    }
-}
-
-// MARK: - iOS 18 Zoom Transition Helpers
-
-extension View {
-    @ViewBuilder
-    func applyMatchedTransitionSource(id: String, namespace: Namespace.ID) -> some View {
-        if #available(iOS 18.0, *) {
-            self.matchedTransitionSource(id: id, in: namespace)
-        } else {
-            self
-        }
-    }
-
-    @ViewBuilder
-    func applyZoomTransition(id: String, namespace: Namespace.ID) -> some View {
-        if #available(iOS 18.0, *) {
-            self.navigationTransition(.zoom(sourceID: id, in: namespace))
         } else {
             self
         }

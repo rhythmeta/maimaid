@@ -182,7 +182,7 @@ struct BestTableView: View {
                 } else {
                     ForEach(cache.b50Result.b15) { entry in
                         if let song = cache.getSong(identifier: entry.songIdentifier) {
-                            NavigationLink(destination: SongDetailView(song: song, preferredType: entry.type)) {
+                            SongDetailLink(song: song, preferredType: entry.type) {
                                 ratingRow(entry: entry)
                             }
                         } else {
@@ -204,7 +204,7 @@ struct BestTableView: View {
                 } else {
                     ForEach(cache.b50Result.b35) { entry in
                         if let song = cache.getSong(identifier: entry.songIdentifier) {
-                            NavigationLink(destination: SongDetailView(song: song, preferredType: entry.type)) {
+                            SongDetailLink(song: song, preferredType: entry.type) {
                                 ratingRow(entry: entry)
                             }
                         } else {

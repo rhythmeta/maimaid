@@ -387,10 +387,9 @@ struct PlateProgressView: View {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(section.sheets) { sheet in
                     if let song = sheet.song {
-                        NavigationLink(destination: SongDetailView(song: song, preferredType: sheet.type)) {
+                        SongDetailLink(song: song, preferredType: sheet.type) {
                             jacketItem(sheet)
                         }
-                        .buttonStyle(.plain)
                     } else {
                         jacketItem(sheet)
                     }

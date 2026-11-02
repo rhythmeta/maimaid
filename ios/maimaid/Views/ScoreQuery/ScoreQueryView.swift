@@ -98,7 +98,11 @@ struct ScoreQueryView: View {
                             .padding(.top, 8)
                     },
                     tile: { entry, columns, cellSize, transforming in
-                        NavigationLink(destination: songDetailDestination(entry: entry)) {
+                        SongDetailLink(
+                            song: songMap[entry.songIdentifier],
+                            preferredType: entry.type,
+                            isEnabled: !transforming
+                        ) {
                             gridCell(
                                 entry: entry,
                                 cellSize: cellSize,
@@ -106,8 +110,6 @@ struct ScoreQueryView: View {
                                 intCols: columns
                             )
                         }
-                        .disabled(transforming)
-                        .buttonStyle(.plain)
                     }
                 )
             } else {
@@ -295,10 +297,9 @@ struct ScoreQueryView: View {
     private var listView: some View {
         LazyVStack(spacing: 2) {
             ForEach(filteredEntries) { entry in
-                NavigationLink(destination: songDetailDestination(entry: entry)) {
+                SongDetailLink(song: songMap[entry.songIdentifier], preferredType: entry.type) {
                     listRow(entry: entry)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
@@ -350,17 +351,6 @@ struct ScoreQueryView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 10)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    // MARK: - Navigation
-
-    @ViewBuilder
-    private func songDetailDestination(entry: ScoreEntry) -> some View {
-        if let song = songMap[entry.songIdentifier] {
-            SongDetailView(song: song, preferredType: entry.type)
-        } else {
-            Text("scoreQuery.songNotFound")
-        }
     }
 
     // MARK: - Data Loading

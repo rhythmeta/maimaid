@@ -358,7 +358,7 @@ struct DanSongRowEnhanced: View {
     }
 
     var body: some View {
-        NavigationLink(destination: SongDetailView(song: song, preferredType: ref.type)) {
+        SongDetailLink(song: song, preferredType: ref.type) {
             HStack(spacing: 10) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(diffColor)

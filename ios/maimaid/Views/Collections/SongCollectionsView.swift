@@ -494,9 +494,7 @@ private struct SongCollectionListCard: View {
 
     var body: some View {
         if let song = card.song {
-            NavigationLink {
-                SongDetailView(song: song, preferredType: card.item.chartType)
-            } label: {
+            SongDetailLink(song: song, preferredType: card.item.chartType) {
                 SongRowView(
                     song: song,
                     chartType: card.item.chartType,
@@ -533,9 +531,7 @@ private struct SongCollectionGridCard: View {
     var body: some View {
         Group {
             if let song = card.song {
-                NavigationLink {
-                    SongDetailView(song: song, preferredType: card.item.chartType)
-                } label: {
+                SongDetailLink(song: song, preferredType: card.item.chartType) {
                     SongGridCell(
                         song: song,
                         columnCount: columnCount,

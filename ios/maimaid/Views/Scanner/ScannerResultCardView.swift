@@ -27,11 +27,10 @@ struct ScannerResultCardView: View, Equatable {
 
     var body: some View {
         if recognizedClass == .choose {
-            NavigationLink(
-                destination: {
-                    SongDetailView(song: song).onDisappear { onResetTap() }
-                },
-                label: {
+            SongDetailLink(
+                song: song,
+                onDismiss: onResetTap,
+                content: {
                     VStack(spacing: 0) {
                         HStack(spacing: 12) {
                             SongJacketView(imageName: song.imageName, size: 40, cornerRadius: 8)

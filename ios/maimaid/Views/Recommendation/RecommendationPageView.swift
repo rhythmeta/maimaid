@@ -18,7 +18,7 @@ struct RecommendationPageView: View {
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(results.prefix(visibleCount)) { result in
-                    NavigationLink(destination: SongDetailView(song: result.song, preferredType: result.sheet.type)) {
+                    SongDetailLink(song: result.song, preferredType: result.sheet.type) {
                         RecommendationRow(result: result)
                     }
                 }

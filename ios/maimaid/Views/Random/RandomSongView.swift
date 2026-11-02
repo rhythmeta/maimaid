@@ -103,10 +103,9 @@ struct RandomSongView: View {
                             .padding(.bottom, 8)
 
                         ForEach(results) { song in
-                            NavigationLink(destination: SongDetailView(song: song)) {
+                            SongDetailLink(song: song) {
                                 SongRowView(song: song)
                             }
-                            .buttonStyle(.plain)
                             .transition(.asymmetric(
                                 insertion: .move(edge: .bottom).combined(with: .opacity),
                                 removal: .opacity

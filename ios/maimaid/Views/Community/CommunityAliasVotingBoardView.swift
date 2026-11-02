@@ -176,12 +176,9 @@ struct CommunityAliasVotingBoardView: View {
 
         return Group {
             if let song {
-                NavigationLink {
-                    SongDetailView(song: song)
-                } label: {
+                SongDetailLink(song: song) {
                     songGroupHeaderContent(song: song, title: songTitle, subtitle: subtitle)
                 }
-                .buttonStyle(.plain)
             } else {
                 songGroupHeaderContent(song: nil, title: songTitle, subtitle: subtitle)
             }

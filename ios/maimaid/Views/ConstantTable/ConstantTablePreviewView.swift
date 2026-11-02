@@ -33,10 +33,9 @@ struct ConstantTablePreviewView: View {
 
                     LazyVGrid(columns: columns, spacing: 8) {
                         ForEach(section.entries) { entry in
-                            NavigationLink(destination: songDetailDestination(entry: entry)) {
+                            SongDetailLink(song: songMap[entry.songIdentifier], preferredType: entry.type) {
                                 chartCell(entry)
                             }
-                            .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
                         }
                     }
@@ -52,15 +51,6 @@ struct ConstantTablePreviewView: View {
         }
         .padding(.top, 16)
         .padding(.bottom, 4)
-    }
-
-    @ViewBuilder
-    private func songDetailDestination(entry: ConstantTableExportView.Entry) -> some View {
-        if let song = songMap[entry.songIdentifier] {
-            SongDetailView(song: song, preferredType: entry.type)
-        } else {
-            ContentUnavailableView("scoreQuery.songNotFound", systemImage: "music.note")
-        }
     }
 
     private func chartCell(_ entry: ConstantTableExportView.Entry) -> some View {

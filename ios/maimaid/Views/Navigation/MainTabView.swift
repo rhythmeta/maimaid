@@ -5,6 +5,8 @@ struct MainTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(CollectionImportCoordinator.self) private var collectionImportCoordinator
     @State private var didScheduleSongsPreload = false
+    @State private var songNavigation = SongNavigation()
+    @Namespace private var songTransitionNamespace
 
     @State private var searchText = ""
     @Query private var configs: [SyncConfig]
@@ -20,6 +22,7 @@ struct MainTabView: View {
 
     var body: some View {
         @Bindable var collectionImportCoordinator = collectionImportCoordinator
+        @Bindable var songNavigation = songNavigation
 
         return TabView {
             Tab("tab.home", systemImage: "house") {
@@ -40,6 +43,27 @@ struct MainTabView: View {
             }
         }
         .preferredColorScheme(preferredScheme)
+        // The one and only song detail presentation: every entry point routes through SongNavigation.
+        .fullScreenCover(item: $songNavigation.song) { song in
+            NavigationStack {
+                SongDetailView(song: song, preferredType: songNavigation.preferredType)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button {
+                                songNavigation.dismiss()
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18))
+                                    .symbolRenderingMode(.hierarchical)
+                            }
+                        }
+                    }
+            }
+            .applyZoomTransition(id: songNavigation.sourceID, namespace: songTransitionNamespace)
+            .onDisappear { songNavigation.completeDismissal() }
+        }
+        .environment(songNavigation)
+        .environment(\.songTransitionNamespace, songTransitionNamespace)
         .alert(item: $collectionImportCoordinator.pendingImport) { pending in
             Alert(
                 title: Text("collections_import_prompt_title"),
