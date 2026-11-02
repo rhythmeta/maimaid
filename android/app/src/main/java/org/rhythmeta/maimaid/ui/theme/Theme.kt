@@ -49,16 +49,18 @@ fun MaimaidTheme(
         }
         else -> Color(0xFF3F8C8E)
     }
-    val schemeMode = when (settings.colorMode) {
-        ColorMode.SYSTEM, ColorMode.MONET_SYSTEM -> ColorSchemeMode.System
-        ColorMode.LIGHT, ColorMode.MONET_LIGHT -> ColorSchemeMode.Light
-        ColorMode.DARK, ColorMode.MONET_DARK, ColorMode.DARK_AMOLED -> ColorSchemeMode.Dark
-    }
+    val schemeMode = settings.colorMode.toMiuixColorSchemeMode()
     // MIUIX 0.9.4 generates its Monet palettes against the 5.x material-color-utilities class
     // layout, which no longer matches the 6.x palette engine that provides the CMF style and the
     // 2026 spec. The app therefore generates every dynamic palette itself and hands the resulting
     // roles to the controller as explicit colors; only the seed-less Miuix palette still comes
     // from MIUIX untouched.
+    //
+    // MIUIX's own generator therefore stays unreachable at runtime: no ThemeController below is
+    // given a key color or one of MIUIX's Monet ColorSchemeModes. Keep it that way until MIUIX is
+    // bumped to a release built against material-color-utilities 6.x, otherwise colorsFromSeed
+    // throws NoSuchMethodError; the R8 -dontwarn rule for the relocated DynamicScheme class only
+    // makes the missing references legal at minification time (see proguard-rules.pro).
     val dynamicColors = if (monetSeedColor != null) {
         remember(monetSeedColor, settings.paletteStyle, effectiveColorSpec) {
             MiuixColorPair(
@@ -138,4 +140,19 @@ fun MaimaidTheme(
             content()
         }
     }
+}
+
+/**
+ * MIUIX color scheme mode used for one appearance mode.
+ *
+ * The Monet variants of [ColorMode] describe palettes the app derives itself, so every mode maps to
+ * one of MIUIX's plain modes. Never map a mode to [ColorSchemeMode.MonetSystem],
+ * [ColorSchemeMode.MonetLight] or [ColorSchemeMode.MonetDark]: those make MIUIX call its own palette
+ * generator, which is compiled against the 5.x material-color-utilities layout this app no longer
+ * ships (see [MaimaidTheme] and the matching R8 `-dontwarn` rule in `proguard-rules.pro`).
+ */
+internal fun ColorMode.toMiuixColorSchemeMode(): ColorSchemeMode = when (this) {
+    ColorMode.SYSTEM, ColorMode.MONET_SYSTEM -> ColorSchemeMode.System
+    ColorMode.LIGHT, ColorMode.MONET_LIGHT -> ColorSchemeMode.Light
+    ColorMode.DARK, ColorMode.MONET_DARK, ColorMode.DARK_AMOLED -> ColorSchemeMode.Dark
 }

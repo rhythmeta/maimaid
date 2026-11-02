@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 
 class AppThemeSettingsTest {
     @Test
@@ -112,5 +113,19 @@ class AppThemeSettingsTest {
         assertTrue(DefaultAppThemeSettings.enableFloatingBottomBar)
         assertTrue(DefaultAppThemeSettings.enableFloatingBottomBarBlur)
         assertTrue(DefaultAppThemeSettings.enablePredictiveBack)
+    }
+
+    @Test
+    fun everyModeUsesAPlainMiuixColorSchemeMode() {
+        // MIUIX's Monet modes call its own palette generator, which is binary incompatible with the
+        // material-color-utilities 6.x engine the app ships (see toMiuixColorSchemeMode and
+        // proguard-rules.pro). Only the plain modes keep that generator unreachable.
+        val plainModes = setOf(ColorSchemeMode.System, ColorSchemeMode.Light, ColorSchemeMode.Dark)
+        ColorMode.entries.forEach { mode ->
+            assertTrue("$mode maps to a MIUIX Monet mode", mode.toMiuixColorSchemeMode() in plainModes)
+        }
+        assertEquals(ColorSchemeMode.System, ColorMode.MONET_SYSTEM.toMiuixColorSchemeMode())
+        assertEquals(ColorSchemeMode.Light, ColorMode.MONET_LIGHT.toMiuixColorSchemeMode())
+        assertEquals(ColorSchemeMode.Dark, ColorMode.MONET_DARK.toMiuixColorSchemeMode())
     }
 }
