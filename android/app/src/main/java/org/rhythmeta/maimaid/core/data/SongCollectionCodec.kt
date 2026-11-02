@@ -80,13 +80,15 @@ object SongCollectionCodec {
     private fun extractSegment(value: String): String? {
         val uri = runCatching { java.net.URI(value) }.getOrNull() ?: return null
         val parts = uri.path?.split('/') ?: return null
-        return when {
-            uri.scheme == "https" && uri.host == "dash.rhythmeta.org" &&
-                parts.size == 3 && parts[0].isEmpty() && parts[1] == "collection" -> parts[2]
-            uri.scheme == "maimaid" && uri.host == "collection" &&
-                parts.size == 2 && parts[0].isEmpty() -> parts[1]
-            else -> null
-        }
+        return when (uri.scheme) {
+					"https" if uri.host == "dash.rhythmeta.org" &&
+						parts.size == 3 && parts[0].isEmpty() && parts[1] == "collection" -> parts[2]
+
+					"maimaid" if uri.host == "collection" &&
+						parts.size == 2 && parts[0].isEmpty() -> parts[1]
+
+					else -> null
+				}
     }
 
     private fun compress(raw: ByteArray): ByteArray {

@@ -157,6 +157,7 @@ object RecommendationCalculator {
             server = server,
             activeRegion = ServerChartPolicy.isPlayable(sheet, server),
             versions = versions,
+            songId = sheet.providerSongId,
         )
     }
 

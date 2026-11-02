@@ -12,6 +12,8 @@ import org.rhythmeta.maimaid.core.database.SongEntity
 class RatingUtilsTest {
     private val versions = listOf("FiNALE", "DX", "Splash", "UNiVERSE", "FESTiVAL", "BUDDiES", "PRiSM", "CiRCLE")
 
+    private val cnVersions = listOf("BUDDiES", "PRiSM", "PRiSM PLUS", "CiRCLE", "CiRCLE PLUS", "MAGiCAL")
+
     @Test
     fun `rating uses the matching achievement coefficient`() {
         assertEquals(280, RatingUtils.calculate(internalLevel = 13.0, achievement = 100.0))
@@ -46,6 +48,36 @@ class RatingUtilsTest {
         assertFalse(RatingUtils.category("CiRCLE", "PRiSM", "cn", true, versions) == true)
         assertFalse(RatingUtils.category("BUDDiES", "PRiSM", "cn", true, versions) == true)
         assertEquals(null, RatingUtils.category("PRiSM", "PRiSM", "cn", false, versions))
+    }
+
+    @Test
+    fun `cn synced song is a new song despite its newer jp version`() {
+        // 12025 魔法仕掛けのファンタジア is MAGiCAL in JP but already playable in CN,
+        // where the current version is still PRiSM PLUS.
+        assertTrue(
+            RatingUtils.category("MAGiCAL", "PRiSM PLUS", "cn", true, cnVersions, songId = 12_025) == true,
+        )
+        // STD charts of the same song carry the base id.
+        assertTrue(
+            RatingUtils.category("MAGiCAL", "PRiSM PLUS", "cn", true, cnVersions, songId = 2_025) == true,
+        )
+        assertEquals(
+            null,
+            RatingUtils.category("MAGiCAL", "PRiSM PLUS", "cn", false, cnVersions, songId = 12_025),
+        )
+        // The special case stays CN-only.
+        assertEquals(
+            null,
+            RatingUtils.category("MAGiCAL", "PRiSM PLUS", "jp", true, cnVersions, songId = 12_025),
+        )
+    }
+
+    @Test
+    fun `cn preview songs outside the synced list keep the old bucket`() {
+        assertFalse(RatingUtils.category("CiRCLE", "PRiSM PLUS", "cn", true, cnVersions, songId = 12_345) == true)
+        assertFalse(RatingUtils.category("CiRCLE", "PRiSM PLUS", "cn", true, cnVersions) == true)
+        assertTrue(RatingUtils.category("PRiSM PLUS", "PRiSM PLUS", "cn", true, cnVersions) == true)
+        assertFalse(RatingUtils.category("PRiSM", "PRiSM PLUS", "cn", true, cnVersions) == true)
     }
 
     @Test

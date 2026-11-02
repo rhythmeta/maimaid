@@ -109,7 +109,8 @@ class RecommendationService {
                     songVersion: metadata.version ?? song.version,
                     latestServerVersion: latestVersion,
                     server: serverContext,
-                    isRegionActive: true
+                    isRegionActive: true,
+                    songId: song.songId
                 )
                 if category == .excluded { continue }
 

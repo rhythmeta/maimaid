@@ -85,13 +85,22 @@ object RatingUtils {
         return circle in 0..latest
     }
 
-    fun category(songVersion: String?, latestVersion: String?, server: String, activeRegion: Boolean, versions: List<String>): Boolean? {
+    fun category(
+        songVersion: String?,
+        latestVersion: String?,
+        server: String,
+        activeRegion: Boolean,
+        versions: List<String>,
+        songId: Int? = null,
+    ): Boolean? {
         if (!activeRegion) return null
         val songIndex = songVersion?.let { versionIndex(it, versions) }
         val latestIndex = latestVersion?.let { versionIndex(it, versions) }
         if (songIndex == null || latestIndex == null) return false
+        // CN preview charts stay in B35 until their version becomes current, except the ones
+        // CN itself synced early.
         return when (server.lowercase()) {
-            "cn" -> songIndex == latestIndex
+            "cn" -> songIndex == latestIndex || (songIndex > latestIndex && CnSyncedSongPolicy.contains(songId))
             else -> {
                 if (songIndex > latestIndex) null
                 else {

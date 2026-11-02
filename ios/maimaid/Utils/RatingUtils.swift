@@ -236,36 +236,37 @@ enum RatingUtils {
     // MARK: - Song Category Determination
 
     /// Determines a sheet's Best 50 bucket using the selected server's version rules.
+    /// - Parameter songId: Provider song id of the chart's song, used to spot the
+    ///   charts the CN server synced ahead of its own version.
     static func determineSongCategory(
         songVersion: String?,
         latestServerVersion: String?,
         server: GameServer?,
-        isRegionActive: Bool
+        isRegionActive: Bool,
+        songId: Int? = nil
     ) -> SongCategory {
         guard isRegionActive else { return .excluded }
         guard let server else { return .excluded }
 
-        guard let latest = latestServerVersion, let songVer = songVersion else {
-            return .b35
-        }
-
-        let versionSequence = UserDefaults.app.maimaiVersionSequence
-
-        guard let songIndex = versionIndex(of: songVer, in: versionSequence),
-              let latestIndex = versionIndex(of: latest, in: versionSequence) else {
+        let sequence = UserDefaults.app.maimaiVersionSequence
+        guard let latest = latestServerVersion, let songVer = songVersion,
+              let songIndex = versionIndex(of: songVer, in: sequence),
+              let latestIndex = versionIndex(of: latest, in: sequence) else {
             return .b35
         }
 
         switch server {
         case .cn:
-            // CN preview charts stay in B35 until their version becomes current.
-            return songIndex == latestIndex ? .b15 : .b35
+            // CN preview charts stay in B35 until their version becomes current,
+            // except the ones CN itself synced early.
+            let synced = songIndex > latestIndex && CnSyncedSongPolicy.contains(songId: songId)
+            return songIndex == latestIndex || synced ? .b15 : .b35
         case .jp, .intl:
             if songIndex > latestIndex {
                 return .excluded
             }
 
-            let circleIndex = versionSequence.firstIndex {
+            let circleIndex = sequence.firstIndex {
                 $0.caseInsensitiveCompare("CiRCLE") == .orderedSame
             }
             let includesPreviousVersion = circleIndex.map { latestIndex >= $0 } ?? false
@@ -422,12 +423,17 @@ enum RatingUtils {
         latestServerVersion: String?,
         server: GameServer?
     ) -> SongCategory {
-        let category = determineSongCategory(
-            songVersion: sheet.version ?? song.version,
-            latestServerVersion: latestServerVersion,
-            server: server,
-            isRegionActive: sheet.isPlayable
-        )
+        func bucket(version: String?, isPlayable: Bool) -> SongCategory {
+            determineSongCategory(
+                songVersion: version ?? song.version,
+                latestServerVersion: latestServerVersion,
+                server: server,
+                isRegionActive: isPlayable,
+                songId: song.songId
+            )
+        }
+
+        let category = bucket(version: sheet.version, isPlayable: sheet.isPlayable)
 
         guard category == .b15,
               sheet.difficulty.caseInsensitiveCompare("remaster") == .orderedSame else {
@@ -436,14 +442,7 @@ enum RatingUtils {
 
         let baseCategories = song.sheets
             .filter { $0.difficulty.caseInsensitiveCompare("remaster") != .orderedSame }
-            .map {
-                determineSongCategory(
-                    songVersion: $0.version ?? song.version,
-                    latestServerVersion: latestServerVersion,
-                    server: server,
-                    isRegionActive: $0.isPlayable
-                )
-            }
+            .map { bucket(version: $0.version, isPlayable: $0.isPlayable) }
 
         return baseCategories.contains(.b35) ? .b35 : category
     }

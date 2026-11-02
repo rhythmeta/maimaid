@@ -96,6 +96,7 @@ internal fun calculateBest50(
             categoryServer,
             true,
             versionNames,
+            songId = sheet.providerSongId,
         ) ?: return@forEach
         val remasterUsesOldBucket = isNew &&
             sheet.difficulty.equals("remaster", ignoreCase = true) &&
@@ -108,6 +109,7 @@ internal fun calculateBest50(
                         categoryServer,
                         hasVersionOverride || ServerChartPolicy.isPlayable(baseSheet, server),
                         versionNames,
+                        songId = baseSheet.providerSongId,
                     ) == false
             }
         val level = Best50ConstantResolver.resolve(

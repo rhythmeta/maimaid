@@ -108,6 +108,77 @@ class Best50CalculatorTest {
         assertEquals(13.8, version.b15.single().level, 0.0001)
     }
 
+    @Test
+    fun `cn synced song enters b15 instead of b35`() {
+        val syncedSheet = sheet().copy(version = "MAGiCAL", providerSongId = 12_025)
+        val result = calculateBest50(
+            rows = listOf(row().copy(songVersion = "MAGiCAL", sheetVersion = "MAGiCAL", songId = 12_025)),
+            versions = listOf(
+                GameVersionEntity("PRiSM PLUS", "PRiSM+", null, 0),
+                GameVersionEntity("CiRCLE", "CiRCLE", null, 1),
+                GameVersionEntity("MAGiCAL", "MAGiCAL", null, 2),
+            ),
+            songs = listOf(
+                song().copy(version = "MAGiCAL"),
+                // The CN current version resolves to CiRCLE: the CN song is
+                // playable, its upcoming-version sibling is not.
+                song().copy(songIdentifier = "circle-cn", version = "CiRCLE"),
+                song().copy(songIdentifier = "circle-upcoming", version = "CiRCLE", releaseDate = "2099-01-01"),
+            ),
+            sheets = listOf(
+                syncedSheet,
+                sheet().copy(sheetKey = "circle-cn-dx-master", songIdentifier = "circle-cn", version = "CiRCLE"),
+                sheet().copy(
+                    sheetKey = "circle-upcoming-dx-master",
+                    songIdentifier = "circle-upcoming",
+                    version = "CiRCLE",
+                    regionCn = false,
+                ),
+            ),
+            server = "cn",
+            b35Count = 35,
+            b15Count = 15,
+            versionOverride = null,
+        )
+
+        assertEquals(listOf("song-dx-master"), result.b15.map { it.sheetKey })
+        assertTrue(result.b35.isEmpty())
+    }
+
+    @Test
+    fun `cn preview song outside the synced list stays in b35`() {
+        val result = calculateBest50(
+            rows = listOf(row().copy(songVersion = "MAGiCAL", sheetVersion = "MAGiCAL", songId = 12_345)),
+            versions = listOf(
+                GameVersionEntity("PRiSM PLUS", "PRiSM+", null, 0),
+                GameVersionEntity("CiRCLE", "CiRCLE", null, 1),
+                GameVersionEntity("MAGiCAL", "MAGiCAL", null, 2),
+            ),
+            songs = listOf(
+                song().copy(version = "MAGiCAL"),
+                song().copy(songIdentifier = "circle-cn", version = "CiRCLE"),
+                song().copy(songIdentifier = "circle-upcoming", version = "CiRCLE", releaseDate = "2099-01-01"),
+            ),
+            sheets = listOf(
+                sheet().copy(version = "MAGiCAL", providerSongId = 12_345),
+                sheet().copy(sheetKey = "circle-cn-dx-master", songIdentifier = "circle-cn", version = "CiRCLE"),
+                sheet().copy(
+                    sheetKey = "circle-upcoming-dx-master",
+                    songIdentifier = "circle-upcoming",
+                    version = "CiRCLE",
+                    regionCn = false,
+                ),
+            ),
+            server = "cn",
+            b35Count = 35,
+            b15Count = 15,
+            versionOverride = null,
+        )
+
+        assertEquals(listOf("song-dx-master"), result.b35.map { it.sheetKey })
+        assertTrue(result.b15.isEmpty())
+    }
+
     private fun calculate(
         server: String,
         sheet: SheetEntity,
