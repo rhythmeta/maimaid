@@ -433,7 +433,6 @@
 	<string name="score_query_stats_ap">AP/AP+</string>
 	<string name="score_query_stats_fs">FS/FS+</string>
 	<string name="score_query_stats_fsd">FDX/FDX+</string>
-	<string name="score_query_results">%1$d results</string>
 	<string name="score_query_empty">No scores yet</string>
 	<string name="score_query_search_hint">Songs, artists, aliases…</string>
 	<string name="score_query_display_grid">Grid view</string>

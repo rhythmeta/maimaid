@@ -416,7 +416,6 @@
 	<string name="score_query_stats_ap">AP/AP+</string>
 	<string name="score_query_stats_fs">FS/FS+</string>
 	<string name="score_query_stats_fsd">FDX/FDX+</string>
-	<string name="score_query_results">%1$d 筆結果</string>
 	<string name="score_query_empty">暫無成績</string>
 	<string name="score_query_search_hint">歌曲、藝術家、別名…</string>
 	<string name="score_query_display_grid">顯示網格</string>

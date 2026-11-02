@@ -64,7 +64,9 @@ import org.rhythmeta.maimaid.ui.util.ScoreStatusColors
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.VerticalDivider
 import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -141,7 +143,7 @@ private fun ScoreQueryGrid(
                     .background(MiuixTheme.colorScheme.background)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                ScoreQueryStatsHeader(stats = stats, resultCount = entries.size)
+                ScoreQueryStatsHeader(stats = stats)
             }
         },
     ) { entry, columns, imageSize, filler ->
@@ -180,7 +182,7 @@ private fun ScoreQueryList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "stats") {
-                ScoreQueryStatsHeader(stats = stats, resultCount = entries.size)
+                ScoreQueryStatsHeader(stats = stats)
             }
             if (entries.isEmpty()) {
                 item(key = "empty") { ScoreQueryEmpty() }
@@ -202,10 +204,7 @@ private fun ScoreQueryList(
 }
 
 @Composable
-private fun ScoreQueryStatsHeader(
-    stats: ScoreQueryStats,
-    resultCount: Int,
-) {
+private fun ScoreQueryStatsHeader(stats: ScoreQueryStats) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -214,36 +213,36 @@ private fun ScoreQueryStatsHeader(
         insideMargin = PaddingValues(vertical = 14.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 ScoreQueryStat(stats.totalPlayed.toString(), stringResource(R.string.score_query_stats_played))
+                ScoreQueryStatDivider()
                 ScoreQueryStat(stats.sssPlus.toString(), "SSS+")
+                ScoreQueryStatDivider()
                 ScoreQueryStat(stats.sss.toString(), "SSS")
             }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .padding(horizontal = 16.dp)
-                    .squircleSurface(
-                        color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                        cornerRadius = 1.dp,
-                        extension = SquircleExtension,
-                    ),
-            )
-            Row(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 ScoreQueryStat(stats.fcCount.toString(), stringResource(R.string.score_query_stats_fc))
+                ScoreQueryStatDivider()
                 ScoreQueryStat(stats.apCount.toString(), stringResource(R.string.score_query_stats_ap))
+                ScoreQueryStatDivider()
                 ScoreQueryStat(stats.fsCount.toString(), stringResource(R.string.score_query_stats_fs))
+                ScoreQueryStatDivider()
                 ScoreQueryStat(stats.fsdCount.toString(), stringResource(R.string.score_query_stats_fsd))
             }
-            Text(
-                text = stringResource(R.string.score_query_results, resultCount),
-                style = MiuixTheme.textStyles.footnote2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
         }
     }
+}
+
+@Composable
+private fun ScoreQueryStatDivider() {
+    VerticalDivider(modifier = Modifier.height(30.dp))
 }
 
 @Composable
