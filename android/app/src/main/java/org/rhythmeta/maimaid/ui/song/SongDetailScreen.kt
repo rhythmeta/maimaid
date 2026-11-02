@@ -108,6 +108,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -1140,6 +1141,7 @@ private fun CommunityAliasSection(
                         onClick = onSubmit,
                         surfaceColor = accentColor.copy(alpha = 0.14f),
                         modifier = Modifier.height(52.dp),
+                        cornerRadius = 12.dp,
                     ) {
                         if (state.isSubmitting) {
                             CircularProgressIndicator(size = 18.dp, strokeWidth = 2.dp)
@@ -1511,6 +1513,7 @@ private fun SongDetailButton(
     onClick: () -> Unit,
     surfaceColor: Color,
     modifier: Modifier = Modifier,
+    cornerRadius: Dp = 8.dp,
     content: @Composable RowScope.() -> Unit,
 ) {
     CompositionLocalProvider(LocalContentColor provides MiuixTheme.colorScheme.onSurface) {
@@ -1519,7 +1522,7 @@ private fun SongDetailButton(
                 .heightIn(min = 40.dp)
                 .squircleSurface(
                     color = surfaceColor,
-                    cornerRadius = 8.dp,
+                    cornerRadius = cornerRadius,
                     extension = SquircleExtension,
                 )
                 .clickable(onClick = onClick)
