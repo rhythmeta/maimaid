@@ -1132,7 +1132,7 @@ struct SheetCardView: View {
                                 .minimumScaleFactor(0.75)
                             SongDetailScoreBadges(
                                 dxScore: score.dxScore, maxDxScore: (sheet.total ?? 0) * 3,
-                                fc: score.fc, fs: score.fs, showStars: false
+                                fc: score.fc, fs: score.fs
                             )
                         }
                     }

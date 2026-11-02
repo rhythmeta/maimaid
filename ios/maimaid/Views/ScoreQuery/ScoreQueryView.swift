@@ -69,6 +69,7 @@ struct ScoreQueryView: View {
         let fc: String?
         let fs: String?
         let dxScore: Int
+        let maxDxScore: Int
     }
 
     // MARK: - Body
@@ -322,23 +323,15 @@ struct ScoreQueryView: View {
                     .lineLimit(1)
                     .foregroundStyle(.primary)
 
-                HStack(spacing: 4) {
-                    Text("\(entry.achievement, format: .number.precision(.fractionLength(4)))%")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                Text("\(entry.achievement, format: .number.precision(.fractionLength(4)))%")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.secondary)
 
-                    if let fc = entry.fc, !fc.isEmpty {
-                        Text(ThemeUtils.normalizeFC(fc))
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(ThemeUtils.fcColor(fc))
-                    }
-
-                    if let fs = entry.fs, !fs.isEmpty {
-                        Text(ThemeUtils.normalizeFS(fs))
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(ThemeUtils.fsColor(fs))
-                    }
-                }
+                SongDetailScoreBadges(
+                    dxScore: entry.dxScore, maxDxScore: entry.maxDxScore,
+                    fc: entry.fc, fs: entry.fs,
+                    font: .system(size: 11, weight: .bold)
+                )
             }
 
             Spacer()
@@ -416,7 +409,8 @@ struct ScoreQueryView: View {
                     rating: rating,
                     fc: score.fc,
                     fs: score.fs,
-                    dxScore: score.dxScore
+                    dxScore: score.dxScore,
+                    maxDxScore: (sheet.total ?? 0) * 3
                 ))
             }
         }

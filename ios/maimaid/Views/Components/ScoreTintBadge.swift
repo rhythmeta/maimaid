@@ -3,10 +3,11 @@ import SwiftUI
 struct ScoreTintBadge: View {
     let text: String
     let tint: Color
+    var font: Font = .caption.bold()
 
     var body: some View {
         Text(verbatim: text)
-            .font(.caption.bold())
+            .font(font)
             .foregroundStyle(tint)
             .padding(.horizontal, 5)
             .padding(.vertical, 2)
