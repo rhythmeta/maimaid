@@ -1,6 +1,7 @@
 package org.rhythmeta.maimaid.ui.scorequery
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -33,7 +35,6 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.squircle.squircleBorder
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -207,7 +208,7 @@ private fun ScoreQueryFilterChip(
     Box(
         modifier = Modifier
             .squircleSurface(background, 50.dp, extension = SquircleExtension)
-            .squircleBorder(1.dp, border, 50.dp, extension = SquircleExtension)
+            .border(1.dp, border, CircleShape)
             .toggleable(
                 value = selected,
                 role = Role.Checkbox,
