@@ -153,4 +153,57 @@ describe("chart asset mirroring", () => {
 		await expect(mirrorChartAssets(options)).rejects.toThrow("Failed to mirror 2 chart asset");
 		expect(await readFile(path.join(publicDirectory, "index.json"), "utf8")).toBe(oldIndex);
 	});
+
+	it("publishes CBR audio without its Xing/Info frame", async () => {
+		const root = await mkdtemp(path.join(tmpdir(), "maimaid-chart-asset-seekable-"));
+		const publicDirectory = path.join(root, "public", "chart-assets");
+		const cacheDirectory = path.join(root, "cache");
+		const catalogUrl = "https://catalog.test/index.json";
+		const maidataUrl = "https://astrodx-charts-alice.saop.cc/21/30/maidata.txt";
+		const audioUrl = "https://astrodx-charts.saop.cc/21/30/track.mp3";
+		const maidata = "&title=Song;\n";
+		const frame = (marker: number, metadata?: string) => {
+			const bytes = Buffer.alloc(768, marker);
+			bytes[0] = 0xff;
+			bytes[1] = 0xfb;
+			bytes[2] = 0xd4;
+			bytes[3] = 0x00;
+			if (metadata) bytes.write(metadata, 36, "latin1");
+			return bytes;
+		};
+		const tag = Buffer.alloc(110);
+		tag.write("ID3", 0, "latin1");
+		tag[6] = 0;
+		tag[7] = 0;
+		tag[8] = 0;
+		tag[9] = 100;
+		const metadata = frame(0x11, "Info");
+		const audio = Buffer.concat([frame(0x22), frame(0x33)]);
+		const published = Buffer.concat([tag, audio]);
+		const source = Buffer.concat([tag, metadata, audio]);
+		const bytesResponse = (body: Buffer, headers: Record<string, string>) =>
+			new Response(new Uint8Array(body), { status: 200, headers });
+		const fetcher: typeof fetch = async (url, init) => {
+			if (url === catalogUrl)
+				return response({
+					entries: [{ slug: "30", versionid: 21, title: "Song", files: { maidata: maidataUrl, audio: audioUrl } }],
+				});
+			const body = url === maidataUrl ? Buffer.from(maidata) : source;
+			const headers = { etag: `"${url === maidataUrl ? "m1" : "a1"}"`, "content-length": String(body.length) };
+			if ((init?.method ?? "GET") === "HEAD") return response("", headers);
+			return bytesResponse(body, headers);
+		};
+		const result = await mirrorChartAssets({
+			catalogUrl,
+			publicDirectory,
+			cacheDirectory,
+			fetcher,
+			concurrency: 1,
+		});
+		const entry = result.index.entries[0]?.files.audio;
+		expect(entry?.path).toMatch(/\.mp3$/u);
+		expect(entry?.sha256).toBe(createHash("sha256").update(published).digest("hex"));
+		expect(entry?.size).toBe(published.length);
+		await verifyChartAssets({ publicDirectory });
+	});
 });

@@ -9,10 +9,29 @@ directly.
 
 The scheduled static bundle workflow also mirrors the chart preview assets
 described by the ADX catalog. `chart-assets/index.json` is a separate lookup
-table; it maps each stable chart ID to content-addressed `maidata.txt` and MP3
-paths and records the source URL, byte count, and SHA-256 digest. Clients can
-fetch those files on demand. The current app bundle does not download them
+table; it maps each stable chart ID to content-addressed `maidata.txt` and
+audio paths and records the source URL, byte count, and SHA-256 digest. Clients
+can fetch those files on demand. The current app bundle does not download them
 during catalog synchronization.
+
+Source audio arrives as MP3. Android's MP3 extractor seeks with the Xing/Info
+table of contents whenever one is present, and that table stores a byte
+position per percent of the track in 1/256 steps, so the byte it lands on can
+be a few hundred milliseconds away from the requested time while the extractor
+still stamps the buffers with the requested time. The chart preview clock
+follows that timestamp, so the music drifts away from the chart after every
+scrub. Without the metadata frame the extractor uses its CBR path instead: it
+estimates the byte offset from the bitrate and then rewrites the timestamp
+from the frame it actually landed on, which keeps audio and position within one
+frame.
+
+The mirror therefore removes the leading Xing/Info/VBRI frame from every
+constant-bitrate track before publishing it; everything else stays
+byte-identical. Variable-bitrate files keep their metadata frame because the
+CBR estimate would be wrong for them. Removing the frame also removes about
+24 ms of silent encoder padding, so durations shrink by one frame. The recipe
+version is stored in the CI cache, so changing it re-publishes every track
+exactly once.
 
 Chart assets are fetched from the ADX Alice catalog and media hosts. The build
 keeps source metadata in a separate CI cache and reuses a local file only when

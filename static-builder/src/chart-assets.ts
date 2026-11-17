@@ -1,11 +1,22 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { stripMp3MetadataFrame } from "./mp3-seekable.js";
 
 export const CHART_CATALOG_URL = "https://raw.githubusercontent.com/AdingApkgg/adx-dl/main/data/catalog/index.json";
 export const CHART_ATTRIBUTION = "ADX 谱面资源 — https://adxdls.saop.cc (catalog metadata: CC BY 4.0)";
 export const MAX_STATIC_ASSET_BYTES = 25 * 1024 * 1024;
 export const MAX_STATIC_ASSET_FILES = 20_000;
+
+/**
+ * Bump when the published audio recipe changes. Cached assets are reused only when the stored
+ * pipeline version matches, so a new recipe re-publishes every track exactly once.
+ *
+ * Version 2 removes the leading Xing/Info metadata frame from constant-bitrate MP3s so the
+ * Android extractor seeks with its byte-accurate CBR path instead of the coarse table of
+ * contents. See [stripMp3MetadataFrame].
+ */
+export const CHART_ASSET_PIPELINE_VERSION = 2;
 
 const MAIDATA_HOST = "astrodx-charts-alice.saop.cc";
 const AUDIO_HOST = "astrodx-charts.saop.cc";
@@ -37,7 +48,14 @@ type CachedAsset = RemoteMetadata & {
 	path: string;
 	sha256: string;
 	size: number;
+	/** Published-file recipe that produced this entry. */
+	pipeline?: number;
+	/** True when the published audio is smaller than the source, i.e. its metadata frame was removed. */
+	strippedAudio?: boolean;
 };
+
+/** Converts downloaded chart audio bytes into the published bytes. */
+export type ChartAudioPreparer = (source: Buffer, sourceUrl: string) => Promise<Buffer>;
 
 type CacheFile = { schemaVersion: 1; assets: Record<string, CachedAsset> };
 
@@ -204,11 +222,22 @@ const hashFile = async (filePath: string): Promise<{ sha256: string; size: numbe
 	return { sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.byteLength };
 };
 
+/** Drops the Xing/Info frame when the track is CBR; leaves anything else byte-identical. */
+export const makeSeekableMp3: ChartAudioPreparer = async (source) => {
+	const result = stripMp3MetadataFrame(source);
+	if (result.status === "stripped") return result.bytes;
+	if (result.reason === "not-cbr") {
+		console.warn("[chart-assets] audio is not constant bitrate; keeping its Xing/Info frame");
+	}
+	return source;
+};
+
 const isValidCacheEntry = (value: unknown): value is CachedAsset => {
 	if (!isRecord(value)) return false;
 	return (
 		typeof value.sourceUrl === "string" &&
 		typeof value.path === "string" &&
+		value.pipeline === CHART_ASSET_PIPELINE_VERSION &&
 		/^chart-assets\/files\/[0-9a-f]{64}\.(txt|mp3)$/u.test(value.path) &&
 		typeof value.sha256 === "string" &&
 		/^[0-9a-f]{64}$/u.test(value.sha256) &&
@@ -259,6 +288,10 @@ export type MirrorChartAssetsOptions = {
 	cacheDirectory?: string;
 	fetcher?: typeof fetch;
 	concurrency?: number;
+	/** Prepares downloaded audio before it is published. Defaults to [makeSeekableMp3]. */
+	prepareAudio?: ChartAudioPreparer;
+	/** Per-file limit of the static asset host. Defaults to [MAX_STATIC_ASSET_BYTES]. */
+	maxAssetBytes?: number;
 };
 
 export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}): Promise<MirrorChartAssetsResult> => {
@@ -266,6 +299,8 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 	const outputDirectory = options.publicDirectory ?? OUTPUT_DIRECTORY;
 	const cacheDirectory = options.cacheDirectory ?? CACHE_DIRECTORY;
 	const fetcher = options.fetcher ?? fetch;
+	const prepareAudio = options.prepareAudio ?? makeSeekableMp3;
+	const maxAssetBytes = options.maxAssetBytes ?? MAX_STATIC_ASSET_BYTES;
 	const concurrency =
 		options.concurrency !== undefined && Number.isSafeInteger(options.concurrency) && options.concurrency > 0
 			? options.concurrency
@@ -282,6 +317,8 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 	const tasks = entries.flatMap((entry) => entry.assets.map((asset) => ({ entry, asset })));
 	let reused = 0;
 	let downloaded = 0;
+	let audioSeekable = 0;
+	let audioUnchanged = 0;
 	const failures: string[] = [];
 
 	await mapConcurrent(tasks, Math.max(1, concurrency), async ({ entry, asset }) => {
@@ -296,8 +333,8 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 				isValidCacheEntry(oldValue) &&
 				oldValue.sourceUrl === asset.url &&
 				sameMetadata(oldValue, remote) &&
-				(asset.expectedBytes === null || oldValue.size === asset.expectedBytes) &&
-				oldValue.size === remote.contentLength &&
+				(asset.expectedBytes === null || oldValue.contentLength === asset.expectedBytes) &&
+				oldValue.contentLength === remote.contentLength &&
 				(await verifyCachedFile(outputDirectory, oldValue))
 			) {
 				nextCache.assets[key] = oldValue;
@@ -310,7 +347,7 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 				reused += 1;
 				return;
 			}
-			const value = await downloadAssetWithFetcher(asset, remote, outputDirectory, fetcher);
+			const value = await downloadAssetWithFetcher(asset, remote, outputDirectory, fetcher, prepareAudio, maxAssetBytes);
 			nextCache.assets[key] = value;
 			indexEntries.get(entry.id)!.files[asset.type] = {
 				path: `/${value.path}`,
@@ -319,6 +356,10 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 				sha256: value.sha256,
 			};
 			downloaded += 1;
+			if (asset.type === "audio") {
+				if (value.strippedAudio) audioSeekable += 1;
+				else audioUnchanged += 1;
+			}
 		} catch (error) {
 			failures.push(`${asset.url}: ${error instanceof Error ? error.message : String(error)}`);
 		}
@@ -348,6 +389,12 @@ export const mirrorChartAssets = async (options: MirrorChartAssetsOptions = {}):
 	await writeJSONAtomically(path.join(outputDirectory, "index.json"), index);
 	await pruneUnusedAssets(outputDirectory, new Set(Object.values(nextCache.assets).map((value) => value.path)));
 	console.log(`[chart-assets] ${reused} reused, ${downloaded} downloaded, ${tasks.length} total`);
+	if (downloaded > 0) {
+		console.log(
+			`[chart-assets] audio rebuilt this run: ${audioSeekable} without a Xing/Info frame, ` +
+				`${audioUnchanged} byte-identical`,
+		);
+	}
 	return { index, reused, downloaded, changed: downloaded > 0 || removedCacheEntries > 0 };
 };
 
@@ -356,13 +403,15 @@ const downloadAssetWithFetcher = async (
 	remote: RemoteMetadata | null,
 	outputDirectory: string,
 	fetcher: typeof fetch,
+	prepareAudio: ChartAudioPreparer,
+	maxAssetBytes: number,
 ): Promise<CachedAsset> => {
 	const response = await retry(() => fetcher(asset.url, { signal: AbortSignal.timeout(180_000) }));
 	if (!response.ok) throw new Error(`Failed to download ${asset.url}: HTTP ${response.status}`);
 	const responseMetadata = remoteMetadata(response.headers);
 	const bytes = Buffer.from(await response.arrayBuffer());
 	if (bytes.byteLength === 0) throw new Error(`Empty chart asset: ${asset.url}`);
-	if (bytes.byteLength > MAX_STATIC_ASSET_BYTES) throw new Error(`Chart asset exceeds Workers limit: ${asset.url}`);
+	if (bytes.byteLength > maxAssetBytes) throw new Error(`Chart asset exceeds Workers limit: ${asset.url}`);
 	const expectedLengths = [asset.expectedBytes, remote?.contentLength, responseMetadata.contentLength].filter(
 		(value): value is number => value !== null,
 	);
@@ -374,13 +423,21 @@ const downloadAssetWithFetcher = async (
 	if (remote && hasUsefulValidator(remote) && !compatibleMetadata(remote, responseMetadata)) {
 		throw new Error(`Chart asset changed between HEAD and GET: ${asset.url}`);
 	}
-	const sha256 = createHash("sha256").update(bytes).digest("hex");
+	let published: Buffer<ArrayBufferLike> = bytes;
+	if (asset.type === "audio") {
+		published = await prepareAudio(bytes, asset.url);
+		if (published.byteLength === 0) throw new Error(`Empty prepared chart audio: ${asset.url}`);
+		if (published.byteLength > maxAssetBytes) {
+			throw new Error(`Prepared chart audio exceeds Workers limit: ${asset.url}`);
+		}
+	}
+	const sha256 = createHash("sha256").update(published).digest("hex");
 	const relativePath = `chart-assets/files/${sha256}.${asset.pathExtension}`;
 	const destination = path.join(path.dirname(outputDirectory), relativePath);
 	await mkdir(path.dirname(destination), { recursive: true });
 	const temporaryPath = `${destination}.${process.pid}.${randomUUID()}.tmp`;
 	try {
-		await writeFile(temporaryPath, bytes);
+		await writeFile(temporaryPath, published);
 		await rename(temporaryPath, destination);
 	} catch (error) {
 		await rm(temporaryPath, { force: true });
@@ -393,7 +450,9 @@ const downloadAssetWithFetcher = async (
 		contentLength: responseMetadata.contentLength ?? remote?.contentLength ?? bytes.byteLength,
 		path: relativePath,
 		sha256,
-		size: bytes.byteLength,
+		size: published.byteLength,
+		pipeline: CHART_ASSET_PIPELINE_VERSION,
+		strippedAudio: published.byteLength !== bytes.byteLength,
 	};
 };
 
