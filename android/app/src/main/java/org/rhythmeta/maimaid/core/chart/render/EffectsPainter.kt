@@ -37,6 +37,35 @@ class EffectsPainter(
     private var fireworkScratch: Bitmap? = null
     private val effectStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
+    // Per-frame geometry is cached by size/radius so drawing a frame allocates nothing here.
+    private val hexagonPaths = HashMap<Int, Path>()
+    private val starPaths = HashMap<Int, Path>()
+    private val petalPaths = arrayOfNulls<Path>(FIREWORK_PETAL_COLORS.size)
+    private val petalShaders = arrayOfNulls<RadialGradient>(FIREWORK_PETAL_COLORS.size)
+    private var petalShaderAlpha = Float.NaN
+    private val unitBallShaderBig = RadialGradient(
+        0f,
+        0f,
+        1f,
+        intArrayOf(0xFFFFEBC8.toInt(), 0x00FFB464),
+        floatArrayOf(0f, 1f),
+        Shader.TileMode.CLAMP,
+    )
+    private val unitBallShaderSmall = RadialGradient(
+        0f,
+        0f,
+        1f,
+        intArrayOf(0xFFFFF5DC.toInt(), 0x00FFDC9F),
+        floatArrayOf(0f, 1f),
+        Shader.TileMode.CLAMP,
+    )
+    private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
+    }
+    private var scratchCanvas: Canvas? = null
+    private var scratchCanvasBitmap: Bitmap? = null
+    private val lastHitByPosition = DoubleArray(9) { Double.NEGATIVE_INFINITY }
+
     // ------------------------------------------------------------------ tap hit effects
 
     /** Renders the hit stamp of every button note that entered the 450 ms effect window. */
@@ -52,24 +81,24 @@ class EffectsPainter(
         }
         if (lo >= notes.size) return
 
-        // A newer hit on the same button truncates the previous effect.
-        val lastHitByPosition = HashMap<Int, Double>()
+        // A newer hit on the same button truncates the previous effect. Buttons are 1..8, so a
+        // fixed array replaces a per-frame map.
+        val lastHit = lastHitByPosition
+        java.util.Arrays.fill(lastHit, Double.NEGATIVE_INFINITY)
         for (index in lo until notes.size) {
             val note = notes[index]
             if (note.timingMs > currentTimeMs) break
             val position = buttonPositionOf(note) ?: continue
-            val previous = lastHitByPosition[position]
-            if (previous == null || note.timingMs > previous) {
-                lastHitByPosition[position] = note.timingMs
-            }
+            if (position !in 1..8) continue
+            if (note.timingMs > lastHit[position]) lastHit[position] = note.timingMs
         }
 
         for (index in lo until notes.size) {
             val note = notes[index]
             if (note.timingMs > currentTimeMs) break
             val position = buttonPositionOf(note) ?: continue
-            val latest = lastHitByPosition[position]
-            if (latest != null && latest > note.timingMs) continue
+            if (position !in 1..8) continue
+            if (lastHit[position] > note.timingMs) continue
             val timeDiff = currentTimeMs - note.timingMs
             if (timeDiff < 0 || timeDiff > ChartConstants.NOTE_HIT_EFFECT_DURATION_MS) continue
             val progress = timeDiff / ChartConstants.NOTE_HIT_EFFECT_DURATION_MS
@@ -155,13 +184,11 @@ class EffectsPainter(
         type: String,
     ) {
         if (radius <= 0) return
-        val path = if (type == "star") {
-            starPath(x, y, radius)
-        } else {
-            hexagonPath(x, y, radius)
-        }
+        val path = stampPath(type, radius)
         val core = scaleByRadius(ChartConstants.NOTE_STROKE_WIDTH_RATIO) * 2f
         val canvas = context.canvas
+        canvas.save()
+        canvas.translate(x.toFloat(), y.toFloat())
         effectStroke.strokeJoin = Paint.Join.ROUND
         effectStroke.strokeCap = Paint.Cap.ROUND
         // Soft halo: wide, low-alpha strokes that do not thicken the core stroke.
@@ -175,39 +202,54 @@ class EffectsPainter(
         effectStroke.strokeWidth = core
         effectStroke.alpha = (255 * alpha).toInt()
         canvas.drawPath(path, effectStroke)
+        canvas.restore()
     }
 
-    private fun hexagonPath(x: Double, y: Double, radius: Double): Path {
+    /** Stamp outline at the origin, cached per type and half-pixel radius bucket. */
+    private fun stampPath(type: String, radius: Double): Path {
+        val bucket = kotlin.math.round(radius * 2).toInt()
+        val cache = if (type == "star") starPaths else hexagonPaths
+        cache[bucket]?.let { return it }
+        val scaled = bucket / 2.0
+        val path = if (type == "star") starOutline(scaled) else hexagonOutline(scaled)
+        if (cache.size >= STAMP_PATH_CACHE_LIMIT) cache.clear()
+        cache[bucket] = path
+        return path
+    }
+
+    private fun hexagonOutline(radius: Double): Path {
         val path = Path()
         for (i in 0 until 6) {
             val angle = i * PI / 3
-            val px = (x + radius * cos(angle)).toFloat()
-            val py = (y + radius * sin(angle)).toFloat()
+            val px = (radius * cos(angle)).toFloat()
+            val py = (radius * sin(angle)).toFloat()
             if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
         path.close()
         return path
     }
 
-    private fun starPath(x: Double, y: Double, radius: Double): Path {
+    private fun starOutline(radius: Double): Path {
         val path = Path()
         val inner = radius * 0.5
         var angle = (PI / 2) * 3 + PI
         for (i in 0 until 5) {
             path.moveTo(
-                (x + cos(angle) * radius).toFloat(),
-                (y + sin(angle) * radius).toFloat(),
+                (cos(angle) * radius).toFloat(),
+                (sin(angle) * radius).toFloat(),
             )
             angle += PI / 5
             path.lineTo(
-                (x + cos(angle) * inner).toFloat(),
-                (y + sin(angle) * inner).toFloat(),
+                (cos(angle) * inner).toFloat(),
+                (sin(angle) * inner).toFloat(),
             )
             angle += PI / 5
         }
         path.close()
         return path
     }
+
+
 
     // ------------------------------------------------------------------ hold ripples
 
@@ -605,7 +647,7 @@ class EffectsPainter(
             val fireworkHalf = (context.radius / 4.5 * FIREWORK_SCALE_PEAK * 1.05).toInt() + 2
             val sizePx = maxOf(2, fireworkHalf * 2)
             val scratch = ensureFireworkScratch(sizePx)
-            val scratchCanvas = Canvas(scratch)
+            val scratchCanvas = scratchCanvasFor(scratch)
             scratchCanvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR)
             val mainCanvas = context.canvas
             context.canvas = scratchCanvas
@@ -623,7 +665,7 @@ class EffectsPainter(
 
             val centerX = sizePx / 2f
             val centerY = sizePx / 2f
-            val maskShader = RadialGradient(
+            maskPaint.shader = RadialGradient(
                 centerX,
                 centerY,
                 totalR.toFloat(),
@@ -631,13 +673,7 @@ class EffectsPainter(
                 floatArrayOf(0f, (solidR / totalR).toFloat(), 1f),
                 Shader.TileMode.CLAMP,
             )
-            val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = maskShader
-                xfermode = android.graphics.PorterDuffXfermode(
-                    android.graphics.PorterDuff.Mode.DST_OUT,
-                )
-                alpha = (255 * maskAlpha).toInt()
-            }
+            maskPaint.alpha = (255 * maskAlpha).toInt()
             scratchCanvas.drawCircle(centerX, centerY, totalR.toFloat(), maskPaint)
             mainCanvas.drawBitmap(
                 scratch,
@@ -647,6 +683,51 @@ class EffectsPainter(
             )
         } else {
             drawFirework(position, scale, rotation, tSec, 1f)
+        }
+    }
+
+    /** Cached petal outlines and gradients at radius 1, keyed by the burst alpha. */
+    private fun ensurePetalCaches(alpha: Float) {
+        if (petalPaths[0] == null) {
+            val count = FIREWORK_PETAL_COLORS.size
+            val halfWidth = PI / count * 0.45
+            for (index in 0 until count) {
+                val angle = index.toDouble() / count * PI * 2
+                petalPaths[index] = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(cos(angle - halfWidth).toFloat(), sin(angle - halfWidth).toFloat())
+                    lineTo(cos(angle + halfWidth).toFloat(), sin(angle + halfWidth).toFloat())
+                    close()
+                }
+            }
+        }
+        if (petalShaderAlpha == alpha) return
+        val baseAlpha = (0x96 * alpha).toInt().coerceIn(0, 255)
+        for (index in FIREWORK_PETAL_COLORS.indices) {
+            val start = FIREWORK_PETAL_COLORS[index]
+            petalShaders[index] = RadialGradient(
+                0f,
+                0f,
+                1f,
+                intArrayOf(
+                    (start and 0x00FFFFFF) or (baseAlpha shl 24),
+                    (start and 0x00FFFFFF) or (baseAlpha shl 24),
+                    start and 0x00FFFFFF,
+                ),
+                floatArrayOf(0f, 0.9f, 1f),
+                Shader.TileMode.CLAMP,
+            )
+        }
+        petalShaderAlpha = alpha
+    }
+
+    /** One Canvas per scratch bitmap; recreated only when the bitmap is. */
+    private fun scratchCanvasFor(bitmap: Bitmap): Canvas {
+        val current = scratchCanvas
+        if (current != null && scratchCanvasBitmap === bitmap) return current
+        return Canvas(bitmap).also {
+            scratchCanvas = it
+            scratchCanvasBitmap = bitmap
         }
     }
 
@@ -680,39 +761,14 @@ class EffectsPainter(
         canvas.translate(position.x.toFloat(), position.y.toFloat())
         canvas.rotate(Math.toDegrees(rotation).toFloat())
 
-        val count = FIREWORK_PETAL_COLORS.size
-        val halfWidth = PI / count * 0.45
-        for (index in 0 until count) {
-            val angle = index.toDouble() / count * PI * 2
-            val path = Path().apply {
-                moveTo(0f, 0f)
-                lineTo(
-                    (cos(angle - halfWidth) * outerR).toFloat(),
-                    (sin(angle - halfWidth) * outerR).toFloat(),
-                )
-                lineTo(
-                    (cos(angle + halfWidth) * outerR).toFloat(),
-                    (sin(angle + halfWidth) * outerR).toFloat(),
-                )
-                close()
-            }
-            val start = FIREWORK_PETAL_COLORS[index]
-            val baseAlpha = (0x96 * alpha).toInt().coerceIn(0, 255)
-            val shader = RadialGradient(
-                0f,
-                0f,
-                outerR.toFloat(),
-                intArrayOf(
-                    (start and 0x00FFFFFF) or (baseAlpha shl 24),
-                    (start and 0x00FFFFFF) or (baseAlpha shl 24),
-                    start and 0x00FFFFFF,
-                ),
-                floatArrayOf(0f, 0.9f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-            effectPaint.shader = shader
+        ensurePetalCaches(alpha)
+        // Petal outlines and gradients are cached at radius 1; the canvas scale maps them up, so a
+        // frame no longer builds a dozen paths and shaders.
+        canvas.scale(outerR.toFloat(), outerR.toFloat())
+        for (index in FIREWORK_PETAL_COLORS.indices) {
+            effectPaint.shader = petalShaders[index]
             effectPaint.alpha = 255
-            canvas.drawPath(path, effectPaint)
+            canvas.drawPath(petalPaths[index] ?: continue, effectPaint)
         }
         effectPaint.shader = null
         canvas.restore()
@@ -743,17 +799,13 @@ class EffectsPainter(
             bigAlpha = bigPeakAlpha * (1 - d)
         }
         if (bigAlpha > 0 && bigR > 0) {
-            val shader = RadialGradient(
-                position.x.toFloat(),
-                position.y.toFloat(),
-                bigR.toFloat(),
-                intArrayOf(0xFFFFEBC8.toInt(), 0x00FFB464),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-            effectPaint.shader = shader
+            effectPaint.shader = unitBallShaderBig
             effectPaint.alpha = (255 * bigAlpha * alpha).toInt()
-            canvas.drawCircle(position.x.toFloat(), position.y.toFloat(), bigR.toFloat(), effectPaint)
+            canvas.save()
+            canvas.translate(position.x.toFloat(), position.y.toFloat())
+            canvas.scale(bigR.toFloat(), bigR.toFloat())
+            canvas.drawCircle(0f, 0f, 1f, effectPaint)
+            canvas.restore()
         }
 
         val smallGrow = 0.04
@@ -772,22 +824,13 @@ class EffectsPainter(
             smallAlpha = smallPeakAlpha * (1 - d)
         }
         if (smallAlpha > 0 && smallR > 0) {
-            val shader = RadialGradient(
-                position.x.toFloat(),
-                position.y.toFloat(),
-                smallR.toFloat(),
-                intArrayOf(0xFFFFF5DC.toInt(), 0x00FFDC9F),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-            effectPaint.shader = shader
+            effectPaint.shader = unitBallShaderSmall
             effectPaint.alpha = (255 * smallAlpha * alpha).toInt()
-            canvas.drawCircle(
-                position.x.toFloat(),
-                position.y.toFloat(),
-                smallR.toFloat(),
-                effectPaint,
-            )
+            canvas.save()
+            canvas.translate(position.x.toFloat(), position.y.toFloat())
+            canvas.scale(smallR.toFloat(), smallR.toFloat())
+            canvas.drawCircle(0f, 0f, 1f, effectPaint)
+            canvas.restore()
         }
         effectPaint.shader = null
         effectPaint.blendMode = null
@@ -856,6 +899,9 @@ class EffectsPainter(
 
     companion object {
         private const val HIT_GOLD = 0xFFF5EA72.toInt()
+
+        /** Upper bound on cached stamp outlines; the radius range is bounded, so it rarely fills. */
+        private const val STAMP_PATH_CACHE_LIMIT = 256
         private const val TOUCH_HIT_COLOR = 0xFFFFFF00.toInt()
 
         private const val RIPPLE_CYCLE = (16_000.0 / 60.0) / 1000.0

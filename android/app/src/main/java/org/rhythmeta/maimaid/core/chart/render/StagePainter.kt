@@ -16,6 +16,12 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
     }
+    private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val coverClip = Path()
+    private val coverClipRect = RectF()
+    private val coverDest = RectF()
+    private var coverClipSize = -1f
+    private var coverDestKey = -1.0
 
     /** Fills the stage and draws the optional cover-art disc background. */
     fun clear(background: Bitmap?) {
@@ -25,28 +31,33 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         if (background == null || background.width <= 0 || background.height <= 0) return
 
         canvas.save()
-        val clip = Path().apply {
-            addOval(
-                RectF(
-                    context.centerX - size / 2,
-                    context.centerY - size / 2,
-                    context.centerX + size / 2,
-                    context.centerY + size / 2,
-                ),
-                Path.Direction.CW,
+        // The disc clip and the destination rect only change with the stage or cover size.
+        if (coverClipSize != size) {
+            coverClipRect.set(
+                context.centerX - size / 2,
+                context.centerY - size / 2,
+                context.centerX + size / 2,
+                context.centerY + size / 2,
             )
+            coverClip.reset()
+            coverClip.addOval(coverClipRect, Path.Direction.CW)
+            coverClipSize = size
         }
-        canvas.clipPath(clip)
+        canvas.clipPath(coverClip)
         val scale = minOf(size / background.width, size / background.height)
         val dw = background.width * scale
         val dh = background.height * scale
-        val destination = RectF(
-            (size - dw) / 2,
-            (size - dh) / 2,
-            (size - dw) / 2 + dw,
-            (size - dh) / 2 + dh,
-        )
-        canvas.drawBitmap(background, null, destination, Paint(Paint.FILTER_BITMAP_FLAG))
+        val destinationKey = (dw * 10_000.0) + dh
+        if (coverDestKey != destinationKey) {
+            coverDest.set(
+                (size - dw) / 2,
+                (size - dh) / 2,
+                (size - dw) / 2 + dw,
+                (size - dh) / 2 + dh,
+            )
+            coverDestKey = destinationKey
+        }
+        canvas.drawBitmap(background, null, coverDest, bitmapPaint)
         // The dim overlay carries its alpha in the color; forcing paint.alpha would make it
         // opaque and hide the artwork.
         fillPaint.shader = null
@@ -65,12 +76,8 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
             val imageSize = context.logicalSize - 10
             val left = context.centerX - imageSize / 2
             val top = context.centerY - imageSize / 2 + 8
-            canvas.drawBitmap(
-                sensorImage,
-                null,
-                RectF(left, top, left + imageSize, top + imageSize),
-                Paint(Paint.FILTER_BITMAP_FLAG),
-            )
+            oval.set(left, top, left + imageSize, top + imageSize)
+            canvas.drawBitmap(sensorImage, null, oval, bitmapPaint)
         }
 
         if (design == JudgmentLineDesign.SIMPLE || design == JudgmentLineDesign.SENSOR) {

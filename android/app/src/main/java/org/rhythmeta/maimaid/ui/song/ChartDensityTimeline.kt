@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import android.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -52,6 +53,50 @@ internal object DensityColors {
     val slide = Color(0xFF00CED1)
     val touch = Color(0xFF0080FF)
     val breakNote = Color(0xFFFF69B4)
+}
+
+/**
+ * Bar geometry for the density timeline, rebuilt only when the canvas width changes.
+ *
+ * Drawing hundreds of tiny rects every frame showed up in the frame time, so the static bars are
+ * accumulated into one filled path per note type.
+ */
+private class DensityBarPaths {
+    val paths = Array(5) { Path() }
+    var width: Float = -1f
+        private set
+
+    fun rebuild(
+        data: ChartDensityData,
+        width: Float,
+        barsBottom: Float,
+        barsHeight: Float,
+        minBarHeight: Float,
+        minBarWidth: Float,
+    ) {
+        for (path in paths) path.rewind()
+        this.width = width
+        val duration = data.durationMs
+        if (duration <= 0) return
+        val bucketWidth = max(minBarWidth, (500.0 / duration * width).toFloat())
+        for (bucket in data.buckets) {
+            if (bucket.total == 0) continue
+            val left = (bucket.startMs / duration * width).toFloat()
+            val barHeight = max(minBarHeight, bucket.total / data.maxCount.toFloat() * barsHeight)
+            var y = barsBottom
+            fun segment(index: Int, count: Int) {
+                if (count == 0) return
+                val segmentHeight = barHeight * count / bucket.total
+                paths[index].addRect(left, y - segmentHeight, left + bucketWidth, y, Path.Direction.CW)
+                y -= segmentHeight
+            }
+            segment(0, bucket.tap)
+            segment(1, bucket.hold)
+            segment(2, bucket.slide)
+            segment(3, bucket.touch)
+            segment(4, bucket.breakNote)
+        }
+    }
 }
 
 /** One 500 ms bucket of the density timeline. */
@@ -126,6 +171,38 @@ internal fun ChartDensityTimeline(
     val description = stringResource(R.string.chart_density_label)
     val labelTextSize = with(density) { 9.sp.toPx() }
     val badgeTextSize = with(density) { 10.sp.toPx() }
+    val labelPaint = remember(labelTextSize, muted) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = labelTextSize
+            color = muted.toArgb()
+            textAlign = android.graphics.Paint.Align.LEFT
+        }
+    }
+    val badgePaint = remember(badgeTextSize) {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = badgeTextSize
+            color = Color.White.toArgb()
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+    }
+    val dash = remember(density) {
+        PathEffect.dashPathEffect(with(density) { floatArrayOf(2.dp.toPx(), 2.dp.toPx()) })
+    }
+    val barPaths = remember(data) { DensityBarPaths() }
+    val barPaint = remember {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = android.graphics.Paint.Style.FILL
+        }
+    }
+    val barColors = remember {
+        listOf(
+            DensityColors.tap,
+            DensityColors.hold,
+            DensityColors.slide,
+            DensityColors.touch,
+            DensityColors.breakNote,
+        )
+    }
 
     Canvas(
         modifier = modifier
@@ -154,17 +231,6 @@ internal fun ChartDensityTimeline(
         val markerTop = 12.dp.toPx()
         val markerIntervalMs = 30_000.0
         val duration = data.durationMs
-        val labelPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = labelTextSize
-            color = muted.toArgb()
-            textAlign = android.graphics.Paint.Align.LEFT
-        }
-        val badgePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = badgeTextSize
-            color = Color.White.toArgb()
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
-        val dash = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()))
 
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
@@ -182,28 +248,21 @@ internal fun ChartDensityTimeline(
                 markerMs += markerIntervalMs
             }
 
-            // Stacked bars, bottom-up: tap, hold, slide, touch, break.
-            val bucketWidth = 500.0 / duration * width
-            for (bucket in data.buckets) {
-                if (bucket.total == 0) continue
-                val left = (bucket.startMs / duration * width).toFloat()
-                val barHeight = max(2.dp.toPx(), bucket.total / data.maxCount.toFloat() * barsHeight)
-                var y = barsBottom
-                fun segment(count: Int, color: Color) {
-                    if (count == 0) return
-                    val segmentHeight = barHeight * count / bucket.total
-                    drawRect(
-                        color = color,
-                        topLeft = Offset(left, y - segmentHeight),
-                        size = Size(max(1.dp.toPx(), bucketWidth.toFloat()), segmentHeight),
-                    )
-                    y -= segmentHeight
-                }
-                segment(bucket.tap, DensityColors.tap)
-                segment(bucket.hold, DensityColors.hold)
-                segment(bucket.slide, DensityColors.slide)
-                segment(bucket.touch, DensityColors.touch)
-                segment(bucket.breakNote, DensityColors.breakNote)
+            // Stacked bars, bottom-up: tap, hold, slide, touch, break. The geometry is static for a
+            // given width, so it lives in five paths instead of hundreds of per-frame rect draws.
+            if (barPaths.width != width) {
+                barPaths.rebuild(
+                    data = data,
+                    width = width,
+                    barsBottom = barsBottom,
+                    barsHeight = barsHeight,
+                    minBarHeight = 2.dp.toPx(),
+                    minBarWidth = 1.dp.toPx(),
+                )
+            }
+            for (index in barColors.indices) {
+                barPaint.color = barColors[index].toArgb()
+                native.drawPath(barPaths.paths[index], barPaint)
             }
 
             // Time labels, edge-clamped like the reference.

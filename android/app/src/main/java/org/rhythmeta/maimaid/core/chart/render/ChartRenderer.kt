@@ -46,6 +46,9 @@ class ChartRenderer {
     private var timeline: TimingTimeline? = null
     private val touchQueue = ArrayList<TouchPainter.TouchDrawCommand>()
     private val approachArcs = ArrayList<ApproachArc>()
+    private val clipPath = Path()
+    private val clipRect = RectF()
+    private var clipRadius = -1f
 
     var config: ChartRenderConfig = ChartRenderConfig()
 
@@ -163,19 +166,20 @@ class ChartRenderer {
         canvas.restore()
     }
 
+    /** Clips the stage to its disc; the path is rebuilt only when the stage size changes. */
     private fun clipCircle(canvas: Canvas, radius: Float) {
-        val path = Path().apply {
-            addOval(
-                RectF(
-                    context.centerX - radius,
-                    context.centerY - radius,
-                    context.centerX + radius,
-                    context.centerY + radius,
-                ),
-                Path.Direction.CW,
+        if (clipRadius != radius) {
+            clipRect.set(
+                context.centerX - radius,
+                context.centerY - radius,
+                context.centerX + radius,
+                context.centerY + radius,
             )
+            clipPath.reset()
+            clipPath.addOval(clipRect, Path.Direction.CW)
+            clipRadius = radius
         }
-        canvas.clipPath(path)
+        canvas.clipPath(clipPath)
     }
 
     private fun renderSlideTracks(
