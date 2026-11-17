@@ -783,6 +783,7 @@
 	<string name="chart_settings_sfx_offset">SFX offset (ms)</string>
 	<string name="chart_settings_reset">Reset</string>
 	<string name="chart_density_label">Chart density</string>
+	<string name="chart_rhythm_label">Chart rhythm</string>
 	<string name="chart_previous_measure">Previous measure</string>
 	<string name="chart_next_measure">Next measure</string>
 </resources>

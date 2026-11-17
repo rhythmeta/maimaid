@@ -355,6 +355,7 @@ private fun ChartPreviewContent(
     val densityData = remember(chart, clock.durationMs) {
         ChartDensityData.from(chart.notes, clock.durationMs)
     }
+    val rhythmData = remember(chart) { ChartRhythmData.from(chart, chartTimeline) }
     val onSeekPreview: (Double) -> Unit = { positionMs ->
         if (!clock.isScrubbing) {
             clock.wasPlayingBeforeScrub = clock.isPlaying
@@ -460,6 +461,12 @@ private fun ChartPreviewContent(
             onScrubStart = onSeekPreview,
             onScrub = onSeekPreview,
             onScrubEnd = onSeekFinished,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(Modifier.height(4.dp))
+        ChartRhythmTimeline(
+            data = rhythmData,
+            positionMs = { clock.position.doubleValue },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         ChartDensityLegend(

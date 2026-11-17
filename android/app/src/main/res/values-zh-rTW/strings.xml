@@ -754,6 +754,7 @@
 	<string name="chart_settings_sfx_offset">音效偏移 (ms)</string>
 	<string name="chart_settings_reset">重設</string>
 	<string name="chart_density_label">譜面密度</string>
+	<string name="chart_rhythm_label">譜面節奏</string>
 	<string name="chart_previous_measure">上一小節</string>
 	<string name="chart_next_measure">下一小節</string>
 </resources>

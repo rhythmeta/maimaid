@@ -46,7 +46,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** Note-type colors used by the density timeline, matching the reference app. */
-private object DensityColors {
+internal object DensityColors {
     val tap = Color(0xFFFFD700)
     val hold = Color(0xFFFF8C00)
     val slide = Color(0xFF00CED1)
