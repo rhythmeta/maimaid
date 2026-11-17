@@ -26,7 +26,7 @@ const outputDirectory = path.resolve(currentDirectory, "../../static-worker/publ
 const assetRequestTimeoutMs = 60_000;
 const assetConcurrency = 12;
 const headersContent =
-	"/*\n  Access-Control-Allow-Origin: *\n/community-index.json\n  Cache-Control: public, max-age=300\n/manifest.json\n  Cache-Control: public, max-age=60, must-revalidate\n/bundles/*\n  Cache-Control: public, max-age=31536000, immutable\n/covers/*\n  Cache-Control: public, max-age=31536000, immutable\n/lxns-icons/*\n  Cache-Control: public, max-age=31536000, immutable\n";
+	"/*\n  Access-Control-Allow-Origin: *\n/community-index.json\n  Cache-Control: public, max-age=300\n/manifest.json\n  Cache-Control: public, max-age=60, must-revalidate\n/bundles/*\n  Cache-Control: public, max-age=31536000, immutable\n/covers/*\n  Cache-Control: public, max-age=31536000, immutable\n/lxns-icons/*\n  Cache-Control: public, max-age=31536000, immutable\n/chart-assets/index.json\n  Cache-Control: public, max-age=300, must-revalidate\n/chart-assets/files/*\n  Cache-Control: public, max-age=31536000, immutable\n";
 
 const mapWithConcurrency = async <T>(items: T[], limit: number, operation: (item: T) => Promise<void>) => {
 	let cursor = 0;

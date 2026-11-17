@@ -12,7 +12,7 @@ concurrency:
 jobs:
   build-static-bundle:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +39,20 @@ jobs:
           restore-keys: |
             static-images-${{ runner.os }}-${{ github.repository }}-
 
+      - name: Restore chart asset cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            static-worker/public/chart-assets
+            static-worker/.chart-assets-cache
+          key: static-chart-assets-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}
+          restore-keys: |
+            static-chart-assets-${{ runner.os }}-${{ github.repository }}-
+
+      - name: Mirror chart assets
+        id: mirror-chart-assets
+        run: pnpm --dir static-builder run mirror:chart-assets
+
       - name: Generate static assets
         working-directory: static-builder
         env:
@@ -49,6 +63,9 @@ jobs:
           : "${MAIMAID_STATIC_ASSETS_URL:?Missing GitHub Secret MAIMAID_STATIC_ASSETS_URL}"
           pnpm run build
 
+      - name: Verify chart assets
+        run: pnpm --dir static-builder run verify:chart-assets
+
       - name: Save static image cache
         uses: actions/cache/save@v4
         with:
@@ -56,6 +73,15 @@ jobs:
             static-worker/public/covers
             static-worker/public/lxns-icons
           key: static-images-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}
+
+      - name: Save chart asset cache
+        if: steps.mirror-chart-assets.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            static-worker/public/chart-assets
+            static-worker/.chart-assets-cache
+          key: static-chart-assets-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Deploy static assets Worker
         working-directory: static-builder

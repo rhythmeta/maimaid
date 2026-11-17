@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "node ../scripts/build-songid-json.mjs songid.json && node ../scripts/build-utage-chart-stats-json.mjs utage_chart_stats.json && tsx src/build.ts",
+    "mirror:chart-assets": "tsx src/mirror-chart-assets.ts",
+    "verify:chart-assets": "tsx src/verify-chart-assets.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
