@@ -725,7 +725,7 @@
 	<string name="chart_settings_playback_speed">播放速度</string>
 	<string name="chart_settings_slide_delay">星星延遲</string>
 	<string name="chart_settings_keep_hi_speed">保持譜面流速</string>
-	<string name="chart_settings_display">顯示設定</string>
+	<string name="chart_settings_display">顯示</string>
 	<string name="chart_settings_mirror">鏡像</string>
 	<string name="chart_settings_mirror_none">無</string>
 	<string name="chart_settings_mirror_horizontal">左右</string>
@@ -746,7 +746,7 @@
 	<string name="chart_settings_counts">畫面內計數</string>
 	<string name="chart_settings_note_total">畫面內連擊數</string>
 	<string name="chart_settings_break_count">畫面內絕讚數</string>
-	<string name="chart_settings_audio">音訊設定</string>
+	<string name="chart_settings_audio">音訊</string>
 	<string name="chart_settings_music_volume">音樂音量</string>
 	<string name="chart_settings_answer_volume">正解音音量</string>
 	<string name="chart_settings_judge_volume">打擊音效音量</string>

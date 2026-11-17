@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -97,6 +98,15 @@ internal fun ChartPreviewScreen(
     contentTopPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
+    // Keep the display awake while the preview page is open, otherwise the screen timeout cuts the
+    // playback off mid-song. The window flag is used instead of a PowerManager wakelock, so no
+    // permission is needed and other screens keep their own timeout.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val previous = view.keepScreenOn
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = previous }
+    }
     val viewModel: ChartPreviewViewModel = viewModel(
         key = "chart-preview-$songId",
         factory = ChartPreviewViewModel.Factory(songId, sheetKey, container),

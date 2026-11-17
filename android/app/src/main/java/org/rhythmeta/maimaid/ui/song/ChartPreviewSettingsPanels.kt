@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.DisplaySettings
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
@@ -121,7 +122,7 @@ internal fun ChartDisplaySettings(
     SettingsCard(
         modifier = modifier,
         title = stringResource(R.string.chart_settings_display),
-        icon = Icons.Rounded.Settings,
+        icon = Icons.Rounded.DisplaySettings,
         expanded = expanded,
         onExpandedChange = { expanded = it },
     ) {
@@ -264,7 +265,7 @@ private fun SettingsCard(
                 Icon(icon, contentDescription = null)
                 Text(
                     text = title,
-                    style = MiuixTheme.textStyles.title3,
+                    style = MiuixTheme.textStyles.title4,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(

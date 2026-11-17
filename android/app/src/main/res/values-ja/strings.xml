@@ -727,7 +727,7 @@
 	<string name="chart_settings_playback_speed">再生速度</string>
 	<string name="chart_settings_slide_delay">スター遅延</string>
 	<string name="chart_settings_keep_hi_speed">譜面速度を維持</string>
-	<string name="chart_settings_display">表示設定</string>
+	<string name="chart_settings_display">表示</string>
 	<string name="chart_settings_mirror">ミラー</string>
 	<string name="chart_settings_mirror_none">なし</string>
 	<string name="chart_settings_mirror_horizontal">左右</string>
@@ -748,7 +748,7 @@
 	<string name="chart_settings_counts">画面内カウント</string>
 	<string name="chart_settings_note_total">画面内コンボ数</string>
 	<string name="chart_settings_break_count">画面内 BREAK 数</string>
-	<string name="chart_settings_audio">オーディオ設定</string>
+	<string name="chart_settings_audio">オーディオ</string>
 	<string name="chart_settings_music_volume">音楽音量</string>
 	<string name="chart_settings_answer_volume">正解音音量</string>
 	<string name="chart_settings_judge_volume">判定音音量</string>
