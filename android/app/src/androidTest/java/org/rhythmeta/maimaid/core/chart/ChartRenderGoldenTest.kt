@@ -26,7 +26,7 @@ class ChartRenderGoldenTest {
             .readText()
         val chart = SimaiParser.parse(maidata, 5)
         val outputDirectory = instrumentation.targetContext.getExternalFilesDir(null) ?: error("no dir")
-        listOf(4.05, 5.05).forEachIndexed { index, beat ->
+        listOf(4.05, 5.5).forEachIndexed { index, beat ->
             renderFrame(outputDirectory, "overlap-$index-$beat.png", chart, beat, effects = false)
         }
     }

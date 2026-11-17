@@ -409,10 +409,15 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
         }
         canvas.clipPath(pie)
 
+        // The diamond helper is centered on (0,0); the gauge has to sit on the note.
+        fun diamondAt(axis: Double, diagonal: Double): Path =
+            roundedDiamond(axis, diagonal, unit).apply {
+                offset(origin.x.toFloat(), origin.y.toFloat())
+            }
         val ring = Path().apply {
             fillType = Path.FillType.EVEN_ODD
-            addPath(roundedDiamond(TOUCH_HOLD_OUTER_AXIS, TOUCH_HOLD_OUTER_DIAGONAL, unit))
-            addPath(roundedDiamond(TOUCH_HOLD_INNER_AXIS, TOUCH_HOLD_INNER_DIAGONAL, unit))
+            addPath(diamondAt(TOUCH_HOLD_OUTER_AXIS, TOUCH_HOLD_OUTER_DIAGONAL))
+            addPath(diamondAt(TOUCH_HOLD_INNER_AXIS, TOUCH_HOLD_INNER_DIAGONAL))
         }
         canvas.save()
         canvas.clipPath(ring)
