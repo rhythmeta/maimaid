@@ -1,0 +1,6 @@
+&title=Chord fixture
+&artist=Test
+&bpm=120
+&lv_5=10.0
+&des_5=Chord
+&inote_5=(120){4}1h[4:2]/2h[4:2],3-5[4:1]/4-6[4:1],1/2,3/4/5,

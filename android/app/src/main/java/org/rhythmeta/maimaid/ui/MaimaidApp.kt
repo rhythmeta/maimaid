@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
@@ -106,6 +107,7 @@ import org.rhythmeta.maimaid.ui.navigation.AppDetail
 import org.rhythmeta.maimaid.ui.navigation.AppRoute
 import org.rhythmeta.maimaid.ui.navigation.RootDestination
 import org.rhythmeta.maimaid.ui.navigation.appDetail
+import org.rhythmeta.maimaid.ui.navigation.chartSheetKey
 import org.rhythmeta.maimaid.ui.navigation.collectionId
 import org.rhythmeta.maimaid.ui.navigation.danCategoryId
 import org.rhythmeta.maimaid.ui.navigation.danCategoryTitle
@@ -236,6 +238,7 @@ fun MaimaidApp(
     )
     val detail = currentRoute?.appDetail
     val selectedSongId = currentRoute?.songId
+    val selectedChartSheetKey = currentRoute?.chartSheetKey
     var selectedDanCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedDanCategoryTitle by rememberSaveable { mutableStateOf<String?>(null) }
     val communityAliasListState = rememberSaveable(saver = LazyListState.Saver) {
@@ -746,6 +749,15 @@ fun MaimaidApp(
             when (activeDetail) {
                     AppDetail.Song if actionSong != null -> {
                         IconButton(onClick = {
+                            val route = AppRoute.ChartPreview(actionSong.songIdentifier)
+                            if (navBackStack.lastOrNull() != route) navBackStack.add(route)
+                        }) {
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = stringResource(R.string.chart_preview_action),
+                            )
+                        }
+                        IconButton(onClick = {
                             viewModel.setSongFavorite(actionSong.songIdentifier, !actionSong.isFavorite)
                         }) {
                             Icon(
@@ -861,12 +873,14 @@ fun MaimaidApp(
     fun DetailEntry(
         activeDetail: AppDetail,
         routeSongIdOverride: String? = null,
+        routeChartSheetKeyOverride: String? = null,
         routeDanCategoryIdOverride: String? = null,
         routeDanCategoryTitleOverride: String? = null,
         routeCollectionIdOverride: String? = null,
     ) {
         val backgroundColor = MiuixTheme.colorScheme.surface
         val routeSongId = routeSongIdOverride ?: selectedSongId
+        val routeChartSheetKey = routeChartSheetKeyOverride ?: selectedChartSheetKey
         val routeDanCategoryId = routeDanCategoryIdOverride ?: selectedDanCategoryId
         val routeCollectionId = routeCollectionIdOverride ?: selectedCollectionId
         val routeCollectionTitle = routeCollectionId
@@ -979,6 +993,7 @@ fun MaimaidApp(
                     detail = activeDetail,
                     state = uiState,
                     selectedSongId = routeSongId,
+                    selectedChartSheetKey = routeChartSheetKey,
                     selectedDanCategoryId = routeDanCategoryId,
                     container = container,
                     songContentTopPadding = paddingValues.calculateTopPadding(),
@@ -1298,6 +1313,20 @@ fun MaimaidApp(
             entry<AppRoute.CollectionDetail>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) { route ->
                 DetailEntry(AppDetail.CollectionDetail, routeCollectionIdOverride = route.collectionId)
             }
+            entry<AppRoute.ChartPreview>(
+                transition = SettingsDetailTransition,
+                swipeDismiss = if (predictiveBackEnabled) {
+                    NavSwipeDirection.LeftToRight
+                } else {
+                    NavSwipeDirection.None
+                },
+            ) { route ->
+                DetailEntry(
+                    AppDetail.ChartPreview,
+                    routeSongIdOverride = route.songId,
+                    routeChartSheetKeyOverride = route.sheetKey,
+                )
+            }
             entry<AppRoute.Song>(
                 transition = SettingsDetailTransition,
                 swipeDismiss = if (predictiveBackEnabled) {
@@ -1477,6 +1506,7 @@ private fun detailTitle(detail: AppDetail): String = when (detail) {
     AppDetail.Appearance -> stringResource(R.string.detail_appearance)
     AppDetail.About -> stringResource(R.string.detail_about)
     AppDetail.Song -> ""
+    AppDetail.ChartPreview -> stringResource(R.string.chart_preview_title)
     AppDetail.Collections -> stringResource(R.string.settings_collections)
     AppDetail.CollectionDetail -> stringResource(R.string.settings_collections)
 }

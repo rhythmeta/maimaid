@@ -13,6 +13,8 @@ import org.rhythmeta.maimaid.core.data.RatingUtils
 import org.rhythmeta.maimaid.core.data.ScoreInput
 import org.rhythmeta.maimaid.core.data.ServerChartPolicy
 import org.rhythmeta.maimaid.core.data.StaticBundleResponse
+import org.rhythmeta.maimaid.core.data.ChartAssetIndex
+import org.rhythmeta.maimaid.core.chart.ChartAssetIdResolver
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 
@@ -31,7 +33,7 @@ class SongDetailViewModel(
         Triple(sheets, profile?.server ?: "jp", versions)
     }
 
-    val uiState = combine(
+    private val baseUiState = combine(
         sheetsWithServer,
         container.scoreRepository.observeSongScoreData(songIdentifier),
         container.catalogRepository.chartFit,
@@ -72,7 +74,9 @@ class SongDetailViewModel(
             entrySheetKey = selectedSheetKey,
             saveStatus = status,
         )
-    }.stateIn(
+    }
+
+    val uiState = baseUiState.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = SongDetailUiState(),

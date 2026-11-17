@@ -1,0 +1,6 @@
+&title=Effects fixture
+&artist=Test artist
+&bpm=120
+&lv_5=10.0
+&des_5=Effects
+&inote_5=(120){4}A1f,1,2,

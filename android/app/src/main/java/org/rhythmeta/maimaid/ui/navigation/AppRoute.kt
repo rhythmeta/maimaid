@@ -74,6 +74,10 @@ sealed interface AppRoute : NavKey {
     @Serializable
     data class Song(val songId: String) : AppRoute
 
+    /** Full-page chart preview for one sheet of a song. */
+    @Serializable
+    data class ChartPreview(val songId: String, val sheetKey: String? = null) : AppRoute
+
     /** Song detail opened from a song cover and presented with its shared-cover transition. */
     @Serializable
     data class CatalogSong(val songId: String, val transitionId: String) : AppRoute
@@ -84,6 +88,7 @@ fun AppDetail.toRoute(
     danCategoryId: String? = null,
     danCategoryTitle: String? = null,
     collectionId: String? = null,
+    chartSheetKey: String? = null,
 ): AppRoute = when (this) {
     AppDetail.BestTable -> AppRoute.BestTable
     AppDetail.RandomSong -> AppRoute.RandomSong
@@ -105,6 +110,7 @@ fun AppDetail.toRoute(
     AppDetail.Appearance -> AppRoute.Appearance
     AppDetail.About -> AppRoute.About
     AppDetail.Song -> AppRoute.Song(songId.orEmpty())
+    AppDetail.ChartPreview -> AppRoute.ChartPreview(songId.orEmpty(), chartSheetKey.orEmpty())
     AppDetail.Collections -> AppRoute.SongCollections
     AppDetail.CollectionDetail -> AppRoute.CollectionDetail(collectionId.orEmpty())
 }
@@ -134,7 +140,11 @@ val AppRoute.appDetail: AppDetail?
         AppRoute.SongCollections -> AppDetail.Collections
         is AppRoute.CollectionDetail -> AppDetail.CollectionDetail
         is AppRoute.Song, is AppRoute.CatalogSong -> AppDetail.Song
+        is AppRoute.ChartPreview -> AppDetail.ChartPreview
     }
+
+val AppRoute.chartSheetKey: String?
+    get() = (this as? AppRoute.ChartPreview)?.sheetKey
 
 val AppRoute.songId: String?
     get() = when (this) {

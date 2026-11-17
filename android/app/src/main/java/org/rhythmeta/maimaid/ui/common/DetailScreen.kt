@@ -45,6 +45,7 @@ import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.CatalogDownloadProgressContent
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
+import org.rhythmeta.maimaid.ui.song.ChartPreviewScreen
 import org.rhythmeta.maimaid.ui.song.SongDetailScreen
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -126,6 +127,7 @@ internal fun DetailScreen(
     collectionsSortOption: CatalogSortOption = CatalogSortOption.DefaultOrder,
     collectionsSortAscending: Boolean = true,
     selectedCollectionId: String? = null,
+    selectedChartSheetKey: String? = null,
     collectionsRenameRequested: Boolean = false,
     onSelectedCollectionIdChange: (String?) -> Unit = {},
     collectionsCreateRequested: Boolean = false,
@@ -169,6 +171,12 @@ internal fun DetailScreen(
             onHeaderTitleHiddenChange = onSongDetailHeaderTitleHiddenChange,
             onOpenCommunityAliases = onOpenCommunityAliases,
             coverTransition = coverTransition,
+        )
+        AppDetail.ChartPreview -> ChartPreviewScreen(
+            songId = selectedSongId.orEmpty(),
+            sheetKey = selectedChartSheetKey,
+            container = container,
+            contentTopPadding = songContentTopPadding,
         )
         AppDetail.Collections -> SongCollectionsScreen(
             container = container,

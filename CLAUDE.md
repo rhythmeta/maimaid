@@ -67,6 +67,7 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
 - **UI**: Jetpack Compose (Compose BOM) + Miuix, Navigation Compose, Coil for images
 - **Data layer**: Room (schemas exported to `app/schemas/` via KSP) + DataStore Preferences
 - **Networking**: Retrofit + OkHttp + kotlinx.serialization; background work via WorkManager
+- **Chart preview**: a full-page, arcade-faithful chart renderer ported from `@lxns-network/maimai-chart-engine` (`core/chart`, `ui/song/ChartPreview*`). It parses simaidata, drives a Compose canvas via `android.graphics.Canvas`, plays the answer/judge SFX layers from `assets/maimai/chart/*.wav`, and draws the cached cover art behind the stage. Parser output is locked to the reference engine by `SimaiParityTest`.
 - **Scanner**: CameraX for capture, ML Kit text recognition (Latin + Chinese + Japanese) for OCR, TFLite for classification/detection. Runtime models are packaged assets in `app/src/main/assets/scanner/`.
 - **Build types**: `debug` (`.debug` suffix), `release`, and `snapshot` (`.snapshot` suffix, derived from release). All restricted to the `arm64-v8a` ABI.
 - **Config**: `BACKEND_URL` and `BACKEND_AUTH_URL` are read as Gradle properties from `android/gradle.properties` and exposed through `BuildConfig`. Release signing reads the PKCS#12 keystore path, store password, alias, and key password from `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`; local release builds remain unsigned when these variables are absent.

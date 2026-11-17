@@ -1,0 +1,6 @@
+&title=Overlap fixture
+&artist=Test
+&bpm=120
+&lv_5=10.0
+&des_5=Overlap
+&inote_5=(120){4}A1/A1,A1/A1h[4:1],B2f/B2,

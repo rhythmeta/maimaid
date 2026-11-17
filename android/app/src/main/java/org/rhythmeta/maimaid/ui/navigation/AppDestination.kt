@@ -32,6 +32,7 @@ enum class AppDetail {
     Appearance,
     About,
     Song,
+    ChartPreview,
     Collections,
     CollectionDetail,
 }

@@ -171,6 +171,11 @@ android {
             useLegacyPackaging = false
         }
     }
+    androidResources {
+        // Chart SFX are loaded through AssetFileDescriptor by SoundPool, which requires
+        // uncompressed assets.
+        noCompress += listOf("wav")
+    }
     sourceSets {
         getByName("main").assets.directories.add(sgwcmaidAssetsDir.absolutePath)
     }

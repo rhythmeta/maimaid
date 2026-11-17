@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -46,7 +47,9 @@ class AppPreferencesRepository(
         "score_query_grid_columns" to "int",
         "score_query_sort_mode" to "string",
         "score_query_sort_ascending" to "bool",
-        "best50_constant_mode" to "string"
+        "best50_constant_mode" to "string",
+        "chart_audio_offset_ms" to "int",
+        "chart_preview_settings" to "string"
     )
 
     suspend fun exportBackupSettings(): List<org.rhythmeta.backup.proto.BackupProtocol.Setting> =
@@ -164,6 +167,45 @@ class AppPreferencesRepository(
 
     val catalogSortAscending: Flow<Boolean> = context.appPreferencesDataStore.data.map { preferences ->
         preferences[CatalogSortAscendingKey] ?: true
+    }
+
+    private val chartPreviewJson = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    /** Speed / display / audio settings for the chart preview page. */
+    val chartPreviewSettings: Flow<org.rhythmeta.maimaid.core.chart.ChartPreviewSettings> =
+        context.appPreferencesDataStore.data.map { preferences ->
+            preferences[ChartPreviewSettingsKey]?.let { encoded ->
+                runCatching {
+                    chartPreviewJson.decodeFromString<
+                        org.rhythmeta.maimaid.core.chart.ChartPreviewSettings,
+                        >(encoded)
+                }.getOrNull()
+            } ?: org.rhythmeta.maimaid.core.chart.ChartPreviewSettings(
+                // Migrate the previous standalone music-offset preference.
+                musicOffsetMs = preferences[ChartAudioOffsetMsKey] ?: 0,
+            )
+        }
+
+    suspend fun setChartPreviewSettings(
+        settings: org.rhythmeta.maimaid.core.chart.ChartPreviewSettings,
+    ) {
+        context.appPreferencesDataStore.edit { preferences ->
+            preferences[ChartPreviewSettingsKey] = chartPreviewJson.encodeToString(settings)
+        }
+    }
+
+    /** Audio offset for chart preview in milliseconds. Positive values delay the music. */
+    val chartAudioOffsetMs: Flow<Int> = context.appPreferencesDataStore.data.map { preferences ->
+        preferences[ChartAudioOffsetMsKey] ?: 0
+    }
+
+    suspend fun setChartAudioOffsetMs(value: Int) {
+        context.appPreferencesDataStore.edit { preferences ->
+            preferences[ChartAudioOffsetMsKey] = value.coerceIn(-500, 500)
+        }
     }
 
     val catalogGridColumns: Flow<Int> = context.appPreferencesDataStore.data.map { preferences ->
@@ -296,6 +338,8 @@ class AppPreferencesRepository(
         val CatalogSortOptionKey = stringPreferencesKey("catalog_sort_option")
         val CatalogSortAscendingKey = booleanPreferencesKey("catalog_sort_ascending")
         val CatalogGridColumnsKey = intPreferencesKey("catalog_grid_columns")
+        val ChartAudioOffsetMsKey = intPreferencesKey("chart_audio_offset_ms")
+        val ChartPreviewSettingsKey = stringPreferencesKey("chart_preview_settings")
         val CatalogHideUnavailableSongsKey = booleanPreferencesKey("catalog_hide_unavailable_songs")
         val CatalogShowPlayableSongsOnlyKey = booleanPreferencesKey("catalog_show_playable_songs_only")
         val ScoreQueryDisplayModeKey = stringPreferencesKey("score_query_display_mode")

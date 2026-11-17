@@ -99,7 +99,8 @@ class AppContainer(context: Context) {
     val onnxSessionFactory = OnnxSessionFactory(remoteModelStore)
     val coverImageStore = CoverImageStore(applicationContext)
     val presetAvatarImageStore = PresetAvatarImageStore(applicationContext)
-    private val staticBundleClient = StaticBundleClient(BuildConfig.STATIC_ASSETS_URL, json)
+    /** Static bundle and optional chart preview asset client. */
+    val staticBundleClient = StaticBundleClient(BuildConfig.STATIC_ASSETS_URL, json)
     private val catalogSyncStateStore = CatalogSyncStateStore(applicationContext)
     val profileAvatarStore = ProfileAvatarStore(applicationContext)
     val profileCredentialStore = ProfileCredentialStore(applicationContext)

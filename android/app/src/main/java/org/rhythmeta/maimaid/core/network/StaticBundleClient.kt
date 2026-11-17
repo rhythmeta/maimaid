@@ -1,6 +1,7 @@
 package org.rhythmeta.maimaid.core.network
 
 import android.graphics.BitmapFactory
+import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,6 +9,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.rhythmeta.maimaid.core.data.StaticBundleResponse
+import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.data.StaticAssetConfiguration
 import org.rhythmeta.maimaid.core.data.StaticAssetUrls
 import org.rhythmeta.maimaid.core.data.StaticManifest
@@ -16,6 +18,9 @@ import java.io.FilterInputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class StaticBundleClient(
     private val baseUrl: String,
@@ -31,6 +36,77 @@ class StaticBundleClient(
     ): StaticBundleResponse {
         val bundleUrl = URL(URL("${baseUrl.trimEnd('/')}/"), manifest.bundle).toString()
         return getUrl<StaticBundleResponse>(bundleUrl, onTransfer).validatedAgainst(manifest)
+    }
+
+    suspend fun fetchChartAssetIndex(): ChartAssetIndex =
+        getUrl("${baseUrl.trimEnd('/')}/chart-assets/index.json")
+
+    /** Downloads a content-addressed chart asset and verifies its published digest and size. */
+    suspend fun downloadChartAsset(asset: ChartAssetIndex.File): ByteArray =
+        withContext(Dispatchers.IO) {
+            validateChartAssetPath(asset)
+            val bytes = getBytes("${baseUrl.trimEnd('/')}${asset.path}")
+            check(bytes.size.toLong() == asset.size) {
+                "Chart asset size mismatch: expected ${asset.size}, got ${bytes.size}"
+            }
+            val actualDigest = MessageDigest.getInstance("SHA-256")
+                .digest(bytes)
+                .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+            check(actualDigest == asset.sha256.lowercase()) {
+                "Chart asset digest mismatch"
+            }
+            bytes
+        }
+
+    suspend fun downloadChartAssetText(asset: ChartAssetIndex.File): String =
+        downloadChartAsset(asset).toString(Charsets.UTF_8)
+
+    suspend fun downloadChartAssetToFile(
+        asset: ChartAssetIndex.File,
+        destination: File,
+    ) = withContext(Dispatchers.IO) {
+        validateChartAssetPath(asset)
+        require(asset.size > 0L) { "Chart asset must not be empty" }
+        val temporary = File(
+            destination.parentFile,
+            ".${destination.name}.${System.nanoTime()}.download",
+        )
+        val digest = MessageDigest.getInstance("SHA-256")
+        val connection = URL("${baseUrl.trimEnd('/')}${asset.path}").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
+            connection.readTimeout = READ_TIMEOUT_MILLIS
+            connection.setRequestProperty("Accept", "audio/mpeg, text/plain, */*")
+            connection.setRequestProperty("X-Maimaid-Client", "android")
+            connection.setRequestProperty("User-Agent", "maimaid-android")
+            check(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
+            temporary.parentFile?.mkdirs()
+            var size = 0L
+            connection.inputStream.use { input ->
+                temporary.outputStream().use { output ->
+                    val buffer = ByteArray(TRANSFER_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        size += count
+                        check(size <= asset.size) { "Chart asset exceeds published size" }
+                        digest.update(buffer, 0, count)
+                        output.write(buffer, 0, count)
+                    }
+                }
+            }
+            check(size == asset.size) { "Chart asset size mismatch: expected ${asset.size}, got $size" }
+            val actualDigest = digest.digest().joinToString("") { byte ->
+                "%02x".format(byte.toInt() and 0xff)
+            }
+            check(actualDigest == asset.sha256.lowercase()) { "Chart asset digest mismatch" }
+            destination.parentFile?.mkdirs()
+            atomicReplace(temporary, destination)
+        } finally {
+            connection.disconnect()
+            temporary.delete()
+        }
     }
 
     suspend fun downloadCover(
@@ -159,6 +235,56 @@ class StaticBundleClient(
             }
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private suspend fun getBytes(url: String): ByteArray = withContext(Dispatchers.IO) {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
+            connection.readTimeout = READ_TIMEOUT_MILLIS
+            connection.setRequestProperty("Accept", "text/plain, audio/mpeg, */*")
+            connection.setRequestProperty("X-Maimaid-Client", "android")
+            connection.setRequestProperty("User-Agent", "maimaid-android")
+            val status = connection.responseCode
+            check(status in 200..299) { "HTTP $status" }
+            connection.inputStream.use { it.readBytes() }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun ByteArray.toHexString(): String =
+        joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
+    private fun validateChartAssetPath(asset: ChartAssetIndex.File) {
+        require(asset.path.startsWith("/chart-assets/files/")) {
+            "Unexpected chart asset path"
+        }
+        require(asset.path.substringAfterLast('/').matches(Regex("[0-9a-f]{64}\\.(txt|mp3)"))) {
+            "Unexpected chart asset filename"
+        }
+        require(asset.sha256.matches(Regex("[0-9a-fA-F]{64}"))) {
+            "Unexpected chart asset digest"
+        }
+        require(asset.size > 0L) { "Unexpected chart asset size" }
+    }
+
+    private fun atomicReplace(source: File, destination: File) {
+        try {
+            Files.move(
+                source.toPath(),
+                destination.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(
+                source.toPath(),
+                destination.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
         }
     }
 
