@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,7 +66,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.floor
-import kotlin.math.abs
 import kotlinx.coroutines.flow.collectLatest
 import org.rhythmeta.maimaid.BuildConfig
 import org.rhythmeta.maimaid.R
@@ -95,7 +93,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Full-page chart preview: arcade-faithful stage plus transport controls. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChartPreviewScreen(
 	  modifier: Modifier = Modifier,
@@ -562,7 +559,6 @@ private fun ChartPreviewContent(
         )
 
         Spacer(Modifier.height(8.dp))
-        AudioStatus(audioState = audioState, hasAudio = hasAudio)
 
         Spacer(Modifier.height(12.dp))
         ChartSpeedSettings(
@@ -771,23 +767,6 @@ private fun PreviewTransport(
     }
 }
 
-@Composable
-private fun AudioStatus(audioState: ChartAudioState, hasAudio: Boolean) {
-    val message = when {
-        !hasAudio -> stringResource(R.string.chart_preview_audio_unavailable)
-        audioState is ChartAudioState.Preparing -> stringResource(R.string.chart_preview_audio_loading)
-        audioState is ChartAudioState.Failed -> audioState.message
-        else -> null
-    } ?: return
-    Text(
-        text = message,
-        style = MiuixTheme.textStyles.footnote1,
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
-}
-
-
 @Stable
 private class PreviewClock(val durationMs: Double) {
     val position = mutableDoubleStateOf(0.0)
@@ -801,13 +780,11 @@ private class PreviewClock(val durationMs: Double) {
  * Sheets without a track and tracks that failed to prepare are not pending, so the chart stays
  * usable (silently in the failure case) instead of waiting forever.
  */
-internal fun previewAudioPending(hasAudio: Boolean, audioState: ChartAudioState): Boolean {
-    if (!hasAudio) return false
-    return when (audioState) {
+internal fun previewAudioPending(hasAudio: Boolean, audioState: ChartAudioState): Boolean =
+    hasAudio && when (audioState) {
         ChartAudioState.Idle, ChartAudioState.Preparing -> true
         is ChartAudioState.Ready, is ChartAudioState.Failed -> false
     }
-}
 
 private const val AUDIO_STATS_INTERVAL_MS = 5_000L
 private const val TAG_AUDIO = "ChartPreviewAudio"

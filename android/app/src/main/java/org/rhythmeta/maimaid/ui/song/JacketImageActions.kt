@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
@@ -95,18 +94,6 @@ internal suspend fun saveJacketToDownloads(
             false
         },
     )
-}
-
-internal suspend fun saveJacketToUri(
-    context: Context,
-    source: File,
-    destination: Uri,
-): Boolean = withContext(Dispatchers.IO) {
-    runCatching {
-        context.contentResolver.openOutputStream(destination)?.use { output ->
-            source.inputStream().use { input -> input.copyTo(output) }
-        } ?: error("Unable to open document destination")
-    }.isSuccess
 }
 
 private fun jacketExtension(file: File): String = file.extension
