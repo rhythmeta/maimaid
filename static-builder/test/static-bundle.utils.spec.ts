@@ -548,6 +548,23 @@ describe("normalizeDxDataCatalog", () => {
 			internalLevelValue: 13.6,
 		});
 	});
+
+	it("fills the missing CiRCLE+ version kanji", () => {
+		const normalized = normalizeDxDataCatalog({
+			versions: [
+				{ version: "CiRCLE", abbr: "CiRCLE (丸)", releaseDate: "2025-09-18" },
+				{ version: "CiRCLE PLUS", abbr: "CiRCLE+", releaseDate: "2026-03-19" },
+				{ version: "MAGiCAL", abbr: "MAGiCAL", releaseDate: "2026-09-17" },
+			],
+			songs: [],
+		});
+
+		expect(normalized.versions).toEqual([
+			{ version: "CiRCLE", abbr: "CiRCLE (丸)", releaseDate: "2025-09-18" },
+			{ version: "CiRCLE PLUS", abbr: "CiRCLE+ (廻)", releaseDate: "2026-03-19" },
+			{ version: "MAGiCAL", abbr: "MAGiCAL", releaseDate: "2026-09-17" },
+		]);
+	});
 });
 
 describe("mergeSongIdPayload", () => {

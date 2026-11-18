@@ -169,6 +169,30 @@ const catalogVersions = (value: unknown): CatalogVersionRecord[] => {
 		.sort((left, right) => left.releaseDate - right.releaseDate);
 };
 
+/**
+ * dxdata announces a version before its official kanji is published in the
+ * version history, so its `abbr` ships as a bare display name (for example
+ * `CiRCLE+`). Clients render `abbr` verbatim in version badges and derive the
+ * plate prefix from the trailing `(kanji)`, so the known kanji is filled in here
+ * until upstream catches up. Entries already carrying a kanji stay untouched.
+ */
+const catalogVersionKanji = new Map([["CiRCLE PLUS", "廻"]]);
+
+const withCatalogVersionKanji = (versions: unknown[]): unknown[] =>
+	versions.map((item) => {
+		const record = toRecord(item);
+		const version = typeof record?.version === "string" ? record.version.trim() : "";
+		const kanji = catalogVersionKanji.get(version);
+		if (!record || !kanji) {
+			return item;
+		}
+		const abbr = typeof record.abbr === "string" ? record.abbr.trim() : "";
+		if (!abbr || /[()（）]/.test(abbr)) {
+			return item;
+		}
+		return { ...record, abbr: `${abbr} (${kanji})` };
+	});
+
 const regionVersionLags = {
 	intl: 4,
 	cn: 15,
@@ -378,6 +402,7 @@ export const normalizeDxDataCatalog = (payload: unknown): Record<string, unknown
 
 	return {
 		...root,
+		...(Array.isArray(root.versions) ? { versions: withCatalogVersionKanji(root.versions) } : {}),
 		songs: normalizedSongs,
 	};
 };
