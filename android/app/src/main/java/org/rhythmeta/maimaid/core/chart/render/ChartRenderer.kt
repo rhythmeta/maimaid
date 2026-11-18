@@ -47,6 +47,7 @@ class ChartRenderer {
     private var prepared: PreparedChart? = null
     private var timelineChart: Chart? = null
     private var timeline: TimingTimeline? = null
+    private val bpmFlash = BpmChangeFlash()
     private var keyDensityChart: Chart? = null
     private var keyPressTimes = DoubleArray(0)
     private val touchQueue = ArrayList<TouchPainter.TouchDrawCommand>()
@@ -84,6 +85,7 @@ class ChartRenderer {
         if (preparedChart !== chart || prepared == null) {
             prepared = PreparedChart.build(chart)
             preparedChart = chart
+            bpmFlash.reset()
         }
         return prepared!!
     }
@@ -149,6 +151,7 @@ class ChartRenderer {
                 divisor,
                 isPlaying,
                 keysPerSecond = ChartKeyDensity.keysPerSecond(keyPressTimesFor(chart), currentTimeMs),
+                bpmFlashColor = bpmFlash.colorFor(currentBpm, isPlaying, ChartConstants.Colors.WHITE),
             )
         }
         if (config.showNoteTotal || config.showBreakCount) {

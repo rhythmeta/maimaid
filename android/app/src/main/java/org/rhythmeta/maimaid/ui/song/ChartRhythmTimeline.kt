@@ -34,6 +34,7 @@ import org.rhythmeta.maimaid.core.chart.TapNote
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
 import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
 import org.rhythmeta.maimaid.core.chart.TouchNote
+import org.rhythmeta.maimaid.core.chart.render.BpmChangeFlash
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Note family of a rhythm step, coloured like the density legend. */
@@ -216,6 +217,7 @@ internal fun ChartRhythmTimeline(
     data: ChartRhythmData,
     positionMs: () -> Double,
     speedScale: Double = 1.0,
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     if (data.steps.isEmpty()) return
@@ -242,6 +244,7 @@ internal fun ChartRhythmTimeline(
     val bpmCaptionBaseline = with(density) { 16.dp.toPx() }
     val bpmValueBaseline = with(density) { 36.dp.toPx() }
     val bpmGap = with(density) { 16.dp.toPx() }
+    val bpmFlash = remember(data) { BpmChangeFlash() }
     val dashEffect = remember(density) {
         PathEffect.dashPathEffect(
             with(density) { floatArrayOf(4.dp.toPx(), 3.dp.toPx()) },
@@ -294,9 +297,10 @@ internal fun ChartRhythmTimeline(
             if (textRight > 0f) {
                 bpmCaptionPaint.color = muted.toArgb()
                 native.drawText(BPM_CAPTION, textRight, bpmCaptionBaseline, bpmCaptionPaint)
-                bpmValuePaint.color = active.toArgb()
+                val currentBpm = data.bpmAt(position)
+                bpmValuePaint.color = bpmFlash.colorFor(currentBpm, isPlaying, active.toArgb()) ?: active.toArgb()
                 native.drawText(
-                    formatBpm(data.bpmAt(position)),
+                    formatBpm(currentBpm),
                     textRight,
                     bpmValueBaseline,
                     bpmValuePaint,

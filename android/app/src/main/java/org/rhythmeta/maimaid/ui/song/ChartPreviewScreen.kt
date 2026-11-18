@@ -96,13 +96,13 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 /** Full-page chart preview: arcade-faithful stage plus transport controls. */
 @Composable
 internal fun ChartPreviewScreen(
+	  modifier: Modifier = Modifier,
     songId: String,
     sheetKey: String?,
     container: AppContainer,
     contentTopPadding: Dp,
     saveRequested: Boolean = false,
     onSaveRequestHandled: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     // Keep the display awake while the preview page is open, otherwise the screen timeout cuts the
     // playback off mid-song. The window flag is used instead of a PowerManager wakelock, so no
@@ -540,6 +540,7 @@ private fun ChartPreviewContent(
                 } else {
                     1.0
                 },
+            isPlaying = clock.isPlaying,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         ChartDensityLegend(

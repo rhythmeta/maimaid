@@ -110,6 +110,7 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         divisor: Double,
         isPlaying: Boolean,
         keysPerSecond: Int = 0,
+        bpmFlashColor: Int? = null,
     ) {
         val radius = context.radius
         val fontSize = Math.round(22 * radius / 300f).toFloat()
@@ -126,7 +127,15 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         val metrics = textPaint.fontMetrics
         val baseline = padding - metrics.ascent
 
-        drawShadowedText(bpmText, padding, baseline, shadowOffset, ChartConstants.Colors.WHITE, fontSize)
+        // A tempo change flashes the readout (red up, green down) and fades back to white.
+        drawShadowedText(
+            bpmText,
+            padding,
+            baseline,
+            shadowOffset,
+            bpmFlashColor ?: ChartConstants.Colors.WHITE,
+            fontSize,
+        )
 
         val measure = kotlin.math.floor(currentBeats / 4).toInt()
         val beatInMeasure = currentBeats - measure * 4
