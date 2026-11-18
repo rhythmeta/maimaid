@@ -359,7 +359,9 @@ class PreparedChart private constructor(
         ) {
             val byTiming = LinkedHashMap<Long, MutableList<ChartNote>>()
             for (note in notes) {
-                if (note is HoldEndNote || note.hasDelayMarker) continue
+                // Note ends are release events, not extra hits: a tap that lands on the same
+                // millisecond as a hold/touch-hold release must not read as a simultaneous pair.
+                if (note is HoldEndNote || note is TouchHoldEndNote || note.hasDelayMarker) continue
                 byTiming.getOrPut(timingKey(note.timingMs)) { mutableListOf() } += note
             }
 
