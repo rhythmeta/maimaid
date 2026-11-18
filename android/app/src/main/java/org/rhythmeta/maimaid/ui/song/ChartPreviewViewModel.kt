@@ -157,18 +157,10 @@ class ChartPreviewViewModel(
                 } else {
                     ordered
                 }
-                val firstType = scoped.first().sheet.type
-                val default = scoped
-                    .filter { it.sheet.type == firstType }
-                    .maxByOrNull { it.slot }
-                    ?: scoped.last()
-                val selectedKey = requested
-                    ?.takeIf { candidate ->
-                        scoped.any { it.sheet.sheetKey == candidate.sheet.sheetKey }
-                    }
-                    ?.sheet
-                    ?.sheetKey
-                    ?: default.sheet.sheetKey
+                // Always start on the hardest difficulty of the selected type; the requested sheet
+                // is only used to scope the type.
+                val selectedKey = scoped.maxByOrNull { it.slot }?.sheet?.sheetKey
+                    ?: scoped.last().sheet.sheetKey
 
                 mutableState.value = ChartPreviewUiState.Ready(
                     song = song,
