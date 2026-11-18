@@ -53,81 +53,14 @@ class ChartAudioEventsTest {
     }
 
     @Test
-    fun schedulerUsesTheFiftyMillisecondEarlyOffset() {
-        val events = ChartAudioEvents.prepare(chart.notes)
-        val scheduler = ChartSoundScheduler(events)
-        assertEquals(-50.0, ChartSoundScheduler.ANSWER_SOUND_BASE_OFFSET_MS, 0.0)
-        scheduler.reset(0.0)
-        // Nothing should be due until the first event's shifted time.
-        assertTrue(events.first().timeMs > 1900.0)
-    }
-
-    @Test
-    fun schedulerKeepsEventsPendingUntilOutputIsReady() {
-        val first = ChartAudioEvent(100.0).apply { hasBaseSound = true }
-        val output = FakeSfxOutput(ready = false)
-        val scheduler = ChartSoundScheduler(listOf(first))
-
-        scheduler.reset(0.0)
-        scheduler.advance(100.0, output)
-        assertEquals(emptyList<Int>(), output.playedKeys)
-
-        output.ready = true
-        scheduler.advance(100.0, output)
-        assertEquals(listOf(0), output.playedKeys)
-    }
-
-    @Test
-    fun schedulerStopsEachTouchHoldByItsOwnEventKey() {
-        val first = ChartAudioEvent(100.0).apply {
-            hasTouchHoldSound = true
-            touchHoldDurationMs = 100.0
-        }
-        val second = ChartAudioEvent(150.0).apply {
-            hasTouchHoldSound = true
-            touchHoldDurationMs = 200.0
-        }
-        val output = FakeSfxOutput(ready = true)
-        val scheduler = ChartSoundScheduler(listOf(first, second))
-
-        scheduler.reset(0.0)
-        scheduler.advance(150.0, output)
-        scheduler.advance(210.0, output)
-        assertEquals(listOf(0), output.stoppedKeys)
-        scheduler.advance(360.0, output)
-        assertEquals(listOf(0, 1), output.stoppedKeys)
-    }
-
-    @Test
-    fun resetRestoresTouchHoldWhenSeekingIntoItsBody() {
-        val hold = ChartAudioEvent(100.0).apply {
-            hasTouchHoldSound = true
-            touchHoldDurationMs = 300.0
-        }
-        val output = FakeSfxOutput(ready = true)
-        val scheduler = ChartSoundScheduler(listOf(hold))
-
-        scheduler.reset(250.0)
-        scheduler.advance(250.0, output)
-
-        assertEquals(listOf(0), output.playedKeys)
-    }
-
-    private class FakeSfxOutput(
-        var ready: Boolean,
-    ) : ChartSfxOutput {
-        override val enabled: Boolean = true
-        override val isReady: Boolean get() = ready
-        val playedKeys = mutableListOf<Int>()
-        val stoppedKeys = mutableListOf<Int>()
-
-        override fun playEvent(event: ChartAudioEvent, eventKey: Int): Boolean {
-            playedKeys += eventKey
-            return true
-        }
-
-        override fun stopTouchHoldLoop(eventKey: Int) {
-            stoppedKeys += eventKey
-        }
+    fun answerLayerCoversEveryAudibleLayer() {
+        val base = ChartAudioEvent(100.0).apply { hasBaseSound = true }
+        val touch = ChartAudioEvent(100.0).apply { hasTouchSound = true }
+        val holdEnd = ChartAudioEvent(100.0).apply { hasHoldEndSound = true }
+        val judgeOnly = ChartAudioEvent(100.0).apply { hasTapJudgeSound = true }
+        assertTrue(base.playsAnswerSound)
+        assertTrue(touch.playsAnswerSound)
+        assertTrue(holdEnd.playsAnswerSound)
+        assertFalse(judgeOnly.playsAnswerSound)
     }
 }

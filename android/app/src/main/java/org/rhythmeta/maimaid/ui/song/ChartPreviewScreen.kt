@@ -4,12 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +39,6 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -72,9 +67,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.floor
-import kotlin.math.roundToInt
 import kotlin.math.abs
 import kotlinx.coroutines.flow.collectLatest
+import org.rhythmeta.maimaid.BuildConfig
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.chart.Chart
@@ -82,10 +77,9 @@ import org.rhythmeta.maimaid.core.chart.ChartAudioEvents
 import org.rhythmeta.maimaid.core.chart.ChartAudioState
 import org.rhythmeta.maimaid.core.chart.ChartPreviewSettings
 import org.rhythmeta.maimaid.core.chart.ChartRenderConfig
-import org.rhythmeta.maimaid.core.chart.ChartSfxPlayer
-import org.rhythmeta.maimaid.core.chart.ChartSoundScheduler
 import org.rhythmeta.maimaid.core.chart.SimaiParser
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
+import org.rhythmeta.maimaid.core.chart.audio.PcmChartAudioEngine
 import org.rhythmeta.maimaid.core.chart.render.ChartRenderer
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.ui.components.squircleShape
@@ -128,7 +122,8 @@ internal fun ChartPreviewScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val audioState by viewModel.audioState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val seekCompletions by viewModel.seekCompletions.collectAsStateWithLifecycle()
+    val usesPcm by viewModel.pcmEngine.usesPcm.collectAsStateWithLifecycle()
+    val pcmPreparing by viewModel.pcmEngine.preparing.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val savedMessage = stringResource(R.string.chart_preview_save_done)
@@ -201,19 +196,15 @@ internal fun ChartPreviewScreen(
                 embeddedCover = viewModel.cachedAudioCover(),
                 audioState = audioState,
                 settings = settings,
-                seekCompletions = seekCompletions,
                 onSettingsChange = { next -> viewModel.updateSettings { next } },
                 onSelectSheet = viewModel::selectSheet,
                 onMusicVolumeChange = viewModel::setMusicVolume,
                 onPlaybackSpeedChange = viewModel::setPlaybackSpeed,
                 renderConfig = renderConfig,
                 contentTopPadding = contentTopPadding,
-                onPauseAudio = viewModel::pauseAudio,
-                onSeekAudio = viewModel::seekAudio,
-                audioPositionMillis = viewModel::audioPositionMillis,
-                isAudioPrepared = { viewModel.isAudioPrepared },
-                onPlayAudio = viewModel::playAudio,
-                isAudioPlaying = { viewModel.isAudioPlaying },
+                pcmEngine = viewModel.pcmEngine,
+                usesPcm = usesPcm,
+                pcmPreparing = pcmPreparing,
             )
         }
         SnackbarHost(
@@ -233,19 +224,15 @@ private fun ChartPreviewContent(
     embeddedCover: ByteArray?,
     audioState: ChartAudioState,
     settings: ChartPreviewSettings,
-    seekCompletions: Int,
     onSettingsChange: (ChartPreviewSettings) -> Unit,
     onSelectSheet: (String) -> Unit,
     onMusicVolumeChange: (Float) -> Unit,
     onPlaybackSpeedChange: (Float) -> Unit,
     renderConfig: ChartRenderConfig,
     contentTopPadding: Dp,
-    onPauseAudio: () -> Unit,
-    onSeekAudio: (Int, Boolean) -> Unit,
-    audioPositionMillis: () -> Int,
-    isAudioPrepared: () -> Boolean,
-    onPlayAudio: () -> Unit,
-    isAudioPlaying: () -> Boolean,
+    pcmEngine: PcmChartAudioEngine,
+    usesPcm: Boolean,
+    pcmPreparing: Boolean,
 ) {
     val option = ready.selected
     val chartResult = remember(option.maidata, option.slot) {
@@ -264,7 +251,6 @@ private fun ChartPreviewContent(
         return
     }
 
-    val context = LocalContext.current
     // The reference stops at totalMeasures × beatsPerMeasure + 500 ms; chart.measures already
     // carries one measure of padding on each side, so the last note's hit effects and fireworks
     // get to finish. Keep a floor of 1.5 s after the final note for very short charts.
@@ -278,6 +264,17 @@ private fun ChartPreviewContent(
     val clock = remember(chart) { PreviewClock(playbackDurationMs) }
     // Holding the stage plays at 1.5x the user's speed; releasing returns to the setting.
     var speedBoostActive by remember { mutableStateOf(false) }
+    // Apply the boost from state (not from the gesture callback): the pointer handler used to keep
+    // a stale settings snapshot and forced 1x on release.
+    LaunchedEffect(speedBoostActive, settings.playbackSpeed) {
+        onPlaybackSpeedChange(
+            if (speedBoostActive) {
+                (BOOST_SPEED * settings.playbackSpeed).toFloat()
+            } else {
+                settings.playbackSpeed.toFloat()
+            },
+        )
+    }
     // Leaving the app must not leave the chart (and its audio) running in the background; the
     // preview comes back paused so the user can resume deliberately.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -288,33 +285,27 @@ private fun ChartPreviewContent(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val sfxPlayer = remember { ChartSfxPlayer(context) }
-    val scheduler = remember(chart) {
-        ChartSoundScheduler(ChartAudioEvents.prepare(chart.notes))
-    }
     // Community MP3s carry a sharper cover than the catalog image; prefer it when present.
     val cover = remember(coverFile, embeddedCover) {
         embeddedCover?.let(::decodeCover) ?: decodeCover(coverFile)
     }
     var soundEnabled by rememberSaveable { mutableStateOf(true) }
-    DisposableEffect(sfxPlayer) {
-        onDispose { sfxPlayer.release() }
+    DisposableEffect(pcmEngine) {
+        onDispose {
+            pcmEngine.pause()
+            pcmEngine.stopSfx()
+            if (BuildConfig.DEBUG) android.util.Log.i(TAG_AUDIO, pcmEngine.debugSummary())
+        }
     }
     DisposableEffect(cover) {
         onDispose { cover?.recycle() }
     }
     LaunchedEffect(soundEnabled) {
-        sfxPlayer.enabled = soundEnabled
+        pcmEngine.setSfxEnabled(soundEnabled)
     }
-    val latestMusicOffsetMs by rememberUpdatedState(settings.musicOffsetMs)
-    val latestSeekCompletions by rememberUpdatedState(seekCompletions)
 
     LaunchedEffect(settings.musicOffsetMs) {
-        clock.audioStarted = false
-        if (!clock.isPlaying && isAudioPrepared()) {
-            val target = audioTargetMillis(clock.position.doubleValue, chart, settings.musicOffsetMs)
-            onSeekAudio(target, false)
-        }
+        if (usesPcm) pcmEngine.setMusicOffsetMs(settings.musicOffsetMs)
     }
     LaunchedEffect(settings.musicVolume) {
         onMusicVolumeChange(settings.musicVolume)
@@ -323,11 +314,11 @@ private fun ChartPreviewContent(
         onPlaybackSpeedChange(settings.playbackSpeed.toFloat())
     }
     LaunchedEffect(settings.answerVolume, settings.judgeVolume) {
-        sfxPlayer.answerVolume = settings.answerVolume
-        sfxPlayer.judgeVolume = settings.judgeVolume
+        pcmEngine.setAnswerVolume(settings.answerVolume)
+        pcmEngine.setJudgeVolume(settings.judgeVolume)
     }
     LaunchedEffect(settings.sfxOffsetMs) {
-        scheduler.setUserOffset(settings.sfxOffsetMs.toDouble(), clock.position.doubleValue)
+        pcmEngine.setSfxOffsetMs(settings.sfxOffsetMs)
     }
     // The notes must never run ahead of the music: hold the clock until the selected track has
     // finished downloading and MediaPlayer handed it back, which is what `waitingForAudio` waits
@@ -336,109 +327,79 @@ private fun ChartPreviewContent(
     val waitingForAudio = previewAudioPending(
         hasAudio = option.entry.files.audio != null,
         audioState = audioState,
-    )
+    ) || (option.entry.files.audio != null && pcmPreparing)
+    // Publish the frame-addressed event timeline to the PCM mixer. This is safe before the
+    // engine has finished preparing; it keeps the configuration for the moment it becomes ready.
+    LaunchedEffect(chart, playbackDurationMs, usesPcm) {
+        if (!usesPcm) return@LaunchedEffect
+        pcmEngine.configure(
+            events = ChartAudioEvents.prepare(chart.notes),
+            leadInMs = chart.leadInMs,
+            durationMs = playbackDurationMs,
+            musicOffsetMs = settings.musicOffsetMs,
+            sfxOffsetMs = settings.sfxOffsetMs,
+        )
+    }
     // Rewind whenever another chart is shown; the start effect below decides when it may run.
     LaunchedEffect(chart) {
         clock.position.doubleValue = 0.0
-        scheduler.reset(0.0)
-        clock.audioStarted = false
+        if (usesPcm) pcmEngine.seekTo(0.0, playAfterSeek = false)
         clock.isPlaying = false
     }
-    // Starting is its own effect so a download finishing later cannot override a user pause. The
-    // audio anchor is dropped on every (re)start, so the frame loop re-syncs the track before the
-    // SFX begin.
+    // Hold the whole preview while a new track downloads/decodes. Without this, the previous
+    // track kept playing under the loading overlay and the new one then restarted from zero.
     LaunchedEffect(chart, waitingForAudio) {
-        if (waitingForAudio) return@LaunchedEffect
-        clock.audioStarted = false
+        if (waitingForAudio) {
+            clock.isPlaying = false
+            return@LaunchedEffect
+        }
         clock.isPlaying = true
     }
 
-    LaunchedEffect(chart, clock) {
+    LaunchedEffect(chart, clock, usesPcm) {
         snapshotFlow { clock.isPlaying }.collectLatest { playing ->
             if (!playing) {
-                onPauseAudio()
-                clock.audioStarted = false
-                scheduler.reset(clock.position.doubleValue)
-                sfxPlayer.stopAll()
+                pcmEngine.pause()
+                pcmEngine.stopSfx()
                 return@collectLatest
             }
+            if (usesPcm) pcmEngine.play()
             var lastFrameNanos = 0L
+            var lastStatsLogMs = 0L
             while (clock.isPlaying) {
                 withFrameNanos { now ->
                     if (clock.isScrubbing) {
                         lastFrameNanos = now
                         return@withFrameNanos
                     }
-                    if (clock.holdForSeek) {
-                        val nowUptime = android.os.SystemClock.uptimeMillis()
-                        if (latestSeekCompletions != clock.seekHoldBase ||
-                            nowUptime > clock.seekHoldDeadlineMs
-                        ) {
-                            clock.holdForSeek = false
-                        } else {
-                            lastFrameNanos = now
-                            return@withFrameNanos
+                    val deltaMs = if (lastFrameNanos == 0L) {
+                        0.0
+                    } else {
+                        (now - lastFrameNanos) / 1_000_000.0
+                    }
+                    val speed = settings.playbackSpeed *
+                        (if (speedBoostActive) BOOST_SPEED.toDouble() else 1.0)
+                    val position = if (usesPcm && pcmEngine.isReady) {
+                        // The PCM engine is the only audio path: its timestamp-based clock is
+                        // already sample-accurate and drives both music and SFX.
+                        pcmEngine.chartPositionMs()
+                    } else {
+                        // Silent chart (no track / failed track): keep the visuals running.
+                        (clock.position.doubleValue + deltaMs * speed)
+                            .coerceAtMost(clock.durationMs)
+                    }
+                    clock.position.doubleValue = position.coerceIn(0.0, clock.durationMs)
+                    if (BuildConfig.DEBUG) {
+                        val nowMs = android.os.SystemClock.uptimeMillis()
+                        if (nowMs - lastStatsLogMs >= AUDIO_STATS_INTERVAL_MS) {
+                            lastStatsLogMs = nowMs
+                            if (usesPcm) android.util.Log.i(TAG_AUDIO, pcmEngine.debugSummary())
                         }
                     }
-                    if (lastFrameNanos != 0L) {
-                        val deltaMs = (now - lastFrameNanos) / 1_000_000.0
-
-                        // Establish the music anchor before scheduling any SFX. A resume or
-                        // seek can leave MediaPlayer a few milliseconds from the target; starting
-                        // it directly avoids adding another asynchronous seek latency.
-                        if (isAudioPrepared() && !clock.audioStarted && !clock.holdForSeek) {
-                            val target = audioTargetMillis(
-                                clock.position.doubleValue,
-                                chart,
-                                latestMusicOffsetMs,
-                            )
-                            if (target >= 0) {
-                                if (abs(audioPositionMillis() - target) <= AUDIO_START_TOLERANCE_MS) {
-                                    onPlayAudio()
-                                } else {
-                                    clock.beginSeekHold(latestSeekCompletions)
-                                    onSeekAudio(target, true)
-                                }
-                                clock.audioStarted = true
-                            }
-                        }
-
-                        val audioPlaying = clock.audioStarted &&
-                            !clock.holdForSeek &&
-                            isAudioPrepared() && isAudioPlaying()
-                        val audioMasterPosition = if (
-                            audioPlaying
-                        ) {
-                            (chart.leadInMs + audioPositionMillis() - latestMusicOffsetMs)
-                                .coerceIn(0.0, clock.durationMs)
-                        } else {
-                            (clock.position.doubleValue +
-                                deltaMs * settings.playbackSpeed *
-                                (if (speedBoostActive) 1.5 else 1.0))
-                                .coerceAtMost(clock.durationMs)
-                        }
-                        clock.position.doubleValue = audioMasterPosition
-
-                        if (audioMasterPosition >= clock.durationMs) {
-                            clock.isPlaying = false
-                            clock.audioStarted = false
-                            onPauseAudio()
-                            sfxPlayer.stopAll()
-                        }
-
-                        // Do not emit SFX while music is paused or its seek is settling. This
-                        // prevents the chart from getting ahead of the resumed music track.
-                        if (audioPlaying) {
-                            scheduler.advance(
-                                currentTimeMs = clock.position.doubleValue,
-                                player = sfxPlayer,
-                                // SoundPool has no absolute future-start API. A wall-clock
-                                // Handler delay would make SFX run ahead of MediaPlayer after a
-                                // pause/seek, so trigger from the shared media position instead.
-                                lookAheadMs = 0.0,
-                            )
-                        }
-
+                    if (position >= clock.durationMs) {
+                        clock.isPlaying = false
+                        pcmEngine.pause()
+                        pcmEngine.stopSfx()
                     }
                     lastFrameNanos = now
                 }
@@ -455,28 +416,17 @@ private fun ChartPreviewContent(
         if (!clock.isScrubbing) {
             clock.wasPlayingBeforeScrub = clock.isPlaying
             clock.isScrubbing = true
-            if (clock.wasPlayingBeforeScrub) onPauseAudio()
+            if (clock.wasPlayingBeforeScrub) pcmEngine.pause()
         }
         clock.position.doubleValue = positionMs.coerceIn(0.0, clock.durationMs)
     }
     val onSeekFinished: () -> Unit = {
         clock.isScrubbing = false
-        scheduler.reset(clock.position.doubleValue)
-        sfxPlayer.stopAll()
-        clock.audioStarted = false
-        if (isAudioPrepared()) {
-            val target = audioTargetMillis(
+        if (usesPcm && pcmEngine.isReady) {
+            pcmEngine.seekTo(
                 clock.position.doubleValue,
-                chart,
-                settings.musicOffsetMs,
+                playAfterSeek = clock.wasPlayingBeforeScrub,
             )
-            if (clock.wasPlayingBeforeScrub) {
-                clock.audioStarted = true
-                clock.beginSeekHold(latestSeekCompletions)
-                onSeekAudio(target, true)
-            } else {
-                onSeekAudio(target, false)
-            }
         }
         clock.wasPlayingBeforeScrub = false
     }
@@ -498,11 +448,7 @@ private fun ChartPreviewContent(
     }
 
     fun setSpeedBoost(active: Boolean) {
-        if (speedBoostActive == active) return
-        speedBoostActive = active
-        onPlaybackSpeedChange(
-            if (active) BOOST_SPEED * settings.playbackSpeed.toFloat() else settings.playbackSpeed.toFloat(),
-        )
+        if (speedBoostActive != active) speedBoostActive = active
     }
 
     val onTogglePlay: () -> Unit = toggle@{
@@ -510,11 +456,10 @@ private fun ChartPreviewContent(
         if (waitingForAudio) return@toggle
         if (clock.position.doubleValue >= clock.durationMs) {
             clock.position.doubleValue = 0.0
-            scheduler.reset(0.0)
+            if (usesPcm) pcmEngine.seekTo(0.0, playAfterSeek = false)
         }
         // Pausing during a hold must not leave the boosted speed behind.
         setSpeedBoost(false)
-        clock.audioStarted = false
         clock.isPlaying = !clock.isPlaying
     }
     // The boost is a gesture overlay: it must not outlive the screen or get stuck when the
@@ -546,21 +491,20 @@ private fun ChartPreviewContent(
                 .aspectRatio(1f)
                 .clip(squircleShape(20.dp))
                 .background(Color.Black)
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    // A single tap is nothing; pause needs a double tap.
-                    onDoubleClick = { onTogglePlay() },
-                    // Hold to fast-forward, but only while the chart is actually playing.
-                    onLongClick = { if (clock.isPlaying) setSpeedBoost(true) },
-                    onClick = {},
-                )
                 .pointerInput(Unit) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        waitForUpOrCancellation()
-                        setSpeedBoost(false)
-                    }
+                    detectTapGestures(
+                        // A single tap is nothing; pause needs a double tap.
+                        onTap = {},
+                        onDoubleTap = { onTogglePlay() },
+                        // Hold to fast-forward, but only while the chart is actually playing.
+                        onLongPress = { if (clock.isPlaying) setSpeedBoost(true) },
+                        onPress = {
+                            // `tryAwaitRelease` covers both up and cancellation of this pointer.
+                            // Other taps elsewhere cannot end this press.
+                            tryAwaitRelease()
+                            setSpeedBoost(false)
+                        },
+                    )
                 }
                 .semantics {
                     contentDescription = stageDescription
@@ -848,16 +792,6 @@ private class PreviewClock(val durationMs: Double) {
     var isPlaying by mutableStateOf(false)
     var isScrubbing by mutableStateOf(false)
     var wasPlayingBeforeScrub: Boolean = false
-    var audioStarted: Boolean = false
-    var holdForSeek: Boolean = false
-    var seekHoldBase: Int = 0
-    var seekHoldDeadlineMs: Long = 0L
-
-    fun beginSeekHold(currentCompletions: Int) {
-        holdForSeek = true
-        seekHoldBase = currentCompletions
-        seekHoldDeadlineMs = android.os.SystemClock.uptimeMillis() + 600
-    }
 }
 
 /**
@@ -873,12 +807,8 @@ internal fun previewAudioPending(hasAudio: Boolean, audioState: ChartAudioState)
     }
 }
 
-private fun audioTargetMillis(positionMs: Double, chart: Chart, audioOffsetMs: Int): Int =
-    (positionMs - chart.leadInMs - audioOffsetMs)
-        .roundToInt()
-        .coerceAtLeast(0)
-
-private const val AUDIO_START_TOLERANCE_MS = 150
+private const val AUDIO_STATS_INTERVAL_MS = 5_000L
+private const val TAG_AUDIO = "ChartPreviewAudio"
 private const val BOOST_SPEED = 1.5f
 private const val CHART_SAVE_SNACKBAR_MS = 2_500L
 

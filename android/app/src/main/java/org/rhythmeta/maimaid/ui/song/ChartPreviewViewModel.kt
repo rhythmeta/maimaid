@@ -19,10 +19,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.chart.ChartAssetIdResolver
-import org.rhythmeta.maimaid.core.chart.ChartAudioPlayer
 import org.rhythmeta.maimaid.core.chart.ChartAudioState
+import org.rhythmeta.maimaid.core.chart.ChartTrackCache
 import org.rhythmeta.maimaid.core.chart.Mp3CoverArt
 import org.rhythmeta.maimaid.core.chart.SimaiParser
+import org.rhythmeta.maimaid.core.chart.audio.PcmChartAudioEngine
 import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
@@ -75,7 +76,8 @@ class ChartPreviewViewModel(
     private val mutableAudioState = MutableStateFlow<ChartAudioState>(ChartAudioState.Idle)
     val audioState: StateFlow<ChartAudioState> = mutableAudioState.asStateFlow()
 
-    private val audioPlayer = ChartAudioPlayer(container.applicationContext)
+    /** The only audio path: PCM music + SFX mixer backed by one low-latency AudioTrack. */
+    val pcmEngine = PcmChartAudioEngine(container.applicationContext)
     private var preparedEntryId: Int? = null
     private var audioPrepareJob: Job? = null
     private var coverArtCache: Pair<String, ByteArray?>? = null
@@ -169,36 +171,60 @@ class ChartPreviewViewModel(
     private fun prepareAudio(entry: ChartAssetIndex.Entry) {
         if (preparedEntryId == entry.id) return
         preparedEntryId = entry.id
-        // A superseded download must not keep preparing a track that is no longer selected.
+        // A superseded download/decode must not keep preparing a track that is no longer selected.
         audioPrepareJob?.cancel()
         audioPrepareJob = null
         val audio = entry.files.audio
         if (audio == null) {
             // Switching to a sheet without a track must not leave the previous track playing.
-            audioPlayer.release()
+            pcmEngine.release()
             mutableAudioState.value = ChartAudioState.Idle
             return
         }
-        // Publish the loading state before the download starts, so the preview can hold the chart
-        // and the status line can report why playback has not begun yet.
+        // Stop the previous track immediately: the new one may take seconds to download/decode and
+        // must not play over the old one (the preview would then restart from zero afterwards).
+        pcmEngine.pause()
+        pcmEngine.stopSfx()
+        // Publish the loading state before the download/decode starts, so the preview holds the
+        // chart and the status line can report why playback has not begun yet.
         mutableAudioState.value = ChartAudioState.Preparing
         audioPrepareJob = viewModelScope.launch {
-            audioPlayer.prepare(audio, container.staticBundleClient)
-            mutableAudioState.value = audioPlayer.state
-            // A failed track stays retryable: clearing the guard lets a reload prepare it again.
-            if (audioPlayer.state is ChartAudioState.Failed) preparedEntryId = null
+            val trackFile = try {
+                ChartTrackCache.ensure(
+                    container.applicationContext,
+                    audio,
+                    container.staticBundleClient,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                mutableAudioState.value = ChartAudioState.Failed(
+                    error.message ?: "Unable to download the chart track",
+                )
+                preparedEntryId = null
+                audioPrepareJob = null
+                return@launch
+            }
+            val prepared = runCatching { pcmEngine.prepare(trackFile, audio.sha256) }
+                .getOrDefault(false)
+            mutableAudioState.value = if (prepared) {
+                pcmEngine.state.value
+            } else {
+                ChartAudioState.Failed("Unable to decode the chart track")
+            }
+            if (!prepared) preparedEntryId = null
             audioPrepareJob = null
         }
     }
 
-    fun pauseAudio() = audioPlayer.pause()
+    fun pauseAudio() = pcmEngine.pause()
 
-    fun playAudio() = audioPlayer.play()
+    fun playAudio() = pcmEngine.play()
 
-    fun seekAudio(positionMillis: Int, playAfterSeek: Boolean) =
-        audioPlayer.seekTo(positionMillis, playAfterSeek)
-
-    fun audioPositionMillis(): Int = audioPlayer.currentPositionMillis()
+    /** Seek: [chartTimeMs] is a chart position; the engine applies the offset mapping. */
+    fun seekChartAudio(chartTimeMs: Double, playAfterSeek: Boolean) {
+        pcmEngine.seekTo(chartTimeMs, playAfterSeek)
+    }
 
     /**
      * Cover art embedded in the selected track. Community MP3s often carry a much sharper image
@@ -207,7 +233,7 @@ class ChartPreviewViewModel(
     fun cachedAudioCover(): ByteArray? {
         val ready = mutableState.value as? ChartPreviewUiState.Ready ?: return null
         val audio = ready.selected.entry.files.audio ?: return null
-        val file = audioPlayer.cachedFile(audio) ?: return null
+        val file = ChartTrackCache.cachedFile(container.applicationContext, audio) ?: return null
         coverArtCache?.let { (digest, cached) -> if (digest == audio.sha256) return cached }
         val bytes = Mp3CoverArt.read(file)
         coverArtCache = audio.sha256 to bytes
@@ -227,8 +253,14 @@ class ChartPreviewViewModel(
                     ?: error("Chart is not ready")
                 val option = ready.selected
                 val audio = option.entry.files.audio
-                if (audio != null && audioPlayer.cachedFile(audio) == null) {
-                    audioPlayer.prepare(audio, container.staticBundleClient)
+                if (audio != null &&
+                    ChartTrackCache.cachedFile(container.applicationContext, audio) == null
+                ) {
+                    ChartTrackCache.ensure(
+                        container.applicationContext,
+                        audio,
+                        container.staticBundleClient,
+                    )
                 }
                 withContext(Dispatchers.IO) {
                     val resolver = container.applicationContext.contentResolver
@@ -240,7 +272,9 @@ class ChartPreviewViewModel(
                             zip.write(option.maidata.toByteArray(Charsets.UTF_8))
                             zip.closeEntry()
 
-                            val audioFile = audio?.let(audioPlayer::cachedFile)
+                            val audioFile = audio?.let {
+                                ChartTrackCache.cachedFile(container.applicationContext, it)
+                            }
                             if (audioFile != null) {
                                 zip.putNextEntry(ZipEntry("track.mp3"))
                                 audioFile.inputStream().use { it.copyTo(zip) }
@@ -292,21 +326,13 @@ class ChartPreviewViewModel(
         }
     }
 
-    fun setMusicVolume(volume: Float) = audioPlayer.setVolume(volume)
+    fun setMusicVolume(volume: Float) = pcmEngine.setMusicVolume(volume)
 
-    fun setPlaybackSpeed(speed: Float) = audioPlayer.setPlaybackSpeed(speed)
-
-
-    val isAudioPrepared: Boolean get() = audioPlayer.isPrepared
-
-    val isAudioPlaying: Boolean get() = audioPlayer.isPlaying
-
-    /** Bumped on every finished seek so the chart clock can resume exactly with the track. */
-    val seekCompletions = audioPlayer.seekCompletions
+    fun setPlaybackSpeed(speed: Float) = pcmEngine.setPlaybackSpeed(speed)
 
     @SuppressLint("EmptySuperCall")
 		override fun onCleared() {
-        audioPlayer.release()
+        pcmEngine.release()
         super.onCleared()
     }
 
