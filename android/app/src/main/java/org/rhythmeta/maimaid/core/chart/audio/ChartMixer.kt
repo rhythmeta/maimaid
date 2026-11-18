@@ -59,6 +59,7 @@ class ChartMixer(
         var voiceEvictions: Int = 0
         var voiceHardStops: Int = 0
         var mixedFrames: Long = 0
+        var starvedBuffers: Long = 0
 
         fun reset() {
             eventsDue = 0
@@ -71,6 +72,7 @@ class ChartMixer(
             voiceEvictions = 0
             voiceHardStops = 0
             mixedFrames = 0
+            starvedBuffers = 0
         }
     }
 
@@ -200,7 +202,12 @@ class ChartMixer(
     private fun addMusic(bufferStart: Long, frames: Int) {
         val source = musicSource ?: return
         val read = source.readFrames(bufferStart, musicBuffer, 0, frames)
-        if (read <= 0) return
+        if (read <= 0) {
+            // The decoder had not caught up yet (streaming decode); count it so a silent gap is
+            // detectable instead of being invisible.
+            if (!source.isComplete) stats.starvedBuffers++
+            return
+        }
         val volume = musicVolume
         var index = 0
         while (index < read * 2) {

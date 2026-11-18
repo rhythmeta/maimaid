@@ -14,6 +14,9 @@ interface SfxSampleBank {
 interface PcmFrameSource {
     val frameCount: Long
 
+    /** False while a background decoder may still deliver frames (used for starvation metrics). */
+    val isComplete: Boolean get() = true
+
     /** Reads up to [frames] frames starting at [startFrame]; returns the frames actually written. */
     fun readFrames(startFrame: Long, out: ShortArray, outOffset: Int, frames: Int): Int
 

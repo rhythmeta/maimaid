@@ -65,7 +65,7 @@ class PcmChartAudioEngine(context: Context) {
     private val wakeLock = Object()
 
     private var mixer: ChartMixer? = null
-    private var source: MemoryPcmFrameSource? = null
+    private var source: ChartPcmStream? = null
     private var sampleBank: ChartSfxSampleBank? = null
     private var track: AudioTrack? = null
     private var mixThread: Thread? = null
@@ -122,8 +122,9 @@ class PcmChartAudioEngine(context: Context) {
     private var preparedAtUptime = 0L
 
     /**
-     * Decodes [mp3File] into memory, loads the SFX bank and starts the mix thread.
-     * Returns false when the track cannot be decoded/played; the chart then runs silently.
+     * Starts decoding [mp3File] into memory and, as soon as a short lead is available, loads the SFX
+     * bank and starts the mix thread. Returns false when the track cannot be played at all; the chart
+     * then runs silently.
      */
     suspend fun prepare(mp3File: File, sha256: String): Boolean {
         val key = "${sha256.lowercase()}:${mp3File.lastModified()}:${mp3File.length()}"
@@ -139,38 +140,73 @@ class PcmChartAudioEngine(context: Context) {
         val startedAt = SystemClock.uptimeMillis()
         var createdTrack: AudioTrack? = null
         var createdMixer: ChartMixer? = null
-        var memorySource: MemoryPcmFrameSource? = null
+        var stream: ChartPcmStream? = null
         return try {
-            // Decoded straight into memory: nothing PCM-related ever reaches the disk cache.
-            val decoded = ChartPcmDecoder.decode(mp3File)
-            if (generation != prepareGeneration) return false
-            val bank = withContext(Dispatchers.IO) {
-                ChartSfxSampleBank.load(appContext.assets, decoded.sampleRate)
+            // Decoding runs concurrently with playback: waiting for the whole track costs seconds
+            // because MediaCodec returns one small buffer per MP3 frame.
+            val createdStream = ChartPcmStream(mp3File)
+            stream = createdStream
+            createdStream.start()
+            val formatReady = withContext(Dispatchers.IO) {
+                createdStream.awaitFormat(FORMAT_TIMEOUT_MS)
             }
-            if (generation != prepareGeneration) return false
-            val mapped = MemoryPcmFrameSource(decoded.samples)
-            val createdMixerLocal = ChartMixer(decoded.sampleRate, bank)
-            createdMixerLocal.setMusicSource(mapped)
+            if (!formatReady || generation != prepareGeneration) {
+                createdStream.close()
+                return false
+            }
+            val bank = withContext(Dispatchers.IO) {
+                ChartSfxSampleBank.load(appContext.assets, createdStream.sampleRate)
+            }
+            if (generation != prepareGeneration) {
+                createdStream.close()
+                return false
+            }
+            val createdMixerLocal = ChartMixer(createdStream.sampleRate, bank)
+            createdMixerLocal.setMusicSource(createdStream)
             createdMixerLocal.musicVolume = musicVolume
             createdMixerLocal.answerVolume = answerVolume
             createdMixerLocal.judgeVolume = judgeVolume
             createdMixerLocal.sfxEnabled = sfxEnabled
-            val createdTrackLocal = createAudioTrack(decoded.sampleRate)
+            val createdTrackLocal = createAudioTrack(createdStream.sampleRate)
             createdTrack = createdTrackLocal
             createdMixer = createdMixerLocal
-            memorySource = mapped
             if (generation != prepareGeneration) {
                 runCatching { createdTrackLocal.release() }
                 createdMixerLocal.release()
-                mapped.close()
+                createdStream.close()
                 createdTrack = null
                 createdMixer = null
-                memorySource = null
+                stream = null
                 return false
             }
-            sampleRate = decoded.sampleRate
+            // Wait for the lead-in so the first seconds are never silent; the rest keeps decoding
+            // while the chart is already playing.
+            val prerollFrames = createdStream.sampleRate * ChartPcmStream.PREROLL_MS / 1_000
+            val prerollReady = withContext(Dispatchers.IO) {
+                createdStream.awaitPreroll(prerollFrames, PREROLL_TIMEOUT_MS)
+            }
+            if (!prerollReady) {
+                val error = createdStream.error
+                runCatching { createdTrackLocal.release() }
+                createdMixerLocal.release()
+                createdStream.close()
+                createdTrack = null
+                createdMixer = null
+                stream = null
+                throw error ?: IllegalStateException("Unable to decode the chart track")
+            }
+            if (generation != prepareGeneration) {
+                runCatching { createdTrackLocal.release() }
+                createdMixerLocal.release()
+                createdStream.close()
+                createdTrack = null
+                createdMixer = null
+                stream = null
+                return false
+            }
+            sampleRate = createdStream.sampleRate
             mixer = createdMixerLocal
-            source = mapped
+            source = createdStream
             sampleBank = bank
             track = createdTrackLocal
             startThread(createdMixerLocal, createdTrackLocal)
@@ -179,9 +215,8 @@ class PcmChartAudioEngine(context: Context) {
             mutableUsesPcm.value = true
             preparedAtUptime = startedAt
             applyConfigurationToMixer()
-            mutableState.value = ChartAudioState.Ready(
-                (mapped.frameCount * 1000L / decoded.sampleRate).toInt(),
-            )
+            mutableState.value = ChartAudioState.Ready(createdStream.durationMillis)
+            Log.i(TAG, "ready in ${SystemClock.uptimeMillis() - startedAt}ms (streaming decode)")
             true
         } catch (error: CancellationException) {
                 throw error
@@ -195,7 +230,7 @@ class PcmChartAudioEngine(context: Context) {
         } finally {
             if (createdTrack != null && track !== createdTrack) runCatching { createdTrack.release() }
             if (createdMixer != null && mixer !== createdMixer) createdMixer.release()
-            if (source !== memorySource) memorySource?.close()
+            if (source !== stream) stream?.close()
             if (generation == prepareGeneration) mutablePreparing.value = false
         }
     }
@@ -312,11 +347,12 @@ class PcmChartAudioEngine(context: Context) {
         val underruns: Int,
         val trackState: Int,
         val speed: Float,
+        val starvedBuffers: Long,
     )
 
     /** Snapshot for the acceptance harness and debug logging. */
     fun stats(): EngineStats {
-        val mixer = mixer ?: return EngineStats(0, 0, 0, 0, 0, 0, 0, 0, -1, -1, appliedSpeed)
+        val mixer = mixer ?: return EngineStats(0, 0, 0, 0, 0, 0, 0, 0, -1, -1, appliedSpeed, 0)
         val stats = mixer.stats
         val currentTrack = track
         return EngineStats(
@@ -331,6 +367,7 @@ class PcmChartAudioEngine(context: Context) {
             underruns = runCatching { currentTrack?.underrunCount ?: -1 }.getOrDefault(-1),
             trackState = runCatching { currentTrack?.state ?: -1 }.getOrDefault(-1),
             speed = appliedSpeed,
+            starvedBuffers = stats.starvedBuffers,
         )
     }
 
@@ -340,6 +377,7 @@ class PcmChartAudioEngine(context: Context) {
         val stats = mixer.stats
         val underruns = runCatching { track?.underrunCount ?: -1 }.getOrDefault(-1)
         return "pcm sr=$sampleRate due=${stats.eventsDue} mixed=${stats.eventsMixed} " +
+            "starved=${stats.starvedBuffers} decodeDone=${source?.isComplete} " +
             "muted=${stats.eventsMuted} noSample=${stats.eventsWithoutSamples} " +
             "maxFrameError=${stats.maxFrameError} maxVoices=${stats.maxVoices} " +
             "evictions=${stats.voiceEvictions} hardStops=${stats.voiceHardStops} " +
@@ -548,6 +586,15 @@ class PcmChartAudioEngine(context: Context) {
                     val wasPlaying = mixPlaying
                     runCatching { track.pause() }
                     runCatching { track.flush() }
+                    // If the seek lands past what the background decoder has produced, restart the
+                    // decoder there instead of leaving the music silent until it catches up.
+                    source?.let { stream ->
+                        if (!stream.isComplete) {
+                            val ahead = command.longValue >= stream.decodedFrames
+                            val behind = command.longValue < stream.baseFrame
+                            if (ahead || behind) stream.requestSeek(command.longValue)
+                        }
+                    }
                     mixer.seekToFrame(command.longValue)
                     trackFrameBase = command.longValue
                     clock.reset(
@@ -647,7 +694,8 @@ class PcmChartAudioEngine(context: Context) {
     companion object {
         const val FRAMES_PER_BUFFER = 256
         private const val TIMESTAMP_POLL_BUFFERS = 8
+        private const val FORMAT_TIMEOUT_MS = 3_000L
+        private const val PREROLL_TIMEOUT_MS = 3_000L
         private const val TAG = "PcmChartAudioEngine"
-
     }
 }
