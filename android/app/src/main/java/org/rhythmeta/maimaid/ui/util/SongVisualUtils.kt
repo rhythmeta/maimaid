@@ -28,6 +28,12 @@ internal object SongVisualUtils {
 
     fun isDarkTheme(background: Color): Boolean = background.luminance() < 0.5f
 
+    /** Normalized chart type used by the song-detail type selector and the preview tabs. */
+    fun displayChartType(type: String): String = when (type.lowercase()) {
+        "std", "standard" -> "STD"
+        else -> type.uppercase()
+    }
+
     fun detailColors(raw: Color, darkTheme: Boolean): DetailColors {
         val accentHsv = raw.toHsv()
         accentHsv[1] = (accentHsv[1] * 0.85f).coerceIn(0.25f, 0.75f)

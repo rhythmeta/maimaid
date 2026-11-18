@@ -205,6 +205,7 @@ internal fun ChartPreviewScreen(
                 pcmEngine = viewModel.pcmEngine,
                 usesPcm = usesPcm,
                 pcmPreparing = pcmPreparing,
+                hasAudio = viewModel.hasAudioAsset,
             )
         }
         SnackbarHost(
@@ -233,6 +234,7 @@ private fun ChartPreviewContent(
     pcmEngine: PcmChartAudioEngine,
     usesPcm: Boolean,
     pcmPreparing: Boolean,
+    hasAudio: Boolean,
 ) {
     val option = ready.selected
     val chartResult = remember(option.maidata, option.slot) {
@@ -325,9 +327,9 @@ private fun ChartPreviewContent(
     // for. A failed download opens the gate anyway so the chart still plays silently; the audio
     // status line reports the failure.
     val waitingForAudio = previewAudioPending(
-        hasAudio = option.entry.files.audio != null,
+        hasAudio = hasAudio,
         audioState = audioState,
-    ) || (option.entry.files.audio != null && pcmPreparing)
+    ) || (hasAudio && pcmPreparing)
     // Publish the frame-addressed event timeline to the PCM mixer. This is safe before the
     // engine has finished preparing; it keeps the configuration for the moment it becomes ready.
     LaunchedEffect(chart, playbackDurationMs, usesPcm) {
@@ -560,7 +562,7 @@ private fun ChartPreviewContent(
         )
 
         Spacer(Modifier.height(8.dp))
-        AudioStatus(audioState = audioState, hasAudio = option.entry.files.audio != null)
+        AudioStatus(audioState = audioState, hasAudio = hasAudio)
 
         Spacer(Modifier.height(12.dp))
         ChartSpeedSettings(

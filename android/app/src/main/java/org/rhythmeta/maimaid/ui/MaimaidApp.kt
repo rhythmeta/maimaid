@@ -109,6 +109,7 @@ import org.rhythmeta.maimaid.ui.navigation.AppRoute
 import org.rhythmeta.maimaid.ui.navigation.RootDestination
 import org.rhythmeta.maimaid.ui.navigation.appDetail
 import org.rhythmeta.maimaid.ui.navigation.chartSheetKey
+import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import org.rhythmeta.maimaid.ui.navigation.collectionId
 import org.rhythmeta.maimaid.ui.navigation.danCategoryId
 import org.rhythmeta.maimaid.ui.navigation.danCategoryTitle
@@ -239,6 +240,9 @@ fun MaimaidApp(
     )
     val detail = currentRoute?.appDetail
     val selectedSongId = currentRoute?.songId
+    // Remember the chart type chosen on the song detail cards so the preview can open scoped to it
+    // instead of showing DX and STD difficulties side by side.
+    var songDetailChartType by remember(selectedSongId) { mutableStateOf<String?>(null) }
     val selectedChartSheetKey = currentRoute?.chartSheetKey
     var selectedDanCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedDanCategoryTitle by rememberSaveable { mutableStateOf<String?>(null) }
@@ -752,7 +756,16 @@ fun MaimaidApp(
             when (activeDetail) {
                     AppDetail.Song if actionSong != null -> {
                         IconButton(onClick = {
-                            val route = AppRoute.ChartPreview(actionSong.songIdentifier)
+                            val previewSheetKey = songDetailChartType?.let { type ->
+                                uiState.sheets.firstOrNull { sheet ->
+                                    sheet.songIdentifier == actionSong.songIdentifier &&
+                                        SongVisualUtils.displayChartType(sheet.type) == type
+                                }?.sheetKey
+                            }
+                            val route = AppRoute.ChartPreview(
+                                actionSong.songIdentifier,
+                                previewSheetKey,
+                            )
                             if (navBackStack.lastOrNull() != route) navBackStack.add(route)
                         }) {
                             Icon(
@@ -1005,6 +1018,8 @@ fun MaimaidApp(
                     state = uiState,
                     selectedSongId = routeSongId,
                     selectedChartSheetKey = routeChartSheetKey,
+                    songDetailChartType = songDetailChartType,
+                    onSongDetailChartTypeChange = { songDetailChartType = it },
                     selectedDanCategoryId = routeDanCategoryId,
                     container = container,
                     songContentTopPadding = paddingValues.calculateTopPadding(),

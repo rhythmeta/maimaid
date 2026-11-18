@@ -78,7 +78,12 @@ class ChartPreviewViewModel(
 
     /** The only audio path: PCM music + SFX mixer backed by one low-latency AudioTrack. */
     val pcmEngine = PcmChartAudioEngine(container.applicationContext)
-    private var preparedEntryId: Int? = null
+    /**
+     * Audio asset shared by every chart type of this song (DX and STD use the same track). Picking a
+     * single asset also means the MP3/PCM cache is populated once for the whole song.
+     */
+    private var songAudioAsset: ChartAssetIndex.File? = null
+    private var preparedAudioSha: String? = null
     private var audioPrepareJob: Job? = null
     private var coverArtCache: Pair<String, ByteArray?>? = null
 
@@ -126,6 +131,13 @@ class ChartPreviewViewModel(
 
                 if (options.isEmpty()) error("No previewable chart for this song")
 
+                // DX and STD reference separate chart entries but the same music. Pick one canonical
+                // audio asset for the song (the base/STD entry where available) so switching chart
+                // types reuses the downloaded MP3 and the decoded PCM instead of downloading again.
+                songAudioAsset = options
+                    .sortedBy { it.entry.id }
+                    .firstNotNullOfOrNull { it.entry.files.audio }
+
                 val ordered = options.sortedWith(
                     compareBy<PreviewChartOption> {
                         if (it.sheet.type.equals("dx", ignoreCase = true)) 0 else 1
@@ -135,20 +147,35 @@ class ChartPreviewViewModel(
                 )
                 val requested = requestedSheetKey
                     ?.let { key -> ordered.firstOrNull { it.sheet.sheetKey == key } }
-                val firstType = ordered.first().sheet.type
-                val default = ordered
+                // When the preview was opened from a song-detail card, only the difficulties of the
+                // selected chart type are shown; otherwise fall back to every type.
+                val scoped = if (requested != null) {
+                    val type = SongVisualUtils.displayChartType(requested.sheet.type)
+                    ordered.filter {
+                        SongVisualUtils.displayChartType(it.sheet.type) == type
+                    }
+                } else {
+                    ordered
+                }
+                val firstType = scoped.first().sheet.type
+                val default = scoped
                     .filter { it.sheet.type == firstType }
                     .maxByOrNull { it.slot }
-                    ?: ordered.last()
-                val selectedKey = requested?.sheet?.sheetKey ?: default.sheet.sheetKey
+                    ?: scoped.last()
+                val selectedKey = requested
+                    ?.takeIf { candidate ->
+                        scoped.any { it.sheet.sheetKey == candidate.sheet.sheetKey }
+                    }
+                    ?.sheet
+                    ?.sheetKey
+                    ?: default.sheet.sheetKey
 
                 mutableState.value = ChartPreviewUiState.Ready(
                     song = song,
-                    options = ordered,
+                    options = scoped,
                     selectedSheetKey = selectedKey,
                 )
-                val selected = ordered.first { it.sheet.sheetKey == selectedKey }
-                prepareAudio(selected.entry)
+                prepareAudio()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -165,22 +192,24 @@ class ChartPreviewViewModel(
         if (ready.selectedSheetKey == sheetKey) return
         val next = ready.copy(selectedSheetKey = sheetKey)
         mutableState.value = next
-        prepareAudio(next.selected.entry)
+        prepareAudio()
     }
 
-    private fun prepareAudio(entry: ChartAssetIndex.Entry) {
-        if (preparedEntryId == entry.id) return
-        preparedEntryId = entry.id
-        // A superseded download/decode must not keep preparing a track that is no longer selected.
-        audioPrepareJob?.cancel()
-        audioPrepareJob = null
-        val audio = entry.files.audio
+    private fun prepareAudio() {
+        val audio = songAudioAsset
         if (audio == null) {
             // Switching to a sheet without a track must not leave the previous track playing.
             pcmEngine.release()
+            preparedAudioSha = null
             mutableAudioState.value = ChartAudioState.Idle
             return
         }
+        // DX/STD share the same audio asset, so switching chart type must not reload it.
+        if (preparedAudioSha == audio.sha256 && pcmEngine.isReady) return
+        preparedAudioSha = audio.sha256
+        // A superseded download/decode must not keep preparing a track that is no longer selected.
+        audioPrepareJob?.cancel()
+        audioPrepareJob = null
         // Stop the previous track immediately: the new one may take seconds to download/decode and
         // must not play over the old one (the preview would then restart from zero afterwards).
         pcmEngine.pause()
@@ -201,7 +230,7 @@ class ChartPreviewViewModel(
                 mutableAudioState.value = ChartAudioState.Failed(
                     error.message ?: "Unable to download the chart track",
                 )
-                preparedEntryId = null
+                preparedAudioSha = null
                 audioPrepareJob = null
                 return@launch
             }
@@ -212,10 +241,13 @@ class ChartPreviewViewModel(
             } else {
                 ChartAudioState.Failed("Unable to decode the chart track")
             }
-            if (!prepared) preparedEntryId = null
+            if (!prepared) preparedAudioSha = null
             audioPrepareJob = null
         }
     }
+
+    /** True when this song has a shared audio track (DX/STD use the same one). */
+    val hasAudioAsset: Boolean get() = songAudioAsset != null
 
     fun pauseAudio() = pcmEngine.pause()
 
@@ -231,8 +263,7 @@ class ChartPreviewViewModel(
      * than the separately downloaded catalog cover, so the preview and the saved package prefer it.
      */
     fun cachedAudioCover(): ByteArray? {
-        val ready = mutableState.value as? ChartPreviewUiState.Ready ?: return null
-        val audio = ready.selected.entry.files.audio ?: return null
+        val audio = songAudioAsset ?: return null
         val file = ChartTrackCache.cachedFile(container.applicationContext, audio) ?: return null
         coverArtCache?.let { (digest, cached) -> if (digest == audio.sha256) return cached }
         val bytes = Mp3CoverArt.read(file)
@@ -252,7 +283,7 @@ class ChartPreviewViewModel(
                 val ready = mutableState.value as? ChartPreviewUiState.Ready
                     ?: error("Chart is not ready")
                 val option = ready.selected
-                val audio = option.entry.files.audio
+                val audio = songAudioAsset
                 if (audio != null &&
                     ChartTrackCache.cachedFile(container.applicationContext, audio) == null
                 ) {

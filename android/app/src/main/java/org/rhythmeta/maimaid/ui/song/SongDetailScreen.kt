@@ -268,6 +268,8 @@ internal fun SongDetailScreen(
     onOpenCommunityAliases: () -> Unit,
     coverTransition: CatalogCoverTransition? = null,
     onHeaderTitleHiddenChange: (Boolean) -> Unit = {},
+    selectedChartType: String? = null,
+    onSelectedChartTypeChange: (String) -> Unit = {},
 ) {
     if (song == null) {
         EmptySongState()
@@ -341,12 +343,12 @@ internal fun SongDetailScreen(
     val selectedSurfaceColor = detailColors?.selectedSurface ?: MiuixTheme.colorScheme.secondaryContainer
     val accentColor = detailColors?.accent ?: MiuixTheme.colorScheme.primary
     val cachedCover = remember(song.imageName) { container.coverImageStore.fileFor(song.imageName) }
-    val chartTypes = state.charts.map { it.sheet.type.displayChartType() }.distinct()
+    val chartTypes = state.charts.map { SongVisualUtils.displayChartType(it.sheet.type) }.distinct()
     val chartTypeMainVersions = remember(state.charts, chartTypes, song.version, gameVersions) {
         chartTypes.associateWith { type ->
             ChartVersionHistory.mainVersion(
                 candidates = state.charts
-                    .filter { it.sheet.type.displayChartType() == type }
+                    .filter { SongVisualUtils.displayChartType(it.sheet.type) == type }
                     .map { chart ->
                         ChartVersionCandidate(
                             difficulty = chart.sheet.difficulty,
@@ -363,16 +365,18 @@ internal fun SongDetailScreen(
             version?.let { type to SongVisualUtils.versionAbbreviation(it, gameVersions) }
         }.toMap()
     }
-    var selectedType by rememberSaveable(song.songIdentifier) { mutableStateOf<String?>(null) }
-    LaunchedEffect(chartTypes) {
+    val selectedType = selectedChartType
+    LaunchedEffect(chartTypes, selectedType) {
         if (selectedType == null && chartTypes.isNotEmpty()) {
-            selectedType = chartTypes.firstOrNull { it == "DX" }
-                ?: chartTypes.firstOrNull { it == "STD" }
-                ?: chartTypes.first()
+            onSelectedChartTypeChange(
+                chartTypes.firstOrNull { it == "DX" }
+                    ?: chartTypes.firstOrNull { it == "STD" }
+                    ?: chartTypes.first(),
+            )
         }
     }
     val visibleCharts = state.charts.filter { chart ->
-        selectedType == null || chart.sheet.type.displayChartType() == selectedType
+        selectedType == null || SongVisualUtils.displayChartType(chart.sheet.type) == selectedType
     }
     val selectedChartVersion = selectedType
         ?.let(chartTypeMainVersions::get)
@@ -445,7 +449,7 @@ internal fun SongDetailScreen(
                         surfaceColor = surfaceColor,
                         selectedSurfaceColor = selectedSurfaceColor,
                         versionLabels = chartTypeVersionLabels,
-                        onSelected = { selectedType = it },
+                        onSelected = { type -> type?.let(onSelectedChartTypeChange) },
                     )
                 }
             }
@@ -465,7 +469,7 @@ internal fun SongDetailScreen(
                     val chart = visibleCharts[index]
                     SheetScoreCard(
                         chart = chart,
-                        mainChartVersion = chartTypeMainVersions[chart.sheet.type.displayChartType()],
+                        mainChartVersion = chartTypeMainVersions[SongVisualUtils.displayChartType(chart.sheet.type)],
                         gameVersions = gameVersions,
                         surfaceColor = surfaceColor,
                         actionSurfaceColor = selectedSurfaceColor,
@@ -3096,11 +3100,6 @@ private fun EmptySongState() {
             color = MiuixTheme.colorScheme.onBackgroundVariant,
         )
     }
-}
-
-private fun String.displayChartType(): String = when (lowercase()) {
-    "std", "standard" -> "STD"
-    else -> uppercase()
 }
 
 private fun String.displayDifficulty(): String = when (lowercase()) {

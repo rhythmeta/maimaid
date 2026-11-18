@@ -131,6 +131,8 @@ internal fun DetailScreen(
     collectionsSortAscending: Boolean = true,
     selectedCollectionId: String? = null,
     selectedChartSheetKey: String? = null,
+    songDetailChartType: String? = null,
+    onSongDetailChartTypeChange: (String) -> Unit = {},
     collectionsRenameRequested: Boolean = false,
     onSelectedCollectionIdChange: (String?) -> Unit = {},
     collectionsCreateRequested: Boolean = false,
@@ -174,6 +176,8 @@ internal fun DetailScreen(
             onHeaderTitleHiddenChange = onSongDetailHeaderTitleHiddenChange,
             onOpenCommunityAliases = onOpenCommunityAliases,
             coverTransition = coverTransition,
+            selectedChartType = songDetailChartType,
+            onSelectedChartTypeChange = onSongDetailChartTypeChange,
         )
         AppDetail.ChartPreview -> ChartPreviewScreen(
             songId = selectedSongId.orEmpty(),
