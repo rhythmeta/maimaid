@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
  * return when the stream is complete.
  */
 class ChartStreamingTrack(
+    private val totalBytes: Long,
     private val onDownload: suspend (ChunkSink) -> Unit,
 ) : ChartTrackSource {
     fun interface ChunkSink {
@@ -60,6 +61,13 @@ class ChartStreamingTrack(
 
     private var framesSeen = 0L
 
+    @Volatile
+    private var receivedBytes = 0L
+
+    /** (elapsedRealtimeMs, receivedBytes) samples used for a short-window speed estimate. */
+    private val speedSamples = ArrayDeque<Pair<Long, Long>>()
+    private val speedLock = Any()
+
     override val frameCount: Long
         get() {
             if (sampleRate > 0) return framesSeen * SAMPLES_PER_FRAME
@@ -76,6 +84,27 @@ class ChartStreamingTrack(
     override val error: Throwable? get() = failure
 
     override val isComplete: Boolean get() = complete
+
+    override val downloadProgress: TrackDownloadProgress?
+        get() {
+            if (complete && downloadDone) return null
+            val received = receivedBytes
+            val speed = synchronized(speedLock) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                speedSamples.addLast(now to received)
+                while (speedSamples.size > 2 && now - speedSamples.first().first > SPEED_WINDOW_MS) {
+                    speedSamples.removeFirst()
+                }
+                val first = speedSamples.firstOrNull()
+                if (first == null) {
+                    0L
+                } else {
+                    val elapsed = now - first.first
+                    if (elapsed <= 0) 0L else (received - first.second) * 1_000 / elapsed
+                }
+            }
+            return TrackDownloadProgress(received, totalBytes, speed)
+        }
 
     override fun readFrames(startFrame: Long, out: ShortArray, outOffset: Int, frames: Int): Int =
         buffer.readFrames(startFrame, out, outOffset, frames)
@@ -139,6 +168,7 @@ class ChartStreamingTrack(
                     // Abort the transfer as soon as the preview is gone instead of downloading a
                     // whole track nobody will hear.
                     if (closed) throw CancellationException("Chart stream closed")
+                    receivedBytes += length
                     parser.consume(bytes, offset, length)
                 }
             }
@@ -315,6 +345,7 @@ class ChartStreamingTrack(
         private const val READY_TIMEOUT_MS = 8_000L
         private const val PREROLL_MS = 400L
         private const val SAMPLES_PER_FRAME = 1_152
+        private const val SPEED_WINDOW_MS = 1_000L
         private val EOS = ByteArray(0)
     }
 }

@@ -78,6 +78,7 @@ import org.rhythmeta.maimaid.core.chart.ChartRenderConfig
 import org.rhythmeta.maimaid.core.chart.SimaiParser
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
 import org.rhythmeta.maimaid.core.chart.audio.PcmChartAudioEngine
+import org.rhythmeta.maimaid.core.chart.audio.TrackDownloadProgress
 import org.rhythmeta.maimaid.core.chart.render.ChartRenderer
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.ui.components.squircleShape
@@ -289,6 +290,8 @@ private fun ChartPreviewContent(
         embeddedCover?.let(::decodeCover) ?: decodeCover(coverFile)
     }
     var soundEnabled by rememberSaveable { mutableStateOf(true) }
+    // Debug-only overlay: mirrors the streaming download so timing can be judged on device.
+    var downloadProgress by remember { mutableStateOf<TrackDownloadProgress?>(null) }
     DisposableEffect(pcmEngine) {
         onDispose {
             pcmEngine.pause()
@@ -378,6 +381,9 @@ private fun ChartPreviewContent(
                     }
                     val speed = settings.playbackSpeed *
                         (if (speedBoostActive) BOOST_SPEED.toDouble() else 1.0)
+                    if (BuildConfig.DEBUG) {
+                        downloadProgress = pcmEngine.downloadProgress()
+                    }
                     val position = if (usesPcm && pcmEngine.isReady) {
                         // The PCM engine is the only audio path: its timestamp-based clock is
                         // already sample-accurate and drives both music and SFX.
@@ -399,6 +405,9 @@ private fun ChartPreviewContent(
                         clock.isPlaying = false
                         pcmEngine.pause()
                         pcmEngine.stopSfx()
+                    }
+                    if (downloadProgress != null && pcmEngine.downloadProgress() == null) {
+                        downloadProgress = null
                     }
                     lastFrameNanos = now
                 }
@@ -518,6 +527,18 @@ private fun ChartPreviewContent(
                 speedBoostActive = speedBoostActive,
             )
             PreviewStageOverlay(clock = clock, waitingForAudio = waitingForAudio)
+            if (BuildConfig.DEBUG) {
+                val progress = downloadProgress
+                if (progress != null) {
+                    MusicDownloadBadge(
+                        progress = progress,
+                        // Bottom centre: the top corners already carry the BPM / combo HUD.
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 10.dp),
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -611,6 +632,37 @@ private fun ChartStage(
                 speedMultiplier = if (speedBoostActive) BOOST_SPEED else 1f,
             )
         }
+    }
+}
+
+/** Debug overlay for the streaming music download: percentage and current speed. */
+@Composable
+private fun MusicDownloadBadge(
+    progress: TrackDownloadProgress,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val speed = remember(progress.bytesPerSecond, context) {
+        android.text.format.Formatter.formatShortFileSize(
+            context,
+            progress.bytesPerSecond.coerceAtLeast(0L),
+        )
+    }
+    Box(
+        modifier = modifier
+            .clip(squircleShape(10.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = stringResource(
+                R.string.chart_preview_music_download,
+                progress.percent,
+                speed,
+            ),
+            style = MiuixTheme.textStyles.footnote1,
+            color = Color.White,
+        )
     }
 }
 

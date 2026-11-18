@@ -220,7 +220,7 @@ class ChartPreviewViewModel(
                 // received bytes, so the preview no longer waits for the whole MP3 to download.
                 val streamed = runCatching {
                     pcmEngine.prepare(
-                        trackSource = ChartStreamingTrack { sink ->
+                        trackSource = ChartStreamingTrack(totalBytes = audio.size) { sink ->
                             ChartTrackCache.stream(
                                 context = container.applicationContext,
                                 asset = audio,

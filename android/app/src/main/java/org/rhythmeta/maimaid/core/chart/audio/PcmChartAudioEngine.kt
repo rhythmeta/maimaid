@@ -258,6 +258,9 @@ class PcmChartAudioEngine(context: Context) {
         )
     }
 
+    /** Live download statistics while the track is still streaming, or null when it is cached. */
+    fun downloadProgress(): TrackDownloadProgress? = source?.downloadProgress
+
     /** Audible chart position in milliseconds, extrapolated from the last AudioTrack timestamp. */
     fun chartPositionMs(): Double {
         if (!isReady) return 0.0

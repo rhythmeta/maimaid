@@ -24,7 +24,7 @@ class ChartStreamingTrackTest {
     fun decodesWhileTheStreamIsStillArriving() {
         val bytes = instrumentation.context.assets.open("audio/probe.mp3").use { it.readBytes() }
         var delivered = 0
-        val track = ChartStreamingTrack { sink ->
+        val track = ChartStreamingTrack(totalBytes = bytes.size.toLong()) { sink ->
             val chunk = 8 * 1_024
             var offset = 0
             while (offset < bytes.size) {
@@ -42,11 +42,15 @@ class ChartStreamingTrackTest {
             val ready = runBlocking { track.awaitReady() }
             val readyMs = SystemClock.uptimeMillis() - start
             val deliveredAtReady = delivered
+            val progress = track.downloadProgress
             android.util.Log.i(
                 "ChartStreamTest",
                 "ready=$ready readyMs=$readyMs deliveredAtReady=$deliveredAtReady/${bytes.size} " +
-                    "sr=${track.sampleRate} frames=${track.frameCount}",
+                    "sr=${track.sampleRate} frames=${track.frameCount} " +
+                    "progress=${progress?.percent}% speed=${progress?.bytesPerSecond}B/s",
             )
+            assertTrue("no download progress reported", progress != null)
+            assertTrue("progress exceeded 100%", (progress?.percent ?: 101) <= 100)
             assertTrue("track never became ready", ready)
             assertTrue("whole file was delivered before playback could start",
                 deliveredAtReady < bytes.size)
@@ -74,7 +78,9 @@ class ChartStreamingTrackTest {
     @Test
     fun reportsFailureForNonAudioBytes() {
         val junk = ByteArray(64 * 1_024) { 0x00 }
-        val track = ChartStreamingTrack { sink -> sink.onChunk(junk, 0, junk.size) }
+        val track = ChartStreamingTrack(totalBytes = junk.size.toLong()) { sink ->
+            sink.onChunk(junk, 0, junk.size)
+        }
         try {
             track.start()
             val ready = runBlocking { track.awaitReady() }

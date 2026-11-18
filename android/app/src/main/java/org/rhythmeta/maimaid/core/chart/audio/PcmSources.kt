@@ -23,6 +23,17 @@ interface PcmFrameSource {
     fun close() = Unit
 }
 
+/** Live download statistics of a track that is still being fetched. */
+data class TrackDownloadProgress(
+    val receivedBytes: Long,
+    val totalBytes: Long,
+    val bytesPerSecond: Long,
+) {
+    /** 0..100; 0 when the total size is unknown. */
+    val percent: Int
+        get() = if (totalBytes <= 0L) 0 else ((receivedBytes * 100) / totalBytes).toInt().coerceIn(0, 100)
+}
+
 /**
  * Music track that can be prepared asynchronously (from a cached file or straight off the network)
  * and then read by the mixer while it is still being decoded.
@@ -43,6 +54,9 @@ interface ChartTrackSource : PcmFrameSource {
 
     /** Asks a still-running decoder to restart at [frame] (used for seeks past the frontier). */
     fun requestSeek(frame: Long) = Unit
+
+    /** Download statistics while the track is still arriving, or null for a cached file. */
+    val downloadProgress: TrackDownloadProgress? get() = null
 
     /** Suspends until the format is known and [ChartPcmStream.PREROLL_MS] of audio is decoded. */
     suspend fun awaitReady(): Boolean

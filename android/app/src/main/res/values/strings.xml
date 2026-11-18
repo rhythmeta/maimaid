@@ -23,6 +23,7 @@
 	<string name="chart_preview_play">Play audio</string>
 	<string name="chart_preview_pause">Pause audio</string>
 	<string name="chart_preview_audio_loading">Loading audio...</string>
+	<string name="chart_preview_music_download">↓ %1$d%% · %2$s/s</string>
 	<string name="chart_preview_audio_unavailable">Audio is unavailable for this chart</string>
 	<string name="action_randomize">Randomize</string>
 	<string name="random_count_three">3 Songs</string>
