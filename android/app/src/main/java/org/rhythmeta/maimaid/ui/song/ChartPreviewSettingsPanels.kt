@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -100,7 +99,7 @@ internal fun ChartSpeedSettings(
             range = 0.5f..2f,
             format = { "%.2fx".format(it) },
             onCommit = {
-                val stepped = (Math.round(it * 100f) / 100f).toDouble()
+                val stepped = ((it * 100f).roundToInt() / 100f).toDouble()
                 onChange(settings.copy(rhythmSpeed = stepped))
             },
         )
@@ -110,7 +109,7 @@ internal fun ChartSpeedSettings(
             range = -1f..1f,
             format = { "%.1f".format(it) },
             onCommit = {
-                val stepped = (Math.round(it * 10f) / 10f).toDouble()
+                val stepped = ((it * 10f).roundToInt() / 10f).toDouble()
                 onChange(settings.copy(slideDelay = stepped))
             },
         )

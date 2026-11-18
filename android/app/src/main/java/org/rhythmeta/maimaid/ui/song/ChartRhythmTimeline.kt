@@ -214,11 +214,11 @@ private fun RhythmStepKind.color(): Color = when (this) {
  */
 @Composable
 internal fun ChartRhythmTimeline(
+	  modifier: Modifier = Modifier,
     data: ChartRhythmData,
     positionMs: () -> Double,
     speedScale: Double = 1.0,
     isPlaying: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     if (data.steps.isEmpty()) return
     val density = LocalDensity.current
@@ -284,7 +284,7 @@ internal fun ChartRhythmTimeline(
 
         for (tickMs in data.measureTicks) {
             val x = xAt(tickMs)
-            if (x < 0f || x > width) continue
+            if (x !in 0f..width) continue
             drawLine(measureTick, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
         }
         drawLine(primary, Offset(anchorX, 0f), Offset(anchorX, size.height), 2.dp.toPx())

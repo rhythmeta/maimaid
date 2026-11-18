@@ -1,12 +1,9 @@
 package org.rhythmeta.maimaid.core.chart.render
 
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Shader
 import java.util.IdentityHashMap
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -17,13 +14,15 @@ import org.rhythmeta.maimaid.core.chart.ArcLutPoint
 import org.rhythmeta.maimaid.core.chart.ChartConstants
 import org.rhythmeta.maimaid.core.chart.ChartPoint
 import org.rhythmeta.maimaid.core.chart.NoteRenderPosition
-import org.rhythmeta.maimaid.core.chart.SlideBar
 import org.rhythmeta.maimaid.core.chart.SlideBars
 import org.rhythmeta.maimaid.core.chart.SlideChainPoint
 import org.rhythmeta.maimaid.core.chart.SlideGeometry
 import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.SlidePathType
 import org.rhythmeta.maimaid.core.chart.SlideSegment
+import androidx.core.graphics.withTranslation
+import androidx.core.graphics.withSave
+import kotlin.math.roundToInt
 
 /** Slide tracks (arrow chains / Wi-Fi fans) and slide star heads. */
 class SlidePainter(
@@ -34,10 +33,8 @@ class SlidePainter(
 
     private val arrowCache = IdentityHashMap<SlideSegment, MutableMap<String, List<ArrowPaths>>>()
     private val arrowCacheBasis = IdentityHashMap<SlideSegment, String>()
-    private val gradientPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val solidPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
-    private class ArrowPaths(val main: Path, val shadow: Path, val leftHalf: Path)
+	private class ArrowPaths(val main: Path, val shadow: Path, val leftHalf: Path)
 
     /** Calculates the slide head position; first half fades in place, second half expands to the ring. */
     fun calculateSlideStartPosition(note: SlideNote, currentTimeMs: Double): NoteRenderPosition {
@@ -263,7 +260,7 @@ class SlidePainter(
             var by = bar.y
             if (isCircle) {
                 val angle = atan2(by, bx)
-                val snapped = Math.round(angle * 32.0 / PI) * (PI / 32.0)
+                val snapped = (angle * 32.0 / PI).roundToInt() * (PI / 32.0)
                 bx = cos(snapped)
                 by = sin(snapped)
             } else if (isLine) {
@@ -424,11 +421,11 @@ class SlidePainter(
         val shadowOffset = scaleByRadius(5.0 / 300.0).toDouble()
 
         val result = mutableListOf<ArrowPaths>()
-        for (arrow in arrows) {
-            val cosA = cos(arrow.angle)
-            val sinA = sin(arrow.angle)
-            val ax = arrow.x + cosA * padding
-            val ay = arrow.y + sinA * padding
+        for ((x, y, angle) in arrows) {
+            val cosA = cos(angle)
+            val sinA = sin(angle)
+            val ax = x + cosA * padding
+            val ay = y + sinA * padding
 
             val x1 = ax + cosA * (-arrowWidth / 2) - sinA * (-arrowHeight / 2)
             val y1 = ay + sinA * (-arrowWidth / 2) + cosA * (-arrowHeight / 2)
@@ -579,26 +576,25 @@ class SlidePainter(
             buildChevronPath(fanPath, c.x, c.y, a1x, a1y, a2x, a2y, c.width, cosA, sinA)
         }
 
-        canvas.save()
-        canvas.translate((-cosA * shadowOffset).toFloat(), (-sinA * shadowOffset).toFloat())
-        applyColor(fillPaint, ChartConstants.Colors.BLACK, alpha * 0.4f)
-        canvas.drawPath(fanPath, fillPaint)
-        canvas.restore()
+        canvas.withTranslation((-cosA * shadowOffset).toFloat(), (-sinA * shadowOffset).toFloat()) {
+            applyColor(fillPaint, ChartConstants.Colors.BLACK, alpha * 0.4f)
+            drawPath(fanPath, fillPaint)
+        }
 
         applyColor(fillPaint, color, alpha)
         canvas.drawPath(fanPath, fillPaint)
     }
 
     private fun buildChevronPath(
-        path: Path,
-        cornerX: Double,
-        cornerY: Double,
-        arm1X: Double,
-        arm1Y: Double,
-        arm2X: Double,
-        arm2Y: Double,
-        width: Double,
-        cosA: Double,
+			path: Path,
+			cornerX: Double,
+			cornerY: Double,
+			arm1X: Double,
+			arm1Y: Double,
+			arm2X: Double,
+			arm2Y: Double,
+			width: Double,
+			cosA: Double,
         sinA: Double,
     ) {
         val arm1Dx = arm1X - cornerX
@@ -762,11 +758,11 @@ class SlidePainter(
             poly += chain
             poly += SlideChainPoint(end.x, end.y, chain[last].angle)
             var previous: ChartPoint? = null
-            for (point in poly) {
-                if (previous != null) total += hypot(point.x - previous.x, point.y - previous.y)
+            for ((x, y, angle) in poly) {
+                if (previous != null) total += hypot(x - previous.x, y - previous.y)
                 zs += total
-                angles += point.angle
-                previous = ChartPoint(point.x, point.y)
+                angles += angle
+                previous = ChartPoint(x, y)
             }
         }
         if (angles.isEmpty()) return 0.0
@@ -901,72 +897,70 @@ class SlidePainter(
         alpha: Float = 1f,
     ) {
         val canvas = context.canvas
-        canvas.save()
-        if (rotation != 0.0) {
-            canvas.translate(x.toFloat(), y.toFloat())
-            canvas.rotate(Math.toDegrees(rotation).toFloat())
-            canvas.translate(-x.toFloat(), -y.toFloat())
-        }
-        val outerRadius = size
-        val innerRadius = size * 0.5
-        val innerHoleOuter = outerRadius * 0.55
-        val innerHoleInner = innerRadius * 0.55
-        val strokeW = noteStrokeWidth()
-
-        fun starPath(outer: Double, inner: Double, baseAngle: Double): Path {
-            val path = Path()
-            for (index in 0 until 10) {
-                val angle = index * PI / 5 + baseAngle
-                val radius = if (index % 2 == 0) outer else inner
-                val px = (x + cos(angle) * radius).toFloat()
-                val py = (y + sin(angle) * radius).toFloat()
-                if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        canvas.withSave {
+            if (rotation != 0.0) {
+                translate(x.toFloat(), y.toFloat())
+                rotate(Math.toDegrees(rotation).toFloat())
+                translate(-x.toFloat(), -y.toFloat())
             }
-            path.close()
-            return path
-        }
+					val innerRadius = size * 0.5
+            val innerHoleOuter = size * 0.55
+					val innerHoleInner = innerRadius * 0.55
+					val strokeW = noteStrokeWidth()
 
-        if (!isEx) {
-            strokeSettings(strokeW * 3, Paint.Cap.BUTT, Paint.Join.MITER)
-            applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha)
-            canvas.drawPath(starPath(outerRadius, innerRadius, -PI / 2), strokePaint)
-        }
-        strokeSettings(strokeW * 3, Paint.Cap.BUTT, Paint.Join.MITER)
-        applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha)
-        canvas.drawPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2), strokePaint)
+					fun starPath(outer: Double, inner: Double, baseAngle: Double): Path {
+						val path = Path()
+						for (index in 0 until 10) {
+							val angle = index * PI / 5 + baseAngle
+							val radius = if (index % 2 == 0) outer else inner
+							val px = (x + cos(angle) * radius).toFloat()
+							val py = (y + sin(angle) * radius).toFloat()
+							if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+						}
+						path.close()
+						return path
+					}
 
-        val ringPath = Path().apply {
-            fillType = Path.FillType.EVEN_ODD
-            addPath(starPath(outerRadius, innerRadius, -PI / 2))
-            addPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2))
-        }
-        applyColor(fillPaint, color, alpha)
-        canvas.drawPath(ringPath, fillPaint)
+					if (!isEx) {
+						strokeSettings(strokeW * 3, Paint.Cap.BUTT, Paint.Join.MITER)
+						applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha)
+						drawPath(starPath(size, innerRadius, -PI / 2), strokePaint)
+					}
+					strokeSettings(strokeW * 3, Paint.Cap.BUTT, Paint.Join.MITER)
+					applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha)
+					drawPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2), strokePaint)
 
-        strokeSettings(strokeW, Paint.Cap.BUTT, Paint.Join.MITER)
-        applyColor(strokePaint, ChartConstants.Colors.WHITE, alpha)
-        canvas.drawPath(starPath(outerRadius, innerRadius, -PI / 2), strokePaint)
-        canvas.drawPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2), strokePaint)
+					val ringPath = Path().apply {
+						fillType = Path.FillType.EVEN_ODD
+						addPath(starPath(size, innerRadius, -PI / 2))
+						addPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2))
+					}
+					applyColor(fillPaint, color, alpha)
+					drawPath(ringPath, fillPaint)
 
-        applyColor(fillPaint, color, alpha)
-        canvas.drawCircle(x.toFloat(), y.toFloat(), (size * 0.15).toFloat(), fillPaint)
-        canvas.restore()
-    }
+					strokeSettings(strokeW, Paint.Cap.BUTT, Paint.Join.MITER)
+					applyColor(strokePaint, ChartConstants.Colors.WHITE, alpha)
+					drawPath(starPath(size, innerRadius, -PI / 2), strokePaint)
+					drawPath(starPath(innerHoleOuter, innerHoleInner, -PI / 2), strokePaint)
 
-    /** EX outer glow star ring. */
-    fun renderExStarRing(
-        x: Double,
-        y: Double,
-        size: Double,
-        isBreak: Boolean,
-        isSimultaneous: Boolean,
-        scaleFactor: Double,
-    ) {
-        val scale = 1.19 * scaleFactor
-        val outerRadius = size * scale
-        val outerInner = size * 0.5 * scale
-        val innerRadius = size
-        val innerInner = size * 0.5
+					applyColor(fillPaint, color, alpha)
+					drawCircle(x.toFloat(), y.toFloat(), (size * 0.15).toFloat(), fillPaint)
+				}
+		}
+
+	/** EX outer glow star ring. */
+	fun renderExStarRing(
+		x: Double,
+		y: Double,
+		size: Double,
+		isBreak: Boolean,
+		isSimultaneous: Boolean,
+		scaleFactor: Double,
+	) {
+		val scale = 1.19 * scaleFactor
+		val outerRadius = size * scale
+		val outerInner = size * 0.5 * scale
+		val innerInner = size * 0.5
         val color = when {
             isBreak -> 0xCCFFC878.toInt()
             isSimultaneous -> 0xCCFFF596.toInt()
@@ -988,7 +982,7 @@ class SlidePainter(
         val path = Path().apply {
             fillType = Path.FillType.EVEN_ODD
             addPath(star(outerRadius, outerInner))
-            addPath(star(innerRadius, innerInner))
+            addPath(star(size, innerInner))
         }
         applyColor(fillPaint, color)
         context.canvas.drawPath(path, fillPaint)
@@ -1006,8 +1000,7 @@ class SlidePainter(
         val scale = 1.19 * scaleFactor
         val outerRadius = size * scale
         val outerInner = size * 0.5 * scale
-        val innerRadius = size
-        val innerInner = size * 0.5
+			val innerInner = size * 0.5
         val color = when {
             isBreak -> 0xCCFFC878.toInt()
             isSimultaneous -> 0xCCFFF596.toInt()
@@ -1030,7 +1023,7 @@ class SlidePainter(
             val path = Path().apply {
                 fillType = Path.FillType.EVEN_ODD
                 addPath(star(outerRadius, outerInner, baseAngle))
-                addPath(star(innerRadius, innerInner, baseAngle))
+                addPath(star(size, innerInner, baseAngle))
             }
             applyColor(fillPaint, color)
             context.canvas.drawPath(path, fillPaint)

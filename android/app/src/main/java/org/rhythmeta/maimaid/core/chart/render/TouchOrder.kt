@@ -15,7 +15,7 @@ object TouchOrder {
         val registeredAtMs: Double,
     )
 
-    class RankedPart(val sourceIndex: Int, val part: Part, val groupOrder: Int)
+    class RankedPart(val sourceIndex: Int, val part: Part)
 
     private val touchLayers = listOf("B", "E", "A", "D", "C")
 
@@ -72,7 +72,7 @@ object TouchOrder {
         for (layer in touchLayers) {
             val group = ordered.filter { it.position[0].toString() == layer }
             if (group.isEmpty()) continue
-            val elements = mutableListOf<Element>(Element(0L), Element(0xffffffffL))
+            val elements = mutableListOf(Element(0L), Element(0xffffffffL))
             val sensorCount = if (layer == "C") 1 else 8
             for (sensor in 1..sensorCount) {
                 for (note in group) {
@@ -83,11 +83,11 @@ object TouchOrder {
                 for (key in defaultLauncherKeys) elements += Element(key)
             }
             sortDrawGroup(elements)
-            elements.forEachIndexed { index, element ->
+            elements.forEachIndexed { _, element ->
                 val sourceIndex = element.sourceIndex
                 val part = element.part
                 if (sourceIndex != null && part != null) {
-                    parts += RankedPart(sourceIndex, part, index + 1)
+                    parts += RankedPart(sourceIndex, part)
                 }
             }
         }
@@ -110,8 +110,7 @@ object TouchOrder {
 
         fun heapSort(first: Int, count: Int) {
             fun adjust(hole: Int, length: Int, value: Element) {
-                val top = hole
-                var child = hole * 2 + 2
+							var child = hole * 2 + 2
                 var currentHole = hole
                 while (child < length) {
                     if (items[first + child].key < items[first + child - 1].key) child--
@@ -124,7 +123,7 @@ object TouchOrder {
                     currentHole = child - 1
                 }
                 var parent = (currentHole - 1) / 2
-                while (currentHole > top && items[first + parent].key < value.key) {
+                while (currentHole > hole && items[first + parent].key < value.key) {
                     items[first + currentHole] = items[first + parent]
                     currentHole = parent
                     parent = (currentHole - 1) / 2

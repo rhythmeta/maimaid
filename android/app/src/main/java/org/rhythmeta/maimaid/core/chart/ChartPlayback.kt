@@ -87,7 +87,7 @@ class ChartAudioPlayer(
             player?.release()
         }
         preparedDigest = null
-        suspendCancellableCoroutine<Unit> { continuation ->
+        suspendCancellableCoroutine { continuation ->
             val current = MediaPlayer()
             player = current
             current.setAudioAttributes(
@@ -170,7 +170,7 @@ class ChartAudioPlayer(
             .onFailure {
                 if (activeSeek?.generation == request.generation) activeSeek = null
                 if (request.generation == nextSeekGeneration) {
-                    mutableSeekCompletions.value = mutableSeekCompletions.value + 1
+									mutableSeekCompletions.value += 1
                 }
                 dispatchPendingSeek()
             }
@@ -181,7 +181,7 @@ class ChartAudioPlayer(
         activeSeek = null
         if (request.generation == nextSeekGeneration) {
             if (wantsPlayback) runCatching { if (!completedPlayer.isPlaying) completedPlayer.start() }
-            mutableSeekCompletions.value = mutableSeekCompletions.value + 1
+					mutableSeekCompletions.value += 1
         }
         dispatchPendingSeek()
     }

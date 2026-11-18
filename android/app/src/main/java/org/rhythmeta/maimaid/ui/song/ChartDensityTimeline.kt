@@ -5,12 +5,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
@@ -30,11 +28,8 @@ import android.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import org.rhythmeta.maimaid.core.chart.ChartConstants
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.chart.ChartNote
 import org.rhythmeta.maimaid.core.chart.HoldStartNote
 import org.rhythmeta.maimaid.core.chart.SlideNote
@@ -45,7 +40,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.floor
 import kotlin.math.max
-import kotlin.math.min
 
 /** Note-type colors used by the density timeline key and stacked bars. */
 internal object DensityColors {
@@ -126,7 +120,7 @@ class ChartDensityData(
             val bucketCount = floor(durationMs / bucketMs).toInt() + 1
             val counts = Array(bucketCount) { IntArray(5) }
             for (note in notes) {
-                if (note.timingMs < 0 || note.timingMs > durationMs) continue
+                if (note.timingMs !in 0.0..durationMs) continue
                 val index = floor(note.timingMs / bucketMs).toInt()
                 if (index !in 0 until bucketCount) continue
                 when (note) {
@@ -171,8 +165,7 @@ internal fun ChartDensityTimeline(
     val primary = MiuixTheme.colorScheme.primary
     val muted = MiuixTheme.colorScheme.onSurfaceVariantSummary
     val border = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    val description = stringResource(R.string.chart_density_label)
-    val labelTextSize = with(density) { 9.sp.toPx() }
+	val labelTextSize = with(density) { 9.sp.toPx() }
     val badgeTextSize = with(density) { 10.sp.toPx() }
     val labelPaint = remember(labelTextSize, muted) {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -312,7 +305,6 @@ internal fun ChartDensityTimeline(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ChartDensityLegend(modifier: Modifier = Modifier) {
     // Note-type names stay in English in every locale, matching the reference legend.

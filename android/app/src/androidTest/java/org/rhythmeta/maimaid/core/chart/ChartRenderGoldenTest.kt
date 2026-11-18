@@ -48,7 +48,6 @@ class ChartRenderGoldenTest {
             sizePx = 840f,
             chart = chart,
             currentBeats = 4.6,
-            beatsPerMeasure = 4.0,
             config = ChartRenderConfig(showFireworks = false, showHitEffect = false),
             isPlaying = false,
             background = cover,
@@ -138,7 +137,6 @@ class ChartRenderGoldenTest {
             sizePx = 840f,
             chart = chart,
             currentBeats = beat,
-            beatsPerMeasure = 4.0,
             config = ChartRenderConfig(
                 hudComboLabel = "COMBO",
                 hudBreakNoExLabel = "NO EX",

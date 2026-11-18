@@ -28,10 +28,6 @@ class ChartAudioEvent(val timeMs: Double) {
         get() = hasBaseSound || hasTouchSound || hasFireworkSound || hasHoldEndSound ||
             hasTouchHoldEndSound || hasTouchHoldEndFireworkSound
 
-    val hasAnyJudgeSound: Boolean
-        get() = hasTapJudgeSound || hasBreakJudgeSound || hasExJudgeSound || hasSlideSound ||
-            hasBreakSlideSound || hasBreakSlideCheerSound || hasTouchSound || hasFireworkSound ||
-            hasHoldEndSound || hasTouchHoldEndSound || hasTouchHoldEndFireworkSound
 }
 
 /** Output contract used by the scheduler. Kept small so timing can be tested without Android. */
@@ -235,6 +231,5 @@ class ChartSoundScheduler(
 
     companion object {
         const val ANSWER_SOUND_BASE_OFFSET_MS = -50.0
-        const val LOOK_AHEAD_MS = 1_500.0
-    }
+		}
 }

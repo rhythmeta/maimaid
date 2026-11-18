@@ -1,7 +1,6 @@
 package org.rhythmeta.maimaid.core.chart.render
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
@@ -10,6 +9,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import org.rhythmeta.maimaid.core.chart.ChartConstants
 import org.rhythmeta.maimaid.core.chart.JudgmentLineDesign
+import androidx.core.graphics.withSave
+import kotlin.math.roundToInt
 
 /** Background, judgment ring and in-canvas HUD. */
 class StagePainter(context: RenderContext) : BasePainter(context) {
@@ -30,40 +31,40 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         canvas.drawColor(ChartConstants.Colors.BLACK)
         if (background == null || background.width <= 0 || background.height <= 0) return
 
-        canvas.save()
-        // The disc clip and the destination rect only change with the stage or cover size.
-        if (coverClipSize != size) {
-            coverClipRect.set(
-                context.centerX - size / 2,
-                context.centerY - size / 2,
-                context.centerX + size / 2,
-                context.centerY + size / 2,
-            )
-            coverClip.reset()
-            coverClip.addOval(coverClipRect, Path.Direction.CW)
-            coverClipSize = size
-        }
-        canvas.clipPath(coverClip)
-        val scale = minOf(size / background.width, size / background.height)
-        val dw = background.width * scale
-        val dh = background.height * scale
-        val destinationKey = (dw * 10_000.0) + dh
-        if (coverDestKey != destinationKey) {
-            coverDest.set(
-                (size - dw) / 2,
-                (size - dh) / 2,
-                (size - dw) / 2 + dw,
-                (size - dh) / 2 + dh,
-            )
-            coverDestKey = destinationKey
-        }
-        canvas.drawBitmap(background, null, coverDest, bitmapPaint)
-        // The dim overlay carries its alpha in the color; forcing paint.alpha would make it
-        // opaque and hide the artwork.
-        fillPaint.shader = null
-        fillPaint.color = 0x99000000.toInt()
-        canvas.drawRect(0f, 0f, size, size, fillPaint)
-        canvas.restore()
+        canvas.withSave {
+					// The disc clip and the destination rect only change with the stage or cover size.
+					if (coverClipSize != size) {
+						coverClipRect.set(
+							context.centerX - size / 2,
+							context.centerY - size / 2,
+							context.centerX + size / 2,
+							context.centerY + size / 2,
+						)
+						coverClip.reset()
+						coverClip.addOval(coverClipRect, Path.Direction.CW)
+						coverClipSize = size
+					}
+					clipPath(coverClip)
+					val scale = minOf(size / background.width, size / background.height)
+					val dw = background.width * scale
+					val dh = background.height * scale
+					val destinationKey = (dw * 10_000.0) + dh
+					if (coverDestKey != destinationKey) {
+						coverDest.set(
+							(size - dw) / 2,
+							(size - dh) / 2,
+							(size - dw) / 2 + dw,
+							(size - dh) / 2 + dh,
+						)
+						coverDestKey = destinationKey
+					}
+					drawBitmap(background, null, coverDest, bitmapPaint)
+					// The dim overlay carries its alpha in the color; forcing paint.alpha would make it
+					// opaque and hide the artwork.
+					fillPaint.shader = null
+					fillPaint.color = 0x99000000.toInt()
+					drawRect(0f, 0f, size, size, fillPaint)
+				}
     }
 
     /** Judgment ring and the eight button markers. */
@@ -108,15 +109,14 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         currentBpm: Double,
         currentBeats: Double,
         divisor: Double,
-        isPlaying: Boolean,
-        keysPerSecond: Int = 0,
+				keysPerSecond: Int = 0,
         bpmFlashColor: Int? = null,
     ) {
         val radius = context.radius
-        val fontSize = Math.round(22 * radius / 300f).toFloat()
-        val smallFontSize = Math.round(16 * radius / 300f).toFloat()
-        val padding = Math.round(20 * radius / 300f).toFloat()
-        val lineGap = Math.round(4 * radius / 300f).toFloat()
+        val fontSize = (22 * radius / 300f).roundToInt().toFloat()
+        val smallFontSize = (16 * radius / 300f).roundToInt().toFloat()
+        val padding = (20 * radius / 300f).roundToInt().toFloat()
+        val lineGap = (4 * radius / 300f).roundToInt().toFloat()
         val shadowOffset = 2 * radius / 300f
         val canvas = context.canvas
 
@@ -141,7 +141,7 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         val beatInMeasure = currentBeats - measure * 4
         val beat = kotlin.math.floor(beatInMeasure).toInt() + 1
         val fraction = beatInMeasure - kotlin.math.floor(beatInMeasure)
-        var currentY = padding + fontSize + lineGap
+        val currentY = padding + fontSize + lineGap
         textPaint.textSize = smallFontSize
         val fractionText = kotlin.math.floor(fraction * 100).toInt().toString().padStart(2, '0')
         val beatText = "$measure:$beat.$fractionText [1/${formatDivisor(divisor)}]"
@@ -165,18 +165,18 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         completedBreaks: Int,
         totalBreaksNoEx: Int,
         completedBreaksNoEx: Int,
+        speedLabel: String? = null,
     ) {
         val config = context.config
         val radius = context.radius
-        val fontSize = Math.round(22 * radius / 300f).toFloat()
-        val smallFontSize = Math.round(18 * radius / 300f).toFloat()
-        val padding = Math.round(20 * radius / 300f).toFloat()
-        val lineGap = Math.round(4 * radius / 300f).toFloat()
+        val fontSize = (22 * radius / 300f).roundToInt().toFloat()
+        val smallFontSize = (18 * radius / 300f).roundToInt().toFloat()
+        val padding = (20 * radius / 300f).roundToInt().toFloat()
+        val lineGap = (4 * radius / 300f).roundToInt().toFloat()
         val shadowOffset = 2 * radius / 300f
         val size = context.logicalSize
-        val canvas = context.canvas
 
-        textPaint.textSize = fontSize
+			textPaint.textSize = fontSize
         if (config.showNoteTotal) {
             textPaint.textAlign = Paint.Align.RIGHT
             val text = "${config.hudComboLabel}: $completedNotes / $totalNotes"
@@ -188,6 +188,20 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
                 shadowOffset,
                 ChartConstants.Colors.WHITE,
                 fontSize,
+            )
+        }
+
+        if (speedLabel != null) {
+            textPaint.textAlign = Paint.Align.RIGHT
+            textPaint.textSize = smallFontSize
+            val badgeBaseline = padding + fontSize + lineGap - textPaint.fontMetrics.ascent
+            drawShadowedText(
+                speedLabel,
+                size - padding,
+                badgeBaseline,
+                shadowOffset,
+                0xFFFFD700.toInt(),
+                smallFontSize,
             )
         }
 

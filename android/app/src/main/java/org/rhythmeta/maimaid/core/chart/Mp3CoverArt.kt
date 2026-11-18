@@ -82,11 +82,11 @@ internal object Mp3CoverArt {
         val encoding = tag[index].toInt() and 0xff
         index += 1
         index = skipTerminated(tag, index, end, terminatedByTwoBytes = false)
-        if (index < 0 || index >= end) return -1 to null
+        if (index !in 0..<end) return -1 to null
         val pictureType = tag[index].toInt() and 0xff
         index += 1
         index = skipTerminated(tag, index, end, terminatedByTwoBytes = encoding == 1 || encoding == 2)
-        if (index < 0 || index >= end) return -1 to null
+        if (index !in 0..<end) return -1 to null
         return pictureType to tag.copyOfRange(index, end)
     }
 
@@ -99,7 +99,7 @@ internal object Mp3CoverArt {
         val pictureType = tag[index].toInt() and 0xff
         index += 1
         index = skipTerminated(tag, index, end, terminatedByTwoBytes = encoding == 1)
-        if (index < 0 || index >= end) return -1 to null
+        if (index !in 0..<end) return -1 to null
         return pictureType to tag.copyOfRange(index, end)
     }
 

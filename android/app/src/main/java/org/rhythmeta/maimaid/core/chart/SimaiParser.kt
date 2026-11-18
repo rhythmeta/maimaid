@@ -15,21 +15,21 @@ object SimaiParser {
     private val divisorRegex = Regex("^\\{(\\d+(?:\\.\\d+)?)\\}")
     private val hiSpeedRegex = Regex("^<HS\\*([-+]?\\d*\\.?\\d+)>", RegexOption.IGNORE_CASE)
     private val holdRegex = Regex(
-        "^(\\d+)[hbx]{1,3}\\[(?:([\\d.]+):([\\d.]+)|#([\\d.]+))\\][bx]*$",
+        "^(\\d+)[hbx]{1,3}\\[(?:([\\d.]+):([\\d.]+)|#([\\d.]+))][bx]*$",
         RegexOption.IGNORE_CASE,
     )
     private val slideRegex = Regex("^(\\d+)([bx?!@]*[-><^vpqszVw*]+.*)$", RegexOption.IGNORE_CASE)
     private val slidePathCharRegex = Regex("[-><^vpqszVw]")
     private val slidePathStartRegex = Regex("[-><^vpqszVw*]")
     private val touchRegex = Regex(
-        "^([ABCDE])(\\d*)([hbfx]*)(?:\\[(?:([\\d.]+):([\\d.]+)|#([\\d.]+))\\])?$",
+        "^([ABCDE])(\\d*)([hbfx]*)(?:\\[(?:([\\d.]+):([\\d.]+)|#([\\d.]+))])?$",
         RegexOption.IGNORE_CASE,
     )
     private val tapRegex = Regex("^(\\d+)([bx$]*)$", RegexOption.IGNORE_CASE)
-    private val multiTimingBlockRegex = Regex("\\[[\\d.:#+]+\\]")
-    private val secondsWithDelayRegex = Regex("\\[([\\d.]+)##([\\d.]+)\\]")
-    private val secondsOnlyBlockRegex = Regex("\\[#([\\d.]+)\\]")
-    private val timingBlockRegex = Regex("\\[(?:([\\d.]+)#)?([\\d.]+):([\\d.]+)(?:##([\\d.]+))?\\]")
+    private val multiTimingBlockRegex = Regex("\\[[\\d.:#+]+]")
+    private val secondsWithDelayRegex = Regex("\\[([\\d.]+)##([\\d.]+)]")
+    private val secondsOnlyBlockRegex = Regex("\\[#([\\d.]+)]")
+    private val timingBlockRegex = Regex("\\[(?:([\\d.]+)#)?([\\d.]+):([\\d.]+)(?:##([\\d.]+))?]")
     private val inlineBpmRegex = Regex("\\((\\d+(?:\\.\\d+)?)\\)")
 
     /** Difficulty slots present in a maidata text, mirroring `getAvailableDifficulties`. */
@@ -154,7 +154,7 @@ object SimaiParser {
 
         val parsed = parseNotes(chartBody, metadataBpm)
         val notes = parsed.notes
-        var firstBpm = parsed.firstBpm
+        val firstBpm = parsed.firstBpm
 
         require(!firstBpm.isNaN()) { "Simai 文件缺少 BPM 声明" }
 
@@ -314,7 +314,7 @@ object SimaiParser {
                 pos++
             }
 
-            if (pos == startPos && pos < chartBody.length && chartBody[pos] != ',') {
+            if (pos == startPos && chartBody[pos] != ',') {
                 pos++
                 continue
             }
@@ -361,11 +361,11 @@ object SimaiParser {
                         isSimultaneous = isSimultaneous,
                         hasDelayMarker = hasDelayMarker,
                     )
-                    if (currentHiSpeed != 1.0) {
-                        notes += parsedNotes.map { it.withHiSpeed(currentHiSpeed) }
-                    } else {
-                        notes += parsedNotes
-                    }
+									notes += if (currentHiSpeed != 1.0) {
+										parsedNotes.map { it.withHiSpeed(currentHiSpeed) }
+									} else {
+										parsedNotes
+									}
                 }
             }
 
@@ -378,7 +378,7 @@ object SimaiParser {
         return ParsedNotes(
             notes = notes,
             firstBpm = firstBpm ?: initialBpm,
-            bpmEvents = if (bpmEvents.isNotEmpty()) bpmEvents else listOf(BpmEvent(0.0, initialBpm)),
+            bpmEvents = bpmEvents.ifEmpty { listOf(BpmEvent(0.0, initialBpm)) },
             divisorEvents = divisorEvents,
         )
     }
@@ -484,7 +484,7 @@ object SimaiParser {
 
             for (part in slideParts) {
                 val hasBreak = Regex("[-><^vpqszVw]\\d*b", RegexOption.IGNORE_CASE).containsMatchIn(part) ||
-                    Regex("\\]b", RegexOption.IGNORE_CASE).containsMatchIn(part)
+                    Regex("]b", RegexOption.IGNORE_CASE).containsMatchIn(part)
                 allSlideBreaks += hasBreak
 
                 val hasMultipleTimings = multiTimingBlockRegex.findAll(part).count() > 1
@@ -541,7 +541,7 @@ object SimaiParser {
                     val pathOnly = part
                         .replace(
                             Regex(
-                                "\\[(?:(?:[\\d.]+#)?[\\d.]+:[\\d.]+(?:##[\\d.]+)?|[\\d.]+##[\\d.]+)\\]",
+                                "\\[(?:(?:[\\d.]+#)?[\\d.]+:[\\d.]+(?:##[\\d.]+)?|[\\d.]+##[\\d.]+)]",
                                 RegexOption.IGNORE_CASE,
                             ),
                             "",
@@ -708,14 +708,13 @@ object SimaiParser {
     }
 
     private fun isMultiDigitNote(noteStr: String): Boolean {
-        if (noteStr.length < 2) return false
-        return noteStr.all { it in '0'..'9' }
-    }
+			return noteStr.length >= 2 && noteStr.all { it in '0'..'9' }
+		}
 
     private class SlidePathParseResult(
         val segments: List<SlideSegment>,
-        val segmentDurations: List<Double>,
-        val segmentDurationMs: List<Double>,
+        segmentDurations: List<Double>,
+        segmentDurationMs: List<Double>,
     ) {
         val totalDuration: Double = segmentDurations.sum()
         val totalDurationMs: Double = segmentDurationMs.sum()
@@ -734,9 +733,8 @@ object SimaiParser {
 
         while (i < pathNotation.length) {
             val char = pathNotation[i]
-            var pathType: SlidePathType? = null
-            var doubleConsumed = false
-            if (i + 1 < pathNotation.length && pathNotation[i + 1] == char &&
+            var pathType: SlidePathType?
+					if (i + 1 < pathNotation.length && pathNotation[i + 1] == char &&
                 (char == 'p' || char == 'q')
             ) {
                 pathType = if (char == 'p') {
@@ -745,8 +743,7 @@ object SimaiParser {
                     SlidePathType.SPIRAL_COUNTER_CLOCKWISE_DOUBLE
                 }
                 i += 2
-                doubleConsumed = true
-            } else if ("-><^vpqszVw".contains(char)) {
+						} else if ("-><^vpqszVw".contains(char)) {
                 pathType = SlidePathType.fromSymbol(char)
                 i++
             } else {

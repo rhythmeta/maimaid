@@ -1,5 +1,7 @@
 package org.rhythmeta.maimaid.core.chart
 
+import kotlin.math.roundToInt
+
 /** Track appearance (alpha and whether it is still fading in) for a slide segment. */
 data class SlideTrackAppearance(val alpha: Double, val isFading: Boolean)
 
@@ -10,7 +12,7 @@ object SlideAppearance {
     private const val WIFI_TRACK_ALPHA = 120.0 / 255.0
 
     fun appearanceStartMs(noteTimeMs: Double, approachTimeMs: Double, slideDelay: Double): Double {
-        val optionIndex = Math.round((slideDelay + 1.0) * 10.0)
+        val optionIndex = ((slideDelay + 1.0) * 10.0).roundToInt()
         return noteTimeMs - approachTimeMs + (approachTimeMs * optionIndex) / 21.0
     }
 

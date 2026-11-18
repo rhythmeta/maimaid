@@ -9,22 +9,18 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.min
 import kotlin.math.sin
 import org.rhythmeta.maimaid.core.chart.Chart
 import org.rhythmeta.maimaid.core.chart.ChartConstants
 import org.rhythmeta.maimaid.core.chart.ChartKeyDensity
-import org.rhythmeta.maimaid.core.chart.ChartNote
 import org.rhythmeta.maimaid.core.chart.ChartRenderConfig
-import org.rhythmeta.maimaid.core.chart.HoldEndNote
 import org.rhythmeta.maimaid.core.chart.HoldStartNote
 import org.rhythmeta.maimaid.core.chart.PreparedChart
-import org.rhythmeta.maimaid.core.chart.RenderNoteMeta
 import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.TapNote
-import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
-import org.rhythmeta.maimaid.core.chart.TouchNote
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
+import androidx.core.graphics.withSave
+import kotlin.math.roundToInt
 
 /**
  * Frame driver for the chart stage, a direct port of the reference `MainRenderer.renderFrame`
@@ -58,27 +54,7 @@ class ChartRenderer {
 
     var config: ChartRenderConfig = ChartRenderConfig()
 
-    /** Last rendered frame geometry, exposed for screenshot tests and overlays. */
-    val lastFrame: FrameInfo
-        get() = FrameInfo(
-            centerX = context.centerX,
-            centerY = context.centerY,
-            radius = context.radius,
-            logicalSize = context.logicalSize,
-            currentTimeMs = lastTimeMs,
-            currentBeats = lastBeats,
-        )
-
-    data class FrameInfo(
-        val centerX: Float,
-        val centerY: Float,
-        val radius: Float,
-        val logicalSize: Float,
-        val currentTimeMs: Double,
-        val currentBeats: Double,
-    )
-
-    private var lastTimeMs = 0.0
+	private var lastTimeMs = 0.0
     private var lastBeats = 0.0
 
     fun prepare(chart: Chart): PreparedChart {
@@ -112,11 +88,11 @@ class ChartRenderer {
         sizePx: Float,
         chart: Chart,
         currentBeats: Double,
-        beatsPerMeasure: Double,
-        config: ChartRenderConfig,
+				config: ChartRenderConfig,
         isPlaying: Boolean,
         background: Bitmap? = null,
         sensorImage: Bitmap? = null,
+        speedMultiplier: Float = 1f,
     ) {
         this.config = config
         context.config = config
@@ -138,10 +114,10 @@ class ChartRenderer {
         stagePainter.renderJudgmentLine(sensorImage)
 
         if (config.showFireworks && prepared.fireworkTouches.isNotEmpty()) {
-            canvas.save()
-            clipCircle(canvas, sizePx / 2f)
-            effectsPainter.renderTouchFireworks(prepared.fireworkTouches, currentTimeMs)
-            canvas.restore()
+            canvas.withSave {
+							clipCircle(this, sizePx / 2f)
+							effectsPainter.renderTouchFireworks(prepared.fireworkTouches, currentTimeMs)
+						}
         }
 
         if (config.showBpm) {
@@ -149,12 +125,11 @@ class ChartRenderer {
                 currentBpm,
                 currentBeats,
                 divisor,
-                isPlaying,
-                keysPerSecond = ChartKeyDensity.keysPerSecond(keyPressTimesFor(chart), currentTimeMs),
+							keysPerSecond = ChartKeyDensity.keysPerSecond(keyPressTimesFor(chart), currentTimeMs),
                 bpmFlashColor = bpmFlash.colorFor(currentBpm, isPlaying, ChartConstants.Colors.WHITE),
             )
         }
-        if (config.showNoteTotal || config.showBreakCount) {
+        if (config.showNoteTotal || config.showBreakCount || speedMultiplier > 1f) {
             stagePainter.renderNoteCounts(
                 totalNotes = prepared.noteCompletionTimes.size,
                 completedNotes = prepared.countCompleted(prepared.noteCompletionTimes, currentTimeMs),
@@ -168,47 +143,48 @@ class ChartRenderer {
                     prepared.breakNoExCompletionTimes,
                     currentTimeMs,
                 ),
+                speedLabel = if (speedMultiplier > 1f) "${speedMultiplier}X" else null,
             )
         }
 
-        canvas.save()
-        clipCircle(canvas, sizePx / 2f)
+        canvas.withSave {
+            clipCircle(this, sizePx / 2f)
 
-        val lookAheadMs = ChartConstants.BASE_APPROACH_TIME_MS / config.hiSpeed / prepared.minHiSpeed
+            val lookAheadMs = ChartConstants.BASE_APPROACH_TIME_MS / config.hiSpeed / prepared.minHiSpeed
 
-        renderSlideTracks(prepared, currentTimeMs, lookAheadMs)
-        renderSlideStars(prepared, currentTimeMs, lookAheadMs)
-        renderApproachIndicators(prepared, currentTimeMs, currentBeats, lookAheadMs)
-        renderLayeredHeads(prepared, currentTimeMs, currentBeats, lookAheadMs)
-        renderTouchBorders(prepared, currentTimeMs, lookAheadMs)
-        renderTouches(prepared, currentTimeMs, lookAheadMs)
-        if (config.showHitEffect) {
-            renderEffects(prepared, currentTimeMs, lookAheadMs)
-        }
-        canvas.restore()
-    }
+            renderSlideTracks(prepared, currentTimeMs, lookAheadMs)
+            renderSlideStars(prepared, currentTimeMs, lookAheadMs)
+            renderApproachIndicators(prepared, currentTimeMs, currentBeats, lookAheadMs)
+            renderLayeredHeads(prepared, currentTimeMs, lookAheadMs)
+            renderTouchBorders(prepared, currentTimeMs, lookAheadMs)
+            renderTouches(prepared, currentTimeMs, lookAheadMs)
+            if (config.showHitEffect) {
+                renderEffects(prepared, currentTimeMs, lookAheadMs)
+						}
+				}
+		}
 
-    /** Clips the stage to its disc; the path is rebuilt only when the stage size changes. */
-    private fun clipCircle(canvas: Canvas, radius: Float) {
-        if (clipRadius != radius) {
-            clipRect.set(
-                context.centerX - radius,
-                context.centerY - radius,
-                context.centerX + radius,
-                context.centerY + radius,
-            )
-            clipPath.reset()
-            clipPath.addOval(clipRect, Path.Direction.CW)
-            clipRadius = radius
-        }
-        canvas.clipPath(clipPath)
-    }
+	/** Clips the stage to its disc; the path is rebuilt only when the stage size changes. */
+	private fun clipCircle(canvas: Canvas, radius: Float) {
+		if (clipRadius != radius) {
+			clipRect.set(
+				context.centerX - radius,
+				context.centerY - radius,
+				context.centerX + radius,
+				context.centerY + radius,
+			)
+			clipPath.reset()
+			clipPath.addOval(clipRect, Path.Direction.CW)
+			clipRadius = radius
+		}
+		canvas.clipPath(clipPath)
+	}
 
-    private fun renderSlideTracks(
-        prepared: PreparedChart,
-        currentTimeMs: Double,
-        lookAheadMs: Double,
-    ) {
+	private fun renderSlideTracks(
+		prepared: PreparedChart,
+		currentTimeMs: Double,
+		lookAheadMs: Double,
+	) {
         val range = prepared.slideIndex.range(currentTimeMs, lookAheadMs)
         for (index in range.last downTo range.first) {
             val note = prepared.slides.getOrNull(index) ?: continue
@@ -265,9 +241,8 @@ class ChartRenderer {
                 val meta = prepared.metaOf(note)
                 val isSimultaneous = meta.simultaneousNoteCount >= 2
                 val color = if (isHold) {
-                    val hold = note as HoldStartNote
-                    when {
-                        hold.isBreakHold -> ChartConstants.Colors.BREAK_ORANGE
+									when {
+                        note.isBreakHold -> ChartConstants.Colors.BREAK_ORANGE
                         isSimultaneous -> ChartConstants.Colors.SIMULTANEOUS_GOLD
                         else -> ChartConstants.Colors.TAP_PINK
                     }
@@ -305,8 +280,7 @@ class ChartRenderer {
     private fun renderLayeredHeads(
         prepared: PreparedChart,
         currentTimeMs: Double,
-        currentBeats: Double,
-        lookAheadMs: Double,
+				lookAheadMs: Double,
     ) {
         val range = prepared.layeredIndex.range(currentTimeMs, lookAheadMs)
         if (range.isEmpty()) return
@@ -335,7 +309,7 @@ class ChartRenderer {
                 is org.rhythmeta.maimaid.core.chart.LayeredHead.Tap ->
                     renderSingleTap(prepared, head.note, currentTimeMs)
                 is org.rhythmeta.maimaid.core.chart.LayeredHead.Hold ->
-                    renderSingleHold(prepared, head.note, currentTimeMs, currentBeats)
+                    renderSingleHold(prepared, head.note, currentTimeMs)
                 is org.rhythmeta.maimaid.core.chart.LayeredHead.SlideStart ->
                     renderSingleSlideStart(prepared, head.note, currentTimeMs)
             }
@@ -395,8 +369,7 @@ class ChartRenderer {
         prepared: PreparedChart,
         hold: HoldStartNote,
         currentTimeMs: Double,
-        currentBeats: Double,
-    ) {
+		) {
         val startPos = notePainter.calculateNotePosition(hold, currentTimeMs)
         if (!startPos.visible) return
         val holdEnd = prepared.holdEndMap["${hold.position}:${hold.timing}"] ?: return
@@ -529,77 +502,76 @@ class ChartRenderer {
         isEx: Boolean,
     ) {
         val canvas = context.canvas
-        canvas.save()
-        if (rotation != 0.0) {
-            canvas.translate(x.toFloat(), y.toFloat())
-            canvas.rotate(Math.toDegrees(rotation).toFloat())
-            canvas.translate(-x.toFloat(), -y.toFloat())
-        }
-
-        val noteStroke = context.radius * ChartConstants.NOTE_STROKE_WIDTH_RATIO.toFloat()
-        fun star(outer: Double, inner: Double, baseAngle: Double): Path {
-            val path = Path()
-            for (index in 0 until 10) {
-                val angle = index * PI / 5 + baseAngle
-                val radius = if (index % 2 == 0) outer else inner
-                val px = (x + cos(angle) * radius).toFloat()
-                val py = (y + sin(angle) * radius).toFloat()
-                if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        canvas.withSave {
+            if (rotation != 0.0) {
+                translate(x.toFloat(), y.toFloat())
+                rotate(Math.toDegrees(rotation).toFloat())
+                translate(-x.toFloat(), -y.toFloat())
             }
-            path.close()
-            return path
-        }
 
-        // Black underlay (skipped for EX where the glow ring takes the outer edge).
-        if (!isEx) {
-            headStrokePaint.strokeWidth = (2 * context.radius / 300f) * 3
-            headStrokePaint.strokeCap = Paint.Cap.BUTT
-            headStrokePaint.strokeJoin = Paint.Join.MITER
-            headStrokePaint.color = ChartConstants.Colors.BLACK
-            for (baseAngle in doubleArrayOf(-PI / 2, PI / 2)) {
-                canvas.drawPath(star(size, size * 0.5, baseAngle), headStrokePaint)
+					fun star(outer: Double, inner: Double, baseAngle: Double): Path {
+                val path = Path()
+                for (index in 0 until 10) {
+                    val angle = index * PI / 5 + baseAngle
+                    val radius = if (index % 2 == 0) outer else inner
+                    val px = (x + cos(angle) * radius).toFloat()
+                    val py = (y + sin(angle) * radius).toFloat()
+                    if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                path.close()
+                return path
             }
-        }
 
-        for (baseAngle in doubleArrayOf(-PI / 2, PI / 2)) {
-            val ringPath = Path().apply {
-                fillType = Path.FillType.EVEN_ODD
-                addPath(star(size, size * 0.5, baseAngle))
-                addPath(star(size * 0.55, size * 0.5 * 0.55, baseAngle))
-            }
-            headFillPaint.color = color
-            headFillPaint.alpha = 255
-            canvas.drawPath(ringPath, headFillPaint)
-        }
+            // Black underlay (skipped for EX where the glow ring takes the outer edge).
+					if (!isEx) {
+						headStrokePaint.strokeWidth = (2 * context.radius / 300f) * 3
+						headStrokePaint.strokeCap = Paint.Cap.BUTT
+						headStrokePaint.strokeJoin = Paint.Join.MITER
+						headStrokePaint.color = ChartConstants.Colors.BLACK
+						for (baseAngle in doubleArrayOf(-PI / 2, PI / 2)) {
+							drawPath(star(size, size * 0.5, baseAngle), headStrokePaint)
+						}
+					}
 
-        headStrokePaint.strokeWidth = 2 * context.radius / 300f
-        headStrokePaint.color = ChartConstants.Colors.WHITE
-        canvas.drawPath(star(size, size * 0.5, -PI / 2), headStrokePaint)
-        canvas.drawPath(star(size, size * 0.5, PI / 2), headStrokePaint)
+					for (baseAngle in doubleArrayOf(-PI / 2, PI / 2)) {
+						val ringPath = Path().apply {
+							fillType = Path.FillType.EVEN_ODD
+							addPath(star(size, size * 0.5, baseAngle))
+							addPath(star(size * 0.55, size * 0.5 * 0.55, baseAngle))
+						}
+						headFillPaint.color = color
+						headFillPaint.alpha = 255
+						drawPath(ringPath, headFillPaint)
+					}
 
-        headFillPaint.color = color
-        canvas.drawCircle(x.toFloat(), y.toFloat(), (size * 0.15).toFloat(), headFillPaint)
-        canvas.restore()
-    }
+					headStrokePaint.strokeWidth = 2 * context.radius / 300f
+					headStrokePaint.color = ChartConstants.Colors.WHITE
+					drawPath(star(size, size * 0.5, -PI / 2), headStrokePaint)
+					drawPath(star(size, size * 0.5, PI / 2), headStrokePaint)
 
-    private fun renderTouchBorders(
-        prepared: PreparedChart,
-        currentTimeMs: Double,
-        lookAheadMs: Double,
-    ) {
-        val range = prepared.touchIndex.range(currentTimeMs, lookAheadMs)
-        if (range.isEmpty()) return
-        val baseApproachTime = ChartConstants.BASE_APPROACH_TIME_MS / config.hiSpeed
-        val visibleByPos = HashMap<String, Int>()
-        for (index in range) {
-            val touch = prepared.touches.getOrNull(index) ?: continue
-            if (touch is org.rhythmeta.maimaid.core.chart.TouchHoldStartNote) continue
-            val timeDiff = touch.timingMs - currentTimeMs
-            val approachTime = baseApproachTime / (abs(touch.hiSpeed ?: 1.0).takeIf { it > 0 } ?: 1.0)
-            if (timeDiff <= approachTime && timeDiff >= -50) {
-                val position = when (touch) {
-                    is org.rhythmeta.maimaid.core.chart.TouchNote -> touch.position
-                    else -> ""
+					headFillPaint.color = color
+					drawCircle(x.toFloat(), y.toFloat(), (size * 0.15).toFloat(), headFillPaint)
+				}
+		}
+
+	private fun renderTouchBorders(
+		prepared: PreparedChart,
+		currentTimeMs: Double,
+		lookAheadMs: Double,
+	) {
+		val range = prepared.touchIndex.range(currentTimeMs, lookAheadMs)
+		if (range.isEmpty()) return
+		val baseApproachTime = ChartConstants.BASE_APPROACH_TIME_MS / config.hiSpeed
+		val visibleByPos = HashMap<String, Int>()
+		for (index in range) {
+			val touch = prepared.touches.getOrNull(index) ?: continue
+			if (touch is org.rhythmeta.maimaid.core.chart.TouchHoldStartNote) continue
+			val timeDiff = touch.timingMs - currentTimeMs
+			val approachTime = baseApproachTime / (abs(touch.hiSpeed ?: 1.0).takeIf { it > 0 } ?: 1.0)
+			if (timeDiff <= approachTime && timeDiff >= -50) {
+				val position = when (touch) {
+					is org.rhythmeta.maimaid.core.chart.TouchNote -> touch.position
+					else -> ""
                 }
                 if (position.isNotEmpty()) {
                     visibleByPos[position] = (visibleByPos[position] ?: 0) + 1
@@ -690,7 +662,7 @@ class ChartRenderer {
 
     private fun mixColor(from: Int, target: Int, amount: Float): Int {
         fun channel(color: Int, shift: Int) = (color shr shift) and 0xff
-        val mix = { a: Int, b: Int -> Math.round(a + (b - a) * amount) }
+        val mix = { a: Int, b: Int -> (a + (b - a) * amount).roundToInt() }
         return android.graphics.Color.argb(
             255,
             mix(channel(from, 16), channel(target, 16)),
@@ -705,12 +677,12 @@ class ChartRenderer {
         val fractional = abs(timing % 1.0)
         if (fractional < epsilon || fractional > 1 - epsilon) return ChartConstants.Colors.DDR_RED
         val half = abs(timing % 0.5)
-        if (half < epsilon || half > 0.499) return ChartConstants.Colors.DDR_BLUE
+        if (half !in epsilon..0.499) return ChartConstants.Colors.DDR_BLUE
         val quarter = abs(timing % 0.25)
-        if (quarter < epsilon || quarter > 0.249) return ChartConstants.Colors.DDR_YELLOW
+        if (quarter !in epsilon..0.249) return ChartConstants.Colors.DDR_YELLOW
         if (config.ddrColorExtended) {
             val eighth = abs(timing % 0.125)
-            if (eighth < epsilon || eighth > 0.124) return ChartConstants.Colors.DDR_ORANGE
+            if (eighth !in epsilon..0.124) return ChartConstants.Colors.DDR_ORANGE
             val sixth = 1.0 / 6.0
             val remainder = abs(timing % sixth)
             if (remainder < epsilon || remainder > sixth - epsilon) {

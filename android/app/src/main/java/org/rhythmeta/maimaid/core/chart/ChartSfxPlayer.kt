@@ -116,10 +116,7 @@ class ChartSfxPlayer(context: Context) : ChartSfxOutput {
         return true
     }
 
-    /** Compatibility entry point for callers that do not need per-event hold ownership. */
-    fun playEvent(event: ChartAudioEvent): Boolean = playEvent(event, DEFAULT_EVENT_KEY)
-
-    private fun play(kind: ChartSfxKind, volume: Float, mono: Boolean) {
+	private fun play(kind: ChartSfxKind, volume: Float, mono: Boolean) {
         if (!isReady) return
         val soundId = soundIds[kind] ?: return
         if (mono) {
@@ -154,12 +151,7 @@ class ChartSfxPlayer(context: Context) : ChartSfxOutput {
         runCatching { soundPool.stop(stream) }
     }
 
-    /** Stops all active Touch Hold loops, used when pausing or leaving the preview. */
-    fun stopTouchHoldLoop() {
-        touchHoldStreams.keys.toList().forEach(::stopTouchHoldLoop)
-    }
-
-    private fun rememberStream(streamId: Int) {
+	private fun rememberStream(streamId: Int) {
         if (recentStreams.size >= MAX_TRACKED_STREAMS) recentStreams.removeFirst()
         recentStreams.addLast(streamId)
     }
@@ -183,8 +175,7 @@ class ChartSfxPlayer(context: Context) : ChartSfxOutput {
 
     private companion object {
         const val TAG = "ChartSfxPlayer"
-        const val DEFAULT_EVENT_KEY = -1
-        const val MAX_STREAMS = 32
+			const val MAX_STREAMS = 32
         const val MAX_TRACKED_STREAMS = 64
     }
 }

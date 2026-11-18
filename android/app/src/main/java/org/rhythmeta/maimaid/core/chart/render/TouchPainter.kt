@@ -14,6 +14,7 @@ import org.rhythmeta.maimaid.core.chart.ChartNote
 import org.rhythmeta.maimaid.core.chart.ChartPoint
 import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
 import org.rhythmeta.maimaid.core.chart.TouchNote
+import androidx.core.graphics.withTranslation
 
 /** Touch notes (petal diamonds), touch holds (progress ring), multi-tap borders. */
 class TouchPainter(context: RenderContext) : BasePainter(context) {
@@ -73,8 +74,8 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
             if (remaining < 150) petalAlpha = remaining / 150
         }
 
-        val openDist = (scaleByRadius(ChartConstants.TOUCH_PETAL_OPEN_RATIO) * 1.1).toDouble()
-        val closedDist = (scaleByRadius(ChartConstants.TOUCH_PETAL_CLOSED_RATIO) * 1.3).toDouble()
+        val openDist = (scaleByRadius(ChartConstants.TOUCH_PETAL_OPEN_RATIO) * 1.1)
+        val closedDist = (scaleByRadius(ChartConstants.TOUCH_PETAL_CLOSED_RATIO) * 1.3)
         var petalDist = openDist
 
         if (timeDiff > 0 && timeDiff <= approachTime) {
@@ -105,19 +106,18 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
             val tipAngle = petalAngle + PI
             val leftAngle = petalAngle + PI / 2
             val rightAngle = petalAngle - PI / 2
-            val petalSize = closedDist
 
-            val tip = ChartPoint(
-                petalX + cos(tipAngle) * petalSize,
-                petalY + sin(tipAngle) * petalSize,
+					val tip = ChartPoint(
+                petalX + cos(tipAngle) * closedDist,
+                petalY + sin(tipAngle) * closedDist,
             )
             val left = ChartPoint(
-                petalX + cos(leftAngle) * petalSize,
-                petalY + sin(leftAngle) * petalSize,
+                petalX + cos(leftAngle) * closedDist,
+                petalY + sin(leftAngle) * closedDist,
             )
             val right = ChartPoint(
-                petalX + cos(rightAngle) * petalSize,
-                petalY + sin(rightAngle) * petalSize,
+                petalX + cos(rightAngle) * closedDist,
+                petalY + sin(rightAngle) * closedDist,
             )
             val innerRatio = 0.4
             val cx = (tip.x + left.x + right.x) / 3
@@ -144,7 +144,7 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
         fun drawPart(part: TouchOrder.Part) {
             when (part) {
                 TouchOrder.Part.GAUGE -> {
-                    if (isHoldActive && note is TouchHoldStartNote && note.durationMs > 0) {
+                    if (isHoldActive && note.durationMs > 0) {
                         val elapsed = -timeDiff
                         drawHoldProgress(origin, min(elapsed / note.durationMs, 1.0), alpha.toFloat())
                     }
@@ -164,11 +164,10 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
                         innerCornerRadius = innerCornerRadius,
                         strokeWidth = strokeWidth,
                         alpha = combinedAlpha,
-                        origin = origin,
-                    )
+										)
                 }
                 TouchOrder.Part.CENTER -> {
-                    val centerSize = (scaleByRadius(ChartConstants.TOUCH_CENTER_DOT_RATIO) * 0.8).toDouble()
+                    val centerSize = (scaleByRadius(ChartConstants.TOUCH_CENTER_DOT_RATIO) * 0.8)
                     strokeSettings(strokeWidth * 3, Paint.Cap.BUTT, Paint.Join.MITER)
                     applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha.toFloat())
                     canvas.drawCircle(
@@ -231,8 +230,7 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
         innerCornerRadius: Double,
         strokeWidth: Float,
         alpha: Float,
-        origin: ChartPoint,
-    ) {
+		) {
         val canvas = context.canvas
         val shadowOffset = scaleByRadius(2.0 / 300.0)
         val outer = buildRoundedTriangle(petal.tip, petal.left, petal.right, cornerRadius)
@@ -244,13 +242,12 @@ class TouchPainter(context: RenderContext) : BasePainter(context) {
         )
 
         // Soft drop shadow approximated by layered offset copies.
-        canvas.save()
-        canvas.translate(shadowOffset, shadowOffset)
-        applyColor(fillPaint, ChartConstants.Colors.BLACK, alpha * 0.18f)
-        canvas.drawPath(outer, fillPaint)
-        canvas.drawPath(offsetPath(outer, -1f, 0f), fillPaint)
-        canvas.drawPath(offsetPath(outer, 1f, 0f), fillPaint)
-        canvas.restore()
+        canvas.withTranslation(shadowOffset, shadowOffset) {
+					applyColor(fillPaint, ChartConstants.Colors.BLACK, alpha * 0.18f)
+					drawPath(outer, fillPaint)
+					drawPath(offsetPath(outer, -1f, 0f), fillPaint)
+					drawPath(offsetPath(outer, 1f, 0f), fillPaint)
+				}
 
         strokeSettings(strokeWidth * 3, Paint.Cap.BUTT, Paint.Join.MITER)
         applyColor(strokePaint, ChartConstants.Colors.BLACK, alpha)

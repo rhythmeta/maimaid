@@ -4,7 +4,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -94,6 +100,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Full-page chart preview: arcade-faithful stage plus transport controls. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChartPreviewScreen(
 	  modifier: Modifier = Modifier,
@@ -268,6 +275,8 @@ private fun ChartPreviewContent(
         )
     }
     val clock = remember(chart) { PreviewClock(playbackDurationMs) }
+    // Holding the stage plays at 1.5x the user's speed; releasing returns to the setting.
+    var speedBoostActive by remember { mutableStateOf(false) }
     // Leaving the app must not leave the chart (and its audio) running in the background; the
     // preview comes back paused so the user can resume deliberately.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -384,7 +393,9 @@ private fun ChartPreviewContent(
                             (chart.leadInMs + audioPositionMillis() - latestMusicOffsetMs)
                                 .coerceIn(0.0, clock.durationMs)
                         } else {
-                            (clock.position.doubleValue + deltaMs * settings.playbackSpeed)
+                            (clock.position.doubleValue +
+                                deltaMs * settings.playbackSpeed *
+                                (if (speedBoostActive) 1.5 else 1.0))
                                 .coerceAtMost(clock.durationMs)
                         }
                         clock.position.doubleValue = audioMasterPosition
@@ -467,13 +478,28 @@ private fun ChartPreviewContent(
         onSeekFinished()
     }
 
+    fun setSpeedBoost(active: Boolean) {
+        if (speedBoostActive == active) return
+        speedBoostActive = active
+        onPlaybackSpeedChange(
+            if (active) BOOST_SPEED * settings.playbackSpeed.toFloat() else settings.playbackSpeed.toFloat(),
+        )
+    }
+
     val onTogglePlay: () -> Unit = {
         if (clock.position.doubleValue >= clock.durationMs) {
             clock.position.doubleValue = 0.0
             scheduler.reset(0.0)
         }
+        // Pausing during a hold must not leave the boosted speed behind.
+        setSpeedBoost(false)
         clock.audioStarted = false
         clock.isPlaying = !clock.isPlaying
+    }
+    // The boost is a gesture overlay: it must not outlive the screen or get stuck when the
+    // underlying setting changes mid-hold.
+    DisposableEffect(Unit) {
+        onDispose { onPlaybackSpeedChange(settings.playbackSpeed.toFloat()) }
     }
 
     Column(
@@ -499,13 +525,34 @@ private fun ChartPreviewContent(
                 .aspectRatio(1f)
                 .clip(squircleShape(20.dp))
                 .background(Color.Black)
-                .clickable { onTogglePlay() }
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    // A single tap is nothing; pause needs a double tap.
+                    onDoubleClick = { onTogglePlay() },
+                    // Hold to fast-forward, but only while the chart is actually playing.
+                    onLongClick = { if (clock.isPlaying) setSpeedBoost(true) },
+                    onClick = {},
+                )
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        waitForUpOrCancellation()
+                        setSpeedBoost(false)
+                    }
+                }
                 .semantics {
                     contentDescription = stageDescription
                     role = Role.Button
                 },
         ) {
-            ChartStage(chart = chart, clock = clock, config = renderConfig, cover = cover)
+            ChartStage(
+                chart = chart,
+                clock = clock,
+                config = renderConfig,
+                cover = cover,
+                speedBoostActive = speedBoostActive,
+            )
             PreviewStageOverlay(clock = clock)
         }
 
@@ -579,6 +626,7 @@ private fun ChartStage(
     clock: PreviewClock,
     config: ChartRenderConfig,
     cover: Bitmap?,
+    speedBoostActive: Boolean,
 ) {
     val context = LocalContext.current
     val renderer = remember { ChartRenderer() }
@@ -593,11 +641,11 @@ private fun ChartStage(
                 sizePx = sizePx,
                 chart = chart,
                 currentBeats = beats,
-                beatsPerMeasure = 4.0,
-                config = config,
+							config = config,
                 isPlaying = clock.isPlaying,
                 background = cover,
                 sensorImage = sensorImage,
+                speedMultiplier = if (speedBoostActive) BOOST_SPEED else 1f,
             )
         }
     }
@@ -767,6 +815,7 @@ private fun audioTargetMillis(positionMs: Double, chart: Chart, audioOffsetMs: I
         .coerceAtLeast(0)
 
 private const val AUDIO_START_TOLERANCE_MS = 150
+private const val BOOST_SPEED = 1.5f
 private const val CHART_SAVE_SNACKBAR_MS = 2_500L
 
 

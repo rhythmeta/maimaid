@@ -1,34 +1,28 @@
 package org.rhythmeta.maimaid.core.chart.render
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
 import kotlin.math.PI
-import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.sin
 import org.rhythmeta.maimaid.core.chart.ChartConstants
 import org.rhythmeta.maimaid.core.chart.ChartNote
 import org.rhythmeta.maimaid.core.chart.HoldStartNote
 import org.rhythmeta.maimaid.core.chart.NoteRenderPosition
+import kotlin.math.roundToInt
 
 /** Tap note rendering: approach arcs, chord connectors, EX rings, and the tap ring itself. */
 class NotePainter(context: RenderContext) : BasePainter(context) {
-    private val tapSpriteCache = HashMap<String, Bitmap>()
-    private var tapSpriteBasis = ""
 
-    private var noteStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+	private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
     }
-    private val spriteDrawPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    fun getPositionOnRing(position: Int): org.rhythmeta.maimaid.core.chart.ChartPoint =
+	fun getPositionOnRing(position: Int): org.rhythmeta.maimaid.core.chart.ChartPoint =
         buttonPosition(position)
 
     fun getAngle(position: Int): Double = buttonAngle(position)
@@ -155,10 +149,9 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
             for (i in 4 downTo 0) {
                 val alpha = if (i == 0) 0.4f else (0.4 * (1 - i / 5.0)).toFloat()
                 val path = Path()
-                for (arc in group) {
-                    val angle = buttonAngle(arc.position)
-                    val d = arc.distance
-                    if (i == 0) {
+                for ((position, d) in group) {
+                    val angle = buttonAngle(position)
+									if (i == 0) {
                         path.moveTo(
                             (context.centerX + cos(angle - PI / 8) * d).toFloat(),
                             (context.centerY + sin(angle - PI / 8) * d).toFloat(),
@@ -250,46 +243,18 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
         isSimultaneous: Boolean,
         scaleFactor: Double,
     ) {
-        val innerRadius = noteSize
-        val outerRadius = noteSize * 1.19 * scaleFactor
+			val outerRadius = noteSize * 1.19 * scaleFactor
         val color = when {
             isBreak -> ChartConstants.Colors.EX_OVERLAY_BREAK
             isSimultaneous -> ChartConstants.Colors.EX_OVERLAY_SIMULTANEOUS
             else -> ChartConstants.Colors.EX_OVERLAY_NORMAL
         }
-        val path = ringPath(x, y, innerRadius, outerRadius)
+        val path = ringPath(x, y, noteSize, outerRadius)
         applyColor(fillPaint, color)
         context.canvas.drawPath(path, fillPaint)
     }
 
-    /** Break triangle with the tip pointing outward. */
-    fun renderBreakTriangle(x: Double, y: Double, size: Double, position: Int) {
-        val angle = buttonAngle(position)
-        val triangleSize = size * 1.4
-        val tipAngle = angle
-        val leftAngle = angle + PI - PI / 3
-        val rightAngle = angle + PI + PI / 3
-        val path = Path().apply {
-            moveTo(
-                (x + cos(tipAngle) * triangleSize).toFloat(),
-                (y + sin(tipAngle) * triangleSize).toFloat(),
-            )
-            lineTo(
-                (x + cos(leftAngle) * triangleSize).toFloat(),
-                (y + sin(leftAngle) * triangleSize).toFloat(),
-            )
-            lineTo(
-                (x + cos(rightAngle) * triangleSize).toFloat(),
-                (y + sin(rightAngle) * triangleSize).toFloat(),
-            )
-            close()
-        }
-        strokeSettings(scaleByRadius(4.0 / 300.0), Paint.Cap.BUTT, Paint.Join.MITER)
-        applyColor(strokePaint, ChartConstants.Colors.WHITE, 0.8f)
-        context.canvas.drawPath(path, strokePaint)
-    }
-
-    /** Draws a tap note using a baked sprite, falling back to vectors in DDR color mode. */
+	/** Draws a tap note using a baked sprite, falling back to vectors in DDR color mode. */
     fun renderTapNote(
         x: Double,
         y: Double,
@@ -309,47 +274,7 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
         )
     }
 
-    private fun getTapSprite(
-        position: Int,
-        isBreak: Boolean,
-        isSimultaneous: Boolean,
-        isEx: Boolean,
-        highlightExScale: Double,
-    ): Bitmap {
-        val basis = "${context.radius}|${context.config.mirrorMode}"
-        if (basis != tapSpriteBasis) {
-            tapSpriteCache.values.forEach { it.recycle() }
-            tapSpriteCache.clear()
-            tapSpriteBasis = basis
-        }
-        val key = "$position|${if (isBreak) 1 else 0}|${if (isSimultaneous) 1 else 0}|" +
-            "${if (isEx) 1 else 0}|$highlightExScale"
-        tapSpriteCache[key]?.let { return it }
-
-        val half = scaleByRadius(ChartConstants.NOTE_SIZE_RATIO) * 1.36 * TAP_SPRITE_HALF_RATIO
-        val size = maxOf(2, ceil(half * 2 * TAP_SPRITE_SUPERSAMPLE).toInt())
-        val sprite = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val spriteCanvas = Canvas(sprite)
-        spriteCanvas.scale(
-            TAP_SPRITE_SUPERSAMPLE.toFloat(),
-            TAP_SPRITE_SUPERSAMPLE.toFloat(),
-            size / 2f,
-            size / 2f,
-        )
-        val mainCanvas = context.canvas
-        context.canvas = spriteCanvas
-        try {
-            drawTapNoteVector(
-                0.0, 0.0, 1.0, position, isBreak, isSimultaneous, isEx, 0.0, highlightExScale,
-            )
-        } finally {
-            context.canvas = mainCanvas
-        }
-        tapSpriteCache[key] = sprite
-        return sprite
-    }
-
-    private fun drawTapNoteVector(
+	private fun drawTapNoteVector(
         x: Double,
         y: Double,
         noteScale: Double,
@@ -361,35 +286,33 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
         highlightExScale: Double,
     ) {
         val baseSize = scaleByRadius(ChartConstants.NOTE_SIZE_RATIO) * noteScale * 1.36
-        val outerRadius = baseSize
-        val innerRadius = baseSize * ChartConstants.TAP_INNER_RING_RATIO
+		val innerRadius = baseSize * ChartConstants.TAP_INNER_RING_RATIO
         val canvas = context.canvas
 
         if (isEx) {
-            renderExRing(x, y, outerRadius, isBreak, isSimultaneous, highlightExScale)
+            renderExRing(x, y, baseSize, isBreak, isSimultaneous, highlightExScale)
         }
 
         val ddr = ddrColor(timing)
         val colors = gradientColors(ddr, isBreak, isSimultaneous)
-        renderDirectionalTapRing(x, y, innerRadius, outerRadius, position, colors)
+        renderDirectionalTapRing(x, y, innerRadius, baseSize, position, colors)
 
         val strokeW = noteStrokeWidth()
-        val blackBandW = strokeW
-        if (!isEx) {
-            strokeSettings(blackBandW, Paint.Cap.BUTT, Paint.Join.MITER)
+		if (!isEx) {
+            strokeSettings(strokeW, Paint.Cap.BUTT, Paint.Join.MITER)
             applyColor(strokePaint, ChartConstants.Colors.BLACK)
             val outerPath = arcPath(
                 x.toFloat(),
                 y.toFloat(),
-                (outerRadius + strokeW / 2 + blackBandW / 2).toFloat(),
+                (baseSize + strokeW / 2 + strokeW / 2).toFloat(),
                 0f,
                 360f,
             )
             canvas.drawPath(outerPath, strokePaint)
         }
-        val innerBlackR = innerRadius - strokeW / 2 - blackBandW / 2
+        val innerBlackR = innerRadius - strokeW / 2 - strokeW / 2
         if (innerBlackR > 0) {
-            strokeSettings(blackBandW, Paint.Cap.BUTT, Paint.Join.MITER)
+            strokeSettings(strokeW, Paint.Cap.BUTT, Paint.Join.MITER)
             applyColor(strokePaint, ChartConstants.Colors.BLACK)
             canvas.drawPath(
                 arcPath(x.toFloat(), y.toFloat(), innerBlackR.toFloat(), 0f, 360f),
@@ -400,7 +323,7 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
         strokeSettings(strokeW, Paint.Cap.BUTT, Paint.Join.MITER)
         applyColor(strokePaint, ChartConstants.Colors.WHITE)
         canvas.drawPath(
-            arcPath(x.toFloat(), y.toFloat(), outerRadius.toFloat(), 0f, 360f),
+            arcPath(x.toFloat(), y.toFloat(), baseSize.toFloat(), 0f, 360f),
             strokePaint,
         )
         canvas.drawPath(
@@ -408,7 +331,7 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
             strokePaint,
         )
 
-        val centerSize = outerRadius * 0.15
+        val centerSize = baseSize * 0.15
         val centerColor = when {
             ddr != null -> ddr
             isBreak -> ChartConstants.Colors.BREAK_ORANGE
@@ -476,7 +399,7 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
 
     /** Break ordering number above a break note. */
     fun renderBreakIndex(x: Double, y: Double, scale: Double, index: Int) {
-        val fontSize = Math.round(30f * context.radius / 300f * scale).toFloat()
+        val fontSize = (30f * context.radius / 300f * scale).roundToInt().toFloat()
         textPaint.textSize = fontSize
         textPaint.color = ChartConstants.Colors.WHITE
         val metrics = textPaint.fontMetrics
@@ -508,9 +431,7 @@ class NotePainter(context: RenderContext) : BasePainter(context) {
     }
 
     companion object {
-        private const val TAP_SPRITE_HALF_RATIO = 1.7
-        private const val TAP_SPRITE_SUPERSAMPLE = 2
-    }
+		}
 }
 
 /** One batched approach-arc entry. */

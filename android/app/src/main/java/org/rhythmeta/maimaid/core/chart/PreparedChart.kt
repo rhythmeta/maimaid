@@ -38,9 +38,8 @@ class TimeWindowIndex(
     }
 
     companion object {
-        val EMPTY = TimeWindowIndex(DoubleArray(0), DoubleArray(0))
 
-        fun <T> build(
+			fun <T> build(
             items: List<T>,
             timingOf: (T) -> Double,
             endOf: (T) -> Double,
@@ -116,8 +115,7 @@ class PreparedChart private constructor(
     val slides: List<SlideNote>,
     val touches: List<ChartNote>,
     val fireworkTouches: List<ChartNote>,
-    val holds: List<HoldStartNote>,
-    val holdEffectNotes: List<HoldStartNote>,
+		val holdEffectNotes: List<HoldStartNote>,
     val touchHoldNotes: List<TouchHoldStartNote>,
     val holdEndMap: Map<String, HoldEndNote>,
     val meta: Map<ChartNote, RenderNoteMeta>,
@@ -137,9 +135,7 @@ class PreparedChart private constructor(
 ) {
     fun metaOf(note: ChartNote): RenderNoteMeta = meta[note] ?: EMPTY_META
 
-    fun holdEndKey(position: Int, holdStartTiming: Double): String = "$position:$holdStartTiming"
-
-    fun countCompleted(sortedTimes: DoubleArray, currentTimeMs: Double): Int {
+	fun countCompleted(sortedTimes: DoubleArray, currentTimeMs: Double): Int {
         var lo = 0
         var hi = sortedTimes.size
         while (lo < hi) {
@@ -313,8 +309,7 @@ class PreparedChart private constructor(
                 slides = sortedSlides,
                 touches = sortedTouches,
                 fireworkTouches = fireworkTouches,
-                holds = holds,
-                holdEffectNotes = holdEffectNotes,
+							holdEffectNotes = holdEffectNotes,
                 touchHoldNotes = touchHoldNotes,
                 holdEndMap = holdEndMap,
                 meta = meta,

@@ -21,6 +21,11 @@ import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.TapNote
 import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
 import org.rhythmeta.maimaid.core.chart.TouchNote
+import androidx.core.graphics.withTranslation
+import androidx.core.graphics.withSave
+import kotlin.math.pow
+import androidx.core.graphics.createBitmap
+import kotlin.math.roundToInt
 
 /**
  * Time-driven effects: tap hit stamps, hold press ripples, touch hit bursts and touch fireworks.
@@ -187,22 +192,21 @@ class EffectsPainter(
         val path = stampPath(type, radius)
         val core = scaleByRadius(ChartConstants.NOTE_STROKE_WIDTH_RATIO) * 2f
         val canvas = context.canvas
-        canvas.save()
-        canvas.translate(x.toFloat(), y.toFloat())
-        effectStroke.strokeJoin = Paint.Join.ROUND
-        effectStroke.strokeCap = Paint.Cap.ROUND
-        // Soft halo: wide, low-alpha strokes that do not thicken the core stroke.
-        effectStroke.strokeWidth = core + scaleByRadius(10.0 / 300.0)
-        effectStroke.color = color
-        effectStroke.alpha = (255 * alpha * 0.10f).toInt()
-        canvas.drawPath(path, effectStroke)
-        effectStroke.strokeWidth = core + scaleByRadius(5.0 / 300.0)
-        effectStroke.alpha = (255 * alpha * 0.22f).toInt()
-        canvas.drawPath(path, effectStroke)
-        effectStroke.strokeWidth = core
-        effectStroke.alpha = (255 * alpha).toInt()
-        canvas.drawPath(path, effectStroke)
-        canvas.restore()
+        canvas.withTranslation(x.toFloat(), y.toFloat()) {
+					effectStroke.strokeJoin = Paint.Join.ROUND
+					effectStroke.strokeCap = Paint.Cap.ROUND
+					// Soft halo: wide, low-alpha strokes that do not thicken the core stroke.
+					effectStroke.strokeWidth = core + scaleByRadius(10.0 / 300.0)
+					effectStroke.color = color
+					effectStroke.alpha = (255 * alpha * 0.10f).toInt()
+					drawPath(path, effectStroke)
+					effectStroke.strokeWidth = core + scaleByRadius(5.0 / 300.0)
+					effectStroke.alpha = (255 * alpha * 0.22f).toInt()
+					drawPath(path, effectStroke)
+					effectStroke.strokeWidth = core
+					effectStroke.alpha = (255 * alpha).toInt()
+					drawPath(path, effectStroke)
+				}
     }
 
     /** Stamp outline at the origin, cached per type and half-pixel radius bucket. */
@@ -277,36 +281,36 @@ class EffectsPainter(
         endMs: Double,
         currentTimeMs: Double,
     ) {
-        if (currentTimeMs < startMs || currentTimeMs >= endMs) return
+        if (currentTimeMs !in startMs..<endMs) return
         if (context.radius <= 0f) return
         val canvas = context.canvas
-        canvas.save()
-        effectPaint.blendMode = BlendMode.SCREEN
-        val elapsedSec = (currentTimeMs - startMs) / 1000.0
-        val firstCycle = kotlin.math.floor((elapsedSec - RIPPLE_LIFETIME) / RIPPLE_CYCLE).toInt()
-        val lastCycle = kotlin.math.floor(elapsedSec / RIPPLE_CYCLE).toInt()
-        val radiusPx = context.radius.toDouble()
+        canvas.withSave {
+					effectPaint.blendMode = BlendMode.SCREEN
+					val elapsedSec = (currentTimeMs - startMs) / 1000.0
+					val firstCycle = kotlin.math.floor((elapsedSec - RIPPLE_LIFETIME) / RIPPLE_CYCLE).toInt()
+					val lastCycle = kotlin.math.floor(elapsedSec / RIPPLE_CYCLE).toInt()
+					val radiusPx = context.radius.toDouble()
 
-        data class Wave(val peakRadius: Double, val alpha: Double)
+					data class Wave(val peakRadius: Double, val alpha: Double)
 
-        val waves = mutableListOf<Wave>()
-        for (cycle in firstCycle..lastCycle) {
-            for (emitOffset in RIPPLE_EMIT_OFFSETS) {
-                val age = elapsedSec - (cycle * RIPPLE_CYCLE + emitOffset)
-                if (age < 0 || age >= RIPPLE_LIFETIME) continue
-                val peakRadius =
-                    (RIPPLE_BIRTH_RADIUS_RATIO + RIPPLE_GROWTH_RATIO_PER_SEC * age) * radiusPx
-                val alpha = min(1.0, (RIPPLE_LIFETIME - age) / (RIPPLE_LIFETIME - RIPPLE_ATTACK))
-                if (peakRadius < 0.75 || alpha <= 0.02) continue
-                waves += Wave(peakRadius, alpha)
-            }
-        }
-        waves.sortByDescending { it.peakRadius }
-        for (wave in waves) {
-            drawRippleRing(origin, wave.peakRadius, wave.alpha)
-        }
-        effectPaint.blendMode = null
-        canvas.restore()
+					val waves = mutableListOf<Wave>()
+					for (cycle in firstCycle..lastCycle) {
+						for (emitOffset in RIPPLE_EMIT_OFFSETS) {
+							val age = elapsedSec - (cycle * RIPPLE_CYCLE + emitOffset)
+							if (age !in 0.0..<RIPPLE_LIFETIME) continue
+							val peakRadius =
+								(RIPPLE_BIRTH_RADIUS_RATIO + RIPPLE_GROWTH_RATIO_PER_SEC * age) * radiusPx
+							val alpha = min(1.0, (RIPPLE_LIFETIME - age) / (RIPPLE_LIFETIME - RIPPLE_ATTACK))
+							if (peakRadius < 0.75 || alpha <= 0.02) continue
+							waves += Wave(peakRadius, alpha)
+						}
+					}
+					waves.sortByDescending { it.peakRadius }
+					for ((peakRadius, alpha) in waves) {
+						drawRippleRing(origin, peakRadius, alpha)
+					}
+					effectPaint.blendMode = null
+				}
     }
 
     private fun drawRippleRing(origin: ChartPoint, peakRadius: Double, alpha: Double) {
@@ -414,37 +418,47 @@ class EffectsPainter(
         }
 
         val canvas = context.canvas
-        canvas.save()
-        effectPaint.blendMode = BlendMode.PLUS
-        for (index in lo until touches.size) {
-            val note = touches[index]
-            if (note.timingMs > currentTimeMs) break
-            if (note !is TouchNote) continue
-            val latest = lastByPos[note.position]
-            if (latest != null && latest > note.timingMs) continue
-            val age = (currentTimeMs - note.timingMs) / 1000.0
-            if (age < 0 || age >= 0.5) continue
-            val origin = touchPainter.touchPosition(note.position)
-            var seed = Math.round(note.timingMs * 1000).toInt()
-            note.position.forEachIndexed { charIndex, char ->
-                seed = seed xor (char.code * (charIndex + 1) * 73856093)
-            }
-            drawTouchCenterRing(origin, age, unitPx)
-            drawStarBurst(origin, age, unitPx, seed, SMALL_COUNT, SMALL_SHAPE_R, SMALL_SIZE, 0.0, 0.0)
-            drawStarBurst(
-                origin,
-                age,
-                unitPx,
-                seed xor 0x85ebca77.toInt(),
-                ROUND_COUNT,
-                ROUND_SHAPE_R,
-                ROUND_SIZE,
-                ROUND_START_SPEED,
-                ROUND_CLAMP_SPEED,
-            )
-        }
-        effectPaint.blendMode = null
-        canvas.restore()
+        canvas.withSave {
+					effectPaint.blendMode = BlendMode.PLUS
+					for (index in lo until touches.size) {
+						val note = touches[index]
+						if (note.timingMs > currentTimeMs) break
+						if (note !is TouchNote) continue
+						val latest = lastByPos[note.position]
+						if (latest != null && latest > note.timingMs) continue
+						val age = (currentTimeMs - note.timingMs) / 1000.0
+						if (age !in 0.0..<0.5) continue
+						val origin = touchPainter.touchPosition(note.position)
+						var seed = (note.timingMs * 1000).roundToInt()
+						note.position.forEachIndexed { charIndex, char ->
+							seed = seed xor (char.code * (charIndex + 1) * 73856093)
+						}
+						drawTouchCenterRing(origin, age, unitPx)
+						drawStarBurst(
+			        origin,
+			        age,
+			        unitPx,
+			        seed,
+			        SMALL_COUNT,
+			        SMALL_SHAPE_R,
+			        SMALL_SIZE,
+			        0.0,
+			        0.0
+		        )
+						drawStarBurst(
+							origin,
+							age,
+							unitPx,
+							seed xor 0x85ebca77.toInt(),
+							ROUND_COUNT,
+							ROUND_SHAPE_R,
+							ROUND_SIZE,
+							ROUND_START_SPEED,
+							ROUND_CLAMP_SPEED,
+						)
+					}
+					effectPaint.blendMode = null
+				}
         effectStroke.blendMode = null
     }
 
@@ -527,53 +541,53 @@ class EffectsPainter(
         frame: Int,
     ) {
         val canvas = context.canvas
-        canvas.save()
-        canvas.translate(x.toFloat(), y.toFloat())
-        canvas.rotate(Math.toDegrees(rotation).toFloat())
-        when (frame) {
-            0, 1, 2 -> {
-                val tipR = when (frame) {
-                    0 -> outerR * 1.08
-                    1 -> outerR
-                    else -> outerR * 0.94
-                }
-                val waistR = when (frame) {
-                    0 -> outerR * 0.23
-                    1 -> outerR * 0.23
-                    else -> outerR * 0.19
-                }
-                val path = sparklePath(tipR, waistR)
-                val shader = RadialGradient(
-                    0f,
-                    0f,
-                    tipR.toFloat(),
-                    intArrayOf(
-                        (TOUCH_HIT_COLOR and 0x00FFFFFF) or ((alpha * 0.95f * 255).toInt() shl 24),
-                        (TOUCH_HIT_COLOR and 0x00FFFFFF) or ((alpha * 0.72f * 255).toInt() shl 24),
-                        TOUCH_HIT_COLOR and 0x00FFFFFF,
-                    ),
-                    floatArrayOf(0f, 0.82f, 1f),
-                    Shader.TileMode.CLAMP,
-                )
-                effectPaint.shader = shader
-                effectPaint.alpha = 255
-                canvas.drawPath(path, effectPaint)
-                effectPaint.shader = null
-            }
-            else -> {
-                effectStroke.strokeJoin = Paint.Join.ROUND
-                effectStroke.strokeCap = Paint.Cap.ROUND
-                effectStroke.strokeWidth = maxOf(1f, (outerR * 0.13).toFloat())
-                effectStroke.color = HIT_GOLD
-                effectStroke.alpha = (alpha * 0.22f * 255).toInt()
-                canvas.drawPath(sparklePath(outerR * 1.08, outerR * 0.2 * 1.08), effectStroke)
-                effectStroke.strokeWidth = maxOf(0.8f, (outerR * 0.055).toFloat())
-                effectStroke.color = 0xFFFFFEF0.toInt()
-                effectStroke.alpha = (alpha * 0.88f * 255).toInt()
-                canvas.drawPath(sparklePath(outerR, outerR * 0.2), effectStroke)
-            }
-        }
-        canvas.restore()
+        canvas.withTranslation(x.toFloat(), y.toFloat()) {
+					rotate(Math.toDegrees(rotation).toFloat())
+					when (frame) {
+						0, 1, 2 -> {
+							val tipR = when (frame) {
+								0 -> outerR * 1.08
+								1 -> outerR
+								else -> outerR * 0.94
+							}
+							val waistR = when (frame) {
+								0 -> outerR * 0.23
+								1 -> outerR * 0.23
+								else -> outerR * 0.19
+							}
+							val path = sparklePath(tipR, waistR)
+							val shader = RadialGradient(
+								0f,
+								0f,
+								tipR.toFloat(),
+								intArrayOf(
+									(TOUCH_HIT_COLOR and 0x00FFFFFF) or ((alpha * 0.95f * 255).toInt() shl 24),
+									(TOUCH_HIT_COLOR and 0x00FFFFFF) or ((alpha * 0.72f * 255).toInt() shl 24),
+									TOUCH_HIT_COLOR and 0x00FFFFFF,
+								),
+								floatArrayOf(0f, 0.82f, 1f),
+								Shader.TileMode.CLAMP,
+							)
+							effectPaint.shader = shader
+							effectPaint.alpha = 255
+							drawPath(path, effectPaint)
+							effectPaint.shader = null
+						}
+
+						else -> {
+							effectStroke.strokeJoin = Paint.Join.ROUND
+							effectStroke.strokeCap = Paint.Cap.ROUND
+							effectStroke.strokeWidth = maxOf(1f, (outerR * 0.13).toFloat())
+							effectStroke.color = HIT_GOLD
+							effectStroke.alpha = (alpha * 0.22f * 255).toInt()
+							drawPath(sparklePath(outerR * 1.08, outerR * 0.2 * 1.08), effectStroke)
+							effectStroke.strokeWidth = maxOf(0.8f, (outerR * 0.055).toFloat())
+							effectStroke.color = 0xFFFFFEF0.toInt()
+							effectStroke.alpha = (alpha * 0.88f * 255).toInt()
+							drawPath(sparklePath(outerR, outerR * 0.2), effectStroke)
+						}
+					}
+				}
     }
 
     private fun sparklePath(tipR: Double, waistR: Double): Path {
@@ -615,7 +629,7 @@ class EffectsPainter(
             tSec < 0.1 -> 0.0
             tSec < 0.5 -> {
                 val u = (tSec - 0.1) / 0.4
-                (1 - Math.pow(1 - u, 3.0)) * FIREWORK_SCALE_PEAK
+                (1 - (1 - u).pow(3.0)) * FIREWORK_SCALE_PEAK
             }
             else -> FIREWORK_SCALE_PEAK
         }
@@ -627,10 +641,9 @@ class EffectsPainter(
             else -> return
         }
         val rotation = (ageMs / FIREWORK_DURATION_MS) * (72 * PI / 180)
-        val canvas = context.canvas
 
-        if (tSec > FIREWORK_HOLE_START_SEC) {
-            val outerR = (context.radius / 4.5 * scale).toDouble()
+			if (tSec > FIREWORK_HOLE_START_SEC) {
+            val outerR = (context.radius / 4.5 * scale)
             val linearU = min(
                 1.0,
                 (tSec - FIREWORK_HOLE_START_SEC) / (FIREWORK_END_SEC - FIREWORK_HOLE_START_SEC),
@@ -737,7 +750,7 @@ class EffectsPainter(
             return existing
         }
         existing?.recycle()
-        return Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888).also {
+        return createBitmap(sizePx, sizePx).also {
             fireworkScratch = it
         }
     }
@@ -757,21 +770,20 @@ class EffectsPainter(
         val outerR = context.radius / 4.5 * scale
         if (outerR <= 0) return
         val canvas = context.canvas
-        canvas.save()
-        canvas.translate(position.x.toFloat(), position.y.toFloat())
-        canvas.rotate(Math.toDegrees(rotation).toFloat())
+        canvas.withTranslation(position.x.toFloat(), position.y.toFloat()) {
+					rotate(Math.toDegrees(rotation).toFloat())
 
-        ensurePetalCaches(alpha)
-        // Petal outlines and gradients are cached at radius 1; the canvas scale maps them up, so a
-        // frame no longer builds a dozen paths and shaders.
-        canvas.scale(outerR.toFloat(), outerR.toFloat())
-        for (index in FIREWORK_PETAL_COLORS.indices) {
-            effectPaint.shader = petalShaders[index]
-            effectPaint.alpha = 255
-            canvas.drawPath(petalPaths[index] ?: continue, effectPaint)
-        }
-        effectPaint.shader = null
-        canvas.restore()
+					ensurePetalCaches(alpha)
+					// Petal outlines and gradients are cached at radius 1; the canvas scale maps them up, so a
+					// frame no longer builds a dozen paths and shaders.
+					scale(outerR.toFloat(), outerR.toFloat())
+					for (index in FIREWORK_PETAL_COLORS.indices) {
+						effectPaint.shader = petalShaders[index]
+						effectPaint.alpha = 255
+						drawPath(petalPaths[index] ?: continue, effectPaint)
+					}
+					effectPaint.shader = null
+				}
 
         drawFireworkBalls(position, tSec - 0.1, alpha)
     }
@@ -780,61 +792,59 @@ class EffectsPainter(
         if (growT < 0) return
         val baseRadius = context.radius / 4.5
         val canvas = context.canvas
-        canvas.save()
-        effectPaint.blendMode = BlendMode.PLUS
+        canvas.withSave {
+					effectPaint.blendMode = BlendMode.PLUS
 
-        val bigGrow = 0.06
-        val bigRise = 0.04
-        val bigRMax = baseRadius * 1.3
-        val bigDecayEnd = FIREWORK_DURATION_MS / 1000.0 - 0.1
-        val bigPeakAlpha = 0.7
-        var bigAlpha = 0.0
-        var bigR = 0.0
-        if (growT < bigGrow) {
-            bigR = growT / bigGrow * bigRMax
-            bigAlpha = bigPeakAlpha * min(1.0, growT / bigRise)
-        } else {
-            val d = (growT - bigGrow) / (bigDecayEnd - bigGrow)
-            bigR = bigRMax * (1 - d)
-            bigAlpha = bigPeakAlpha * (1 - d)
-        }
-        if (bigAlpha > 0 && bigR > 0) {
-            effectPaint.shader = unitBallShaderBig
-            effectPaint.alpha = (255 * bigAlpha * alpha).toInt()
-            canvas.save()
-            canvas.translate(position.x.toFloat(), position.y.toFloat())
-            canvas.scale(bigR.toFloat(), bigR.toFloat())
-            canvas.drawCircle(0f, 0f, 1f, effectPaint)
-            canvas.restore()
-        }
+					val bigGrow = 0.06
+					val bigRise = 0.04
+					val bigRMax = baseRadius * 1.3
+					val bigDecayEnd = FIREWORK_DURATION_MS / 1000.0 - 0.1
+					val bigPeakAlpha = 0.7
+					var bigAlpha: Double
+					var bigR: Double
+					if (growT < bigGrow) {
+						bigR = growT / bigGrow * bigRMax
+						bigAlpha = bigPeakAlpha * min(1.0, growT / bigRise)
+					} else {
+						val d = (growT - bigGrow) / (bigDecayEnd - bigGrow)
+						bigR = bigRMax * (1 - d)
+						bigAlpha = bigPeakAlpha * (1 - d)
+					}
+					if (bigAlpha > 0 && bigR > 0) {
+						effectPaint.shader = unitBallShaderBig
+						effectPaint.alpha = (255 * bigAlpha * alpha).toInt()
+						withTranslation(position.x.toFloat(), position.y.toFloat()) {
+							scale(bigR.toFloat(), bigR.toFloat())
+							drawCircle(0f, 0f, 1f, effectPaint)
+						}
+					}
 
-        val smallGrow = 0.04
-        val smallRise = 0.02
-        val smallRMax = baseRadius * 0.55
-        val smallDecayEnd = 0.55
-        val smallPeakAlpha = 0.6
-        var smallAlpha = 0.0
-        var smallR = 0.0
-        if (growT < smallGrow) {
-            smallR = growT / smallGrow * smallRMax
-            smallAlpha = smallPeakAlpha * min(1.0, growT / smallRise)
-        } else if (growT < smallDecayEnd) {
-            val d = (growT - smallGrow) / (smallDecayEnd - smallGrow)
-            smallR = smallRMax * (1 - d)
-            smallAlpha = smallPeakAlpha * (1 - d)
-        }
-        if (smallAlpha > 0 && smallR > 0) {
-            effectPaint.shader = unitBallShaderSmall
-            effectPaint.alpha = (255 * smallAlpha * alpha).toInt()
-            canvas.save()
-            canvas.translate(position.x.toFloat(), position.y.toFloat())
-            canvas.scale(smallR.toFloat(), smallR.toFloat())
-            canvas.drawCircle(0f, 0f, 1f, effectPaint)
-            canvas.restore()
-        }
-        effectPaint.shader = null
-        effectPaint.blendMode = null
-        canvas.restore()
+					val smallGrow = 0.04
+					val smallRise = 0.02
+					val smallRMax = baseRadius * 0.55
+					val smallDecayEnd = 0.55
+					val smallPeakAlpha = 0.6
+					var smallAlpha = 0.0
+					var smallR = 0.0
+					if (growT < smallGrow) {
+						smallR = growT / smallGrow * smallRMax
+						smallAlpha = smallPeakAlpha * min(1.0, growT / smallRise)
+					} else if (growT < smallDecayEnd) {
+						val d = (growT - smallGrow) / (smallDecayEnd - smallGrow)
+						smallR = smallRMax * (1 - d)
+						smallAlpha = smallPeakAlpha * (1 - d)
+					}
+					if (smallAlpha > 0 && smallR > 0) {
+						effectPaint.shader = unitBallShaderSmall
+						effectPaint.alpha = (255 * smallAlpha * alpha).toInt()
+						withTranslation(position.x.toFloat(), position.y.toFloat()) {
+							scale(smallR.toFloat(), smallR.toFloat())
+							drawCircle(0f, 0f, 1f, effectPaint)
+						}
+					}
+					effectPaint.shader = null
+					effectPaint.blendMode = null
+				}
     }
 
     // ------------------------------------------------------------------ interpolation

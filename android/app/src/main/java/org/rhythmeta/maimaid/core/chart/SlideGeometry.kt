@@ -25,7 +25,7 @@ object SlideGeometry {
         val rel = relativeEnd(startPos, endPos)
         return when (type) {
             SlidePathType.LINE -> {
-                if (rel < 3 || rel > 7) return null
+                if (rel !in 3..7) return null
                 val normRel = if (rel > 5) 10 - rel else rel
                 SlideShape("line$normRel", normRel != rel)
             }

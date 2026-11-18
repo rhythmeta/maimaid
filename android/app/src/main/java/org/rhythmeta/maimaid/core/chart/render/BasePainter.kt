@@ -7,7 +7,6 @@ import android.graphics.Path
 import android.graphics.RectF
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -17,6 +16,7 @@ import org.rhythmeta.maimaid.core.chart.ChartRenderConfig
 import org.rhythmeta.maimaid.core.chart.MirrorMode
 import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.TouchGeometry
+import kotlin.math.roundToInt
 
 /**
  * Canvas geometry for one frame. Mirrors the reference `RenderContext`: the judgment ring radius
@@ -107,12 +107,12 @@ abstract class BasePainter(protected val context: RenderContext) {
         val fractional = abs(timing % 1.0)
         if (fractional < epsilon || fractional > 1 - epsilon) return ChartConstants.Colors.DDR_RED
         val half = abs(timing % 0.5)
-        if (half < epsilon || half > 0.499) return ChartConstants.Colors.DDR_BLUE
+        if (half !in epsilon..0.499) return ChartConstants.Colors.DDR_BLUE
         val quarter = abs(timing % 0.25)
-        if (quarter < epsilon || quarter > 0.249) return ChartConstants.Colors.DDR_YELLOW
+        if (quarter !in epsilon..0.249) return ChartConstants.Colors.DDR_YELLOW
         if (context.config.ddrColorExtended) {
             val eighth = abs(timing % 0.125)
-            if (eighth < epsilon || eighth > 0.124) return ChartConstants.Colors.DDR_ORANGE
+            if (eighth !in epsilon..0.124) return ChartConstants.Colors.DDR_ORANGE
             val sixth = 1.0 / 6.0
             val sixthRemainder = abs(timing % sixth)
             if (sixthRemainder < epsilon || sixthRemainder > sixth - epsilon) {
@@ -145,7 +145,7 @@ abstract class BasePainter(protected val context: RenderContext) {
 
     protected fun mixColor(from: Int, target: Int, amount: Float): Int {
         fun channel(color: Int, shift: Int) = (color shr shift) and 0xff
-        val mix = { a: Int, b: Int -> Math.round(a + (b - a) * amount) }
+        val mix = { a: Int, b: Int -> (a + (b - a) * amount).roundToInt() }
         return Color.argb(
             255,
             mix(channel(from, 16), channel(target, 16)),
@@ -156,7 +156,7 @@ abstract class BasePainter(protected val context: RenderContext) {
 
     protected fun scaleBrightness(color: Int, factor: Float): Int {
         fun channel(shift: Int): Int =
-            (Math.round(((color shr shift) and 0xff) * factor)).coerceIn(0, 255)
+            ((((color shr shift) and 0xff) * factor).roundToInt()).coerceIn(0, 255)
         return Color.argb(channel(24), channel(16), channel(8), channel(0))
     }
 
@@ -191,8 +191,8 @@ abstract class BasePainter(protected val context: RenderContext) {
         val segments = maxOf(32, kotlin.math.ceil(radius.toDouble()).toInt())
         for (index in 0..segments) {
             val angle = PI * 2 * index / segments
-            val x = cx + (kotlin.math.cos(angle) * radius).toFloat()
-            val y = cy + (kotlin.math.sin(angle) * radius).toFloat()
+            val x = cx + (cos(angle) * radius).toFloat()
+            val y = cy + (sin(angle) * radius).toFloat()
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         path.close()
@@ -200,12 +200,12 @@ abstract class BasePainter(protected val context: RenderContext) {
     }
 
     protected fun arcPath(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float): Path {
-        if (kotlin.math.abs(sweepDeg) >= 359.9f) return circlePath(cx, cy, radius)
+        if (abs(sweepDeg) >= 359.9f) return circlePath(cx, cy, radius)
         val path = Path()
         val startRad = Math.toRadians(startDeg.toDouble())
         path.moveTo(
-            cx + (kotlin.math.cos(startRad) * radius).toFloat(),
-            cy + (kotlin.math.sin(startRad) * radius).toFloat(),
+            cx + (cos(startRad) * radius).toFloat(),
+            cy + (sin(startRad) * radius).toFloat(),
         )
         appendArc(path, cx, cy, radius, startDeg, sweepDeg)
         // No close(): a stroked arc must not gain a chord between its endpoints.
@@ -221,13 +221,13 @@ abstract class BasePainter(protected val context: RenderContext) {
         startDeg: Float,
         sweepDeg: Float,
     ) {
-        val steps = maxOf(2, kotlin.math.ceil(kotlin.math.abs(sweepDeg) / 7.5f).toInt())
+        val steps = maxOf(2, kotlin.math.ceil(abs(sweepDeg) / 7.5f).toInt())
         val start = Math.toRadians(startDeg.toDouble())
         val sweep = Math.toRadians(sweepDeg.toDouble())
         for (index in 0..steps) {
             val angle = start + sweep * index / steps
-            val x = cx + (kotlin.math.cos(angle) * radius).toFloat()
-            val y = cy + (kotlin.math.sin(angle) * radius).toFloat()
+            val x = cx + (cos(angle) * radius).toFloat()
+            val y = cy + (sin(angle) * radius).toFloat()
             path.lineTo(x, y)
         }
     }
@@ -242,9 +242,7 @@ abstract class BasePainter(protected val context: RenderContext) {
 
     protected fun lerpAngle(a: Double, b: Double, t: Double): Double = a + angleDelta(a, b) * t
 
-    protected fun angleOf(dx: Double, dy: Double): Double = atan2(dy, dx)
-
-    protected fun slideTrackAppearance(note: SlideNote, currentTimeMs: Double, isWifi: Boolean) =
+	protected fun slideTrackAppearance(note: SlideNote, currentTimeMs: Double, isWifi: Boolean) =
         org.rhythmeta.maimaid.core.chart.SlideAppearance.trackAppearance(
             noteTimeMs = note.timingMs,
             approachTimeMs = noteApproachTimeMs(note.hiSpeed),

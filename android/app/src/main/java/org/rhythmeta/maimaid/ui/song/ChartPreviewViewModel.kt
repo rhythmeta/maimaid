@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.ui.song
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -25,7 +26,6 @@ import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 import java.io.BufferedOutputStream
-import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -287,7 +287,8 @@ class ChartPreviewViewModel(
     /** Bumped on every finished seek so the chart clock can resume exactly with the track. */
     val seekCompletions = audioPlayer.seekCompletions
 
-    override fun onCleared() {
+    @SuppressLint("EmptySuperCall")
+		override fun onCleared() {
         audioPlayer.release()
         super.onCleared()
     }

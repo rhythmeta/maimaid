@@ -14,6 +14,7 @@ import org.rhythmeta.maimaid.core.chart.ChartPoint
 import org.rhythmeta.maimaid.core.chart.HoldEndNote
 import org.rhythmeta.maimaid.core.chart.HoldStartNote
 import org.rhythmeta.maimaid.core.chart.NoteRenderPosition
+import kotlin.math.roundToInt
 
 /** Hold bodies: hexagonal tube, EX frame, head glow and pressed breathing brightness. */
 class HoldPainter(context: RenderContext) : BasePainter(context) {
@@ -67,8 +68,7 @@ class HoldPainter(context: RenderContext) : BasePainter(context) {
             endY = context.centerY + sin(angle) * approachDist
         }
 
-        val tipAngle = angle
-        val leftAngle = angle + PI / 3
+			val leftAngle = angle + PI / 3
         val rightAngle = angle - PI / 3
         val backAngle = angle + PI
         val backLeftAngle = angle + PI - PI / 3
@@ -79,7 +79,7 @@ class HoldPainter(context: RenderContext) : BasePainter(context) {
             fromY + sin(a) * distance,
         )
 
-        val startTip = point(startX, startY, tipAngle, holdWidth)
+        val startTip = point(startX, startY, angle, holdWidth)
         val startLeft = point(startX, startY, leftAngle, holdWidth)
         val startRight = point(startX, startY, rightAngle, holdWidth)
 
@@ -98,7 +98,7 @@ class HoldPainter(context: RenderContext) : BasePainter(context) {
         val endBackRight = point(endX, endY, backRightAngle, endWidth)
 
         val innerRatio = ChartConstants.HOLD_INNER_RATIO
-        val innerStartTip = point(startX, startY, tipAngle, holdWidth * innerRatio)
+        val innerStartTip = point(startX, startY, angle, holdWidth * innerRatio)
         val innerStartLeft = point(startX, startY, leftAngle, holdWidth * innerRatio)
         val innerStartRight = point(startX, startY, rightAngle, holdWidth * innerRatio)
         val innerEndBack = point(endX, endY, backAngle, endWidth * innerRatio)
@@ -166,7 +166,7 @@ class HoldPainter(context: RenderContext) : BasePainter(context) {
         val isPressed = startNote != null && endNote != null &&
             currentTimeMs >= startNote.timingMs && currentTimeMs < endNote.timingMs
         val brightness =
-            if (isPressed && startNote != null) {
+            if (isPressed) {
                 activeBodyBrightness(currentTimeMs - startNote.timingMs).toFloat()
             } else {
                 1f
@@ -256,7 +256,7 @@ class HoldPainter(context: RenderContext) : BasePainter(context) {
         val positions = FloatArray(ChartConstants.HOLD_ACTIVE_GLOW_RAMP.size + 1)
         ChartConstants.HOLD_ACTIVE_GLOW_RAMP.forEachIndexed { index, stop ->
             fun channel(value: Int, mul: Double) =
-                maxOf(0, minOf(255, Math.round(value * mul).toInt()))
+                maxOf(0, minOf(255, (value * mul).roundToInt()))
             colors[index] = android.graphics.Color.rgb(
                 channel(base[0], stop[1]),
                 channel(base[1], stop[2]),
