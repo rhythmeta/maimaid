@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +77,7 @@ class ChartPreviewViewModel(
 
     private val audioPlayer = ChartAudioPlayer(container.applicationContext)
     private var preparedEntryId: Int? = null
+    private var audioPrepareJob: Job? = null
     private var coverArtCache: Pair<String, ByteArray?>? = null
 
     init {
@@ -165,12 +167,27 @@ class ChartPreviewViewModel(
     }
 
     private fun prepareAudio(entry: ChartAssetIndex.Entry) {
-        val audio = entry.files.audio ?: return
         if (preparedEntryId == entry.id) return
         preparedEntryId = entry.id
-        viewModelScope.launch {
+        // A superseded download must not keep preparing a track that is no longer selected.
+        audioPrepareJob?.cancel()
+        audioPrepareJob = null
+        val audio = entry.files.audio
+        if (audio == null) {
+            // Switching to a sheet without a track must not leave the previous track playing.
+            audioPlayer.release()
+            mutableAudioState.value = ChartAudioState.Idle
+            return
+        }
+        // Publish the loading state before the download starts, so the preview can hold the chart
+        // and the status line can report why playback has not begun yet.
+        mutableAudioState.value = ChartAudioState.Preparing
+        audioPrepareJob = viewModelScope.launch {
             audioPlayer.prepare(audio, container.staticBundleClient)
             mutableAudioState.value = audioPlayer.state
+            // A failed track stays retryable: clearing the guard lets a reload prepare it again.
+            if (audioPlayer.state is ChartAudioState.Failed) preparedEntryId = null
+            audioPrepareJob = null
         }
     }
 

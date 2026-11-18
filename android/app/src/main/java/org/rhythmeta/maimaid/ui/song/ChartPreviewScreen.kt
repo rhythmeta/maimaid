@@ -92,6 +92,7 @@ import org.rhythmeta.maimaid.ui.components.squircleShape
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
@@ -328,9 +329,27 @@ private fun ChartPreviewContent(
     LaunchedEffect(settings.sfxOffsetMs) {
         scheduler.setUserOffset(settings.sfxOffsetMs.toDouble(), clock.position.doubleValue)
     }
+    // The notes must never run ahead of the music: hold the clock until the selected track has
+    // finished downloading and MediaPlayer handed it back, which is what `waitingForAudio` waits
+    // for. A failed download opens the gate anyway so the chart still plays silently; the audio
+    // status line reports the failure.
+    val waitingForAudio = previewAudioPending(
+        hasAudio = option.entry.files.audio != null,
+        audioState = audioState,
+    )
+    // Rewind whenever another chart is shown; the start effect below decides when it may run.
     LaunchedEffect(chart) {
         clock.position.doubleValue = 0.0
         scheduler.reset(0.0)
+        clock.audioStarted = false
+        clock.isPlaying = false
+    }
+    // Starting is its own effect so a download finishing later cannot override a user pause. The
+    // audio anchor is dropped on every (re)start, so the frame loop re-syncs the track before the
+    // SFX begin.
+    LaunchedEffect(chart, waitingForAudio) {
+        if (waitingForAudio) return@LaunchedEffect
+        clock.audioStarted = false
         clock.isPlaying = true
     }
 
@@ -486,7 +505,9 @@ private fun ChartPreviewContent(
         )
     }
 
-    val onTogglePlay: () -> Unit = {
+    val onTogglePlay: () -> Unit = toggle@{
+        // Nothing can start before the track is ready; the stage shows the download in progress.
+        if (waitingForAudio) return@toggle
         if (clock.position.doubleValue >= clock.durationMs) {
             clock.position.doubleValue = 0.0
             scheduler.reset(0.0)
@@ -553,13 +574,13 @@ private fun ChartPreviewContent(
                 cover = cover,
                 speedBoostActive = speedBoostActive,
             )
-            PreviewStageOverlay(clock = clock)
+            PreviewStageOverlay(clock = clock, waitingForAudio = waitingForAudio)
         }
 
         Spacer(Modifier.height(12.dp))
         PreviewTransport(
             clock = clock,
-            enabled = true,
+            enabled = !waitingForAudio,
             soundEnabled = soundEnabled,
             onTogglePlay = onTogglePlay,
             onToggleSound = { soundEnabled = !soundEnabled },
@@ -652,7 +673,37 @@ private fun ChartStage(
 }
 
 @Composable
-private fun PreviewStageOverlay(clock: PreviewClock) {
+private fun PreviewStageOverlay(clock: PreviewClock, waitingForAudio: Boolean) {
+    if (waitingForAudio) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                            foregroundColor = Color.White,
+                            backgroundColor = Color.Transparent,
+                        ),
+                        size = 28.dp,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.chart_preview_audio_loading),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = Color.White,
+                )
+            }
+        }
+        return
+    }
     if (clock.isPlaying) return
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Box(
@@ -806,6 +857,19 @@ private class PreviewClock(val durationMs: Double) {
         holdForSeek = true
         seekHoldBase = currentCompletions
         seekHoldDeadlineMs = android.os.SystemClock.uptimeMillis() + 600
+    }
+}
+
+/**
+ * True while the selected sheet's track is still downloading or being handed to MediaPlayer.
+ * Sheets without a track and tracks that failed to prepare are not pending, so the chart stays
+ * usable (silently in the failure case) instead of waiting forever.
+ */
+internal fun previewAudioPending(hasAudio: Boolean, audioState: ChartAudioState): Boolean {
+    if (!hasAudio) return false
+    return when (audioState) {
+        ChartAudioState.Idle, ChartAudioState.Preparing -> true
+        is ChartAudioState.Ready, is ChartAudioState.Failed -> false
     }
 }
 
