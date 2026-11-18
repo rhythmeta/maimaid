@@ -65,6 +65,22 @@ class ChartAudioCacheLruTest {
     }
 
     @Test
+    fun purgesPcmFilesLeftBehindByOlderVersions() {
+        val directory = Files.createTempDirectory("chart-audio-legacy").toFile()
+        try {
+            createGroup(directory, 0, 1_000L)
+            val before = directory.listFiles().orEmpty().size
+            ChartAudioCacheLru.purgeLegacyPcmFiles(directory)
+            val remaining = directory.listFiles().orEmpty().map { it.name }
+            // Only the MP3 survives: PCM is decoded into memory now.
+            assertEquals(listOf("${sha(0)}.mp3"), remaining)
+            assertEquals(2, before - remaining.size)
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun doesNothingWhenAtOrBelowTheLimit() {
         val directory = Files.createTempDirectory("chart-audio-lru-limit").toFile()
         try {

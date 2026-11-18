@@ -3,12 +3,12 @@ package org.rhythmeta.maimaid.core.chart.audio
 import java.io.File
 
 /**
- * Bounds `filesDir/chart-audio` to at most [MAX_TRACKS] songs, shared by the MP3 and PCM caches.
+ * Bounds `filesDir/chart-audio` to at most [MAX_TRACKS] downloaded songs.
  *
- * A song is one audio asset: every file whose name starts with the audio sha256 belongs to the same
- * group — `<sha>.<ext>`, `<sha>.v1.<rate>.s16le.stereo.pcm`, its `.meta` and any `.tmp`. The least
- * recently used groups are deleted as a whole, so an evicted song never leaves a stale PCM behind
- * (and a re-download cannot pair a new MP3 with an old PCM).
+ * Only the MP3s are cached on disk nowadays (PCM is decoded into memory), but the eviction still
+ * works on "song groups": every file whose name starts with the audio sha256 — `<sha>.mp3` plus any
+ * leftovers from older versions — is deleted together, so a re-download can never mix files from
+ * two different generations of the same song.
  */
 object ChartAudioCacheLru {
     const val MAX_TRACKS = 5
@@ -41,6 +41,22 @@ object ChartAudioCacheLru {
             groupFiles.forEach { it.delete() }
             remaining--
         }
+    }
+
+    /**
+     * Deletes PCM files written by older versions of the app. Decoded audio now lives in memory, so
+     * these are pure waste (tens of MB per track) and must not occupy the cache directory.
+     */
+    fun purgeLegacyPcmFiles(directory: File): Int {
+        val files = directory.listFiles() ?: return 0
+        var removed = 0
+        for (file in files) {
+            if (!file.isFile) continue
+            val name = file.name
+            if (!name.endsWith(".pcm") && !name.endsWith(".meta")) continue
+            if (file.delete()) removed++
+        }
+        return removed
     }
 
     private fun groupKey(name: String): String? {

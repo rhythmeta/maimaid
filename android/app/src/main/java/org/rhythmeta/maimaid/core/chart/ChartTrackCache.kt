@@ -11,13 +11,13 @@ import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.network.StaticBundleClient
 
 /**
- * Verified on-disk cache for chart tracks. The MP3 (and only the MP3) lives at
- * `filesDir/chart-audio/<sha256>.<ext>`; the PCM cache built from it lives next to it.
+ * Verified on-disk cache for chart tracks. Only the downloaded MP3 is cached, at
+ * `filesDir/chart-audio/<sha256>.<ext>`; the decoded PCM is kept in memory by the mixer and never
+ * written here.
  *
  * This replaces the old `ChartAudioPlayer` download helper now that MediaPlayer is gone: the
  * preview always plays through the PCM engine. The directory holds at most
- * [ChartAudioCacheLru.MAX_TRACKS] songs; preparing a new one evicts the least recently used song
- * together with its PCM files.
+ * [ChartAudioCacheLru.MAX_TRACKS] songs; preparing a new one evicts the least recently used one.
  */
 object ChartTrackCache {
     fun cacheDirectory(context: Context): File =
@@ -48,11 +48,11 @@ object ChartTrackCache {
         // and PCM caches share this directory, so the eviction is done here as well as after the
         // PCM is written.
         return withContext(Dispatchers.IO) {
+            val directory = cacheDirectory(context)
             destination.setLastModified(System.currentTimeMillis())
-            ChartAudioCacheLru.prune(
-                cacheDirectory(context),
-                keepKeys = setOf(asset.sha256.lowercase()),
-            )
+            // Drop PCM files left behind by older versions; nothing writes them any more.
+            ChartAudioCacheLru.purgeLegacyPcmFiles(directory)
+            ChartAudioCacheLru.prune(directory, keepKeys = setOf(asset.sha256.lowercase()))
             destination
         }
     }

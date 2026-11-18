@@ -65,7 +65,7 @@ class PcmChartAudioEngine(context: Context) {
     private val wakeLock = Object()
 
     private var mixer: ChartMixer? = null
-    private var source: MappedPcmFrameSource? = null
+    private var source: MemoryPcmFrameSource? = null
     private var sampleBank: ChartSfxSampleBank? = null
     private var track: AudioTrack? = null
     private var mixThread: Thread? = null
@@ -122,9 +122,8 @@ class PcmChartAudioEngine(context: Context) {
     private var preparedAtUptime = 0L
 
     /**
-     * Decodes [mp3File] into the PCM cache (if needed), loads the SFX bank and starts the mix
-     * thread. Returns false when the PCM path cannot be used; the caller should fall back to the
-     * SoundPool/MediaPlayer path in that case.
+     * Decodes [mp3File] into memory, loads the SFX bank and starts the mix thread.
+     * Returns false when the track cannot be decoded/played; the chart then runs silently.
      */
     suspend fun prepare(mp3File: File, sha256: String): Boolean {
         val key = "${sha256.lowercase()}:${mp3File.lastModified()}:${mp3File.length()}"
@@ -140,41 +139,36 @@ class PcmChartAudioEngine(context: Context) {
         val startedAt = SystemClock.uptimeMillis()
         var createdTrack: AudioTrack? = null
         var createdMixer: ChartMixer? = null
-        var mappedSource: MappedPcmFrameSource? = null
+        var memorySource: MemoryPcmFrameSource? = null
         return try {
-            val cached = ChartPcmCache.ensure(appContext, mp3File, sha256.lowercase())
+            // Decoded straight into memory: nothing PCM-related ever reaches the disk cache.
+            val decoded = ChartPcmDecoder.decode(mp3File)
             if (generation != prepareGeneration) return false
             val bank = withContext(Dispatchers.IO) {
-                ChartSfxSampleBank.load(appContext.assets, cached.sampleRate)
+                ChartSfxSampleBank.load(appContext.assets, decoded.sampleRate)
             }
             if (generation != prepareGeneration) return false
-            val mapped = withContext(Dispatchers.IO) {
-                MappedPcmFrameSource(cached.file, cached.frameCount, cached.sampleRate, cached.channels)
-            }
-            if (generation != prepareGeneration) {
-                mapped.close()
-                return false
-            }
-            val createdMixerLocal = ChartMixer(cached.sampleRate, bank)
+            val mapped = MemoryPcmFrameSource(decoded.samples)
+            val createdMixerLocal = ChartMixer(decoded.sampleRate, bank)
             createdMixerLocal.setMusicSource(mapped)
             createdMixerLocal.musicVolume = musicVolume
             createdMixerLocal.answerVolume = answerVolume
             createdMixerLocal.judgeVolume = judgeVolume
             createdMixerLocal.sfxEnabled = sfxEnabled
-            val createdTrackLocal = createAudioTrack(cached.sampleRate)
+            val createdTrackLocal = createAudioTrack(decoded.sampleRate)
             createdTrack = createdTrackLocal
             createdMixer = createdMixerLocal
-            mappedSource = mapped
+            memorySource = mapped
             if (generation != prepareGeneration) {
                 runCatching { createdTrackLocal.release() }
                 createdMixerLocal.release()
                 mapped.close()
                 createdTrack = null
                 createdMixer = null
-                mappedSource = null
+                memorySource = null
                 return false
             }
-            sampleRate = cached.sampleRate
+            sampleRate = decoded.sampleRate
             mixer = createdMixerLocal
             source = mapped
             sampleBank = bank
@@ -186,13 +180,13 @@ class PcmChartAudioEngine(context: Context) {
             preparedAtUptime = startedAt
             applyConfigurationToMixer()
             mutableState.value = ChartAudioState.Ready(
-                (mapped.frameCount * 1000L / cached.sampleRate).toInt(),
+                (mapped.frameCount * 1000L / decoded.sampleRate).toInt(),
             )
             true
         } catch (error: CancellationException) {
                 throw error
         } catch (error: Throwable) {
-            Log.w(TAG, "PCM preparation failed, falling back to SoundPool", error)
+            Log.w(TAG, "PCM preparation failed; the chart will play silently", error)
             if (generation == prepareGeneration) {
                 releaseInternal()
                 mutableState.value = ChartAudioState.Failed(error.message ?: "PCM preparation failed")
@@ -201,7 +195,7 @@ class PcmChartAudioEngine(context: Context) {
         } finally {
             if (createdTrack != null && track !== createdTrack) runCatching { createdTrack.release() }
             if (createdMixer != null && mixer !== createdMixer) createdMixer.release()
-            if (mappedSource != null && source !== mappedSource) mappedSource.close()
+            if (source !== memorySource) memorySource?.close()
             if (generation == prepareGeneration) mutablePreparing.value = false
         }
     }
@@ -627,6 +621,7 @@ class PcmChartAudioEngine(context: Context) {
         track = null
         mixer?.release()
         mixer = null
+        // Dropping the last reference frees the decoded track (tens of MB) with the preview.
         source = null
         sampleBank = null
         commands.clear()
