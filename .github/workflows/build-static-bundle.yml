@@ -29,13 +29,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Both caches use the same convention: a run-unique key so the restore can never hit it
+      # exactly, plus a prefix in restore-keys that picks up the newest surviving archive. The
+      # save steps reuse that key, so each cache is written at most once per run.
       - name: Restore static image cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             static-worker/public/covers
             static-worker/public/lxns-icons
-          key: static-images-${{ runner.os }}-${{ github.repository }}
+          key: static-images-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             static-images-${{ runner.os }}-${{ github.repository }}-
 
@@ -45,9 +48,20 @@ jobs:
           path: |
             static-worker/public/chart-assets
             static-worker/.chart-assets-cache
-          key: static-chart-assets-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}
+          key: static-chart-assets-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             static-chart-assets-${{ runner.os }}-${{ github.repository }}-
+
+      # The image cache is only rewritten when its contents change; without this guard an
+      # unchanged set of jackets uploads ~180 MB on every scheduled run and crowds out the
+      # much larger chart-asset cache. The digest covers path and size, so new jackets always
+      # change it while an in-place replacement of identical size does not.
+      - name: Fingerprint restored images
+        id: images-restored
+        run: |
+          set -euo pipefail
+          digest=$( (find static-worker/public/covers static-worker/public/lxns-icons -type f -printf '%p %s\n' 2>/dev/null || true) | sort | sha256sum | cut -d ' ' -f 1 )
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Mirror chart assets
         id: mirror-chart-assets
@@ -66,13 +80,21 @@ jobs:
       - name: Verify chart assets
         run: pnpm --dir static-builder run verify:chart-assets
 
+      - name: Fingerprint built images
+        id: images-built
+        run: |
+          set -euo pipefail
+          digest=$( (find static-worker/public/covers static-worker/public/lxns-icons -type f -printf '%p %s\n' 2>/dev/null || true) | sort | sha256sum | cut -d ' ' -f 1 )
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+
       - name: Save static image cache
+        if: steps.images-restored.outputs.digest != steps.images-built.outputs.digest
         uses: actions/cache/save@v4
         with:
           path: |
             static-worker/public/covers
             static-worker/public/lxns-icons
-          key: static-images-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}
+          key: static-images-${{ runner.os }}-${{ github.repository }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Save chart asset cache
         if: steps.mirror-chart-assets.outputs.changed == 'true'

@@ -47,6 +47,12 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # The Gradle caches are several hundred megabytes and compete for the
+          # repository's 10 GB Actions cache budget, which the static bundle's
+          # chart-asset cache needs. A cold Gradle build costs far less than the
+          # cache churn, so caching stays off until the budget is worth revisiting.
+          cache-disabled: true
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
