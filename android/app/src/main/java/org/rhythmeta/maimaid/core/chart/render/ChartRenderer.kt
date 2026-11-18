@@ -13,6 +13,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import org.rhythmeta.maimaid.core.chart.Chart
 import org.rhythmeta.maimaid.core.chart.ChartConstants
+import org.rhythmeta.maimaid.core.chart.ChartKeyDensity
 import org.rhythmeta.maimaid.core.chart.ChartNote
 import org.rhythmeta.maimaid.core.chart.ChartRenderConfig
 import org.rhythmeta.maimaid.core.chart.HoldEndNote
@@ -21,6 +22,8 @@ import org.rhythmeta.maimaid.core.chart.PreparedChart
 import org.rhythmeta.maimaid.core.chart.RenderNoteMeta
 import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.TapNote
+import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
+import org.rhythmeta.maimaid.core.chart.TouchNote
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
 
 /**
@@ -44,6 +47,8 @@ class ChartRenderer {
     private var prepared: PreparedChart? = null
     private var timelineChart: Chart? = null
     private var timeline: TimingTimeline? = null
+    private var keyDensityChart: Chart? = null
+    private var keyPressTimes = DoubleArray(0)
     private val touchQueue = ArrayList<TouchPainter.TouchDrawCommand>()
     private val approachArcs = ArrayList<ApproachArc>()
     private val clipPath = Path()
@@ -81,6 +86,14 @@ class ChartRenderer {
             preparedChart = chart
         }
         return prepared!!
+    }
+
+    private fun keyPressTimesFor(chart: Chart): DoubleArray {
+        if (keyDensityChart !== chart) {
+            keyPressTimes = ChartKeyDensity.pressTimes(chart.notes)
+            keyDensityChart = chart
+        }
+        return keyPressTimes
     }
 
     fun timelineFor(chart: Chart): TimingTimeline {
@@ -130,7 +143,13 @@ class ChartRenderer {
         }
 
         if (config.showBpm) {
-            stagePainter.renderBpmDisplay(currentBpm, currentBeats, divisor, isPlaying)
+            stagePainter.renderBpmDisplay(
+                currentBpm,
+                currentBeats,
+                divisor,
+                isPlaying,
+                keysPerSecond = ChartKeyDensity.keysPerSecond(keyPressTimesFor(chart), currentTimeMs),
+            )
         }
         if (config.showNoteTotal || config.showBreakCount) {
             stagePainter.renderNoteCounts(

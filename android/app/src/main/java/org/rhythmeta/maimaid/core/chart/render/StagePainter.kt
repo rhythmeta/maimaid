@@ -104,7 +104,13 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
     }
 
     /** BPM readout plus the measure/beat/divisor line. */
-    fun renderBpmDisplay(currentBpm: Double, currentBeats: Double, divisor: Double, isPlaying: Boolean) {
+    fun renderBpmDisplay(
+        currentBpm: Double,
+        currentBeats: Double,
+        divisor: Double,
+        isPlaying: Boolean,
+        keysPerSecond: Int = 0,
+    ) {
         val radius = context.radius
         val fontSize = Math.round(22 * radius / 300f).toFloat()
         val smallFontSize = Math.round(16 * radius / 300f).toFloat()
@@ -133,6 +139,10 @@ class StagePainter(context: RenderContext) : BasePainter(context) {
         textPaint.textAlign = Paint.Align.LEFT
         textPaint.color = ChartConstants.Colors.HUD_MUTED
         canvas.drawText(beatText, padding, currentY - textPaint.fontMetrics.ascent, textPaint)
+
+        // Key density sits under the measure readout: presses inside the trailing second.
+        val kpsY = currentY + smallFontSize + lineGap
+        canvas.drawText("KPS: $keysPerSecond", padding, kpsY - textPaint.fontMetrics.ascent, textPaint)
     }
 
     private fun formatDivisor(divisor: Double): String =
