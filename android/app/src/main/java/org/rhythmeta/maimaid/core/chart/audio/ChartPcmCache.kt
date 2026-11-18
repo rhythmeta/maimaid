@@ -33,6 +33,9 @@ import kotlin.coroutines.coroutineContext
  *
  * The audio is kept at the track's native sample rate (44.1 kHz for most community MP3s); SFX assets
  * are resampled to that rate by [ChartSfxSampleBank], which is cheap because they are short.
+ *
+ * The whole `chart-audio` directory is bounded to [ChartAudioCacheLru.MAX_TRACKS] songs, so the MP3
+ * and PCM files of a song are evicted together.
  */
 object ChartPcmCache {
     data class CachedPcm(
@@ -44,7 +47,6 @@ object ChartPcmCache {
 
     private const val TAG = "ChartPcmCache"
     private const val FORMAT_VERSION = 1
-    private const val MAX_CACHE_BYTES = 200L * 1024 * 1024
     private const val CODEC_TIMEOUT_US = 10_000L
     private const val MAX_IDLE_LOOPS = 2_000
     private val decodeLocks = ConcurrentHashMap<String, Mutex>()
@@ -101,7 +103,8 @@ object ChartPcmCache {
                     temporary.delete()
                 }
                 writeMeta(directory, sha, decoded, source)
-                pruneCache(directory, keep = finalFile)
+                // chart-audio/ keeps at most five songs; this track is the one just used.
+                ChartAudioCacheLru.prune(directory, keepKeys = setOf(sha))
                 coroutineContext.ensureActive()
                 Log.i(
                     TAG,
@@ -339,21 +342,4 @@ object ChartPcmCache {
         }.getOrNull()
     }
 
-    /** Keeps the PCM cache bounded; the MP3 cache is managed by [org.rhythmeta.maimaid.core.chart.ChartAudioPlayer]. */
-    private fun pruneCache(directory: File, keep: File) {
-        val pcmFiles = directory.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".pcm") }
-            ?.sortedBy { it.lastModified() }
-            ?: return
-        var total = pcmFiles.sumOf { it.length() }
-        for (file in pcmFiles) {
-            if (total <= MAX_CACHE_BYTES) break
-            if (file == keep) continue
-            val length = file.length()
-            if (file.delete()) {
-                total -= length
-                File(file.absolutePath.removeSuffix(".pcm") + ".meta").delete()
-            }
-        }
-    }
 }

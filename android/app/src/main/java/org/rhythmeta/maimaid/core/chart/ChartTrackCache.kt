@@ -4,6 +4,9 @@ import android.content.Context
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.rhythmeta.maimaid.core.chart.audio.ChartAudioCacheLru
 import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.network.StaticBundleClient
 
@@ -12,7 +15,9 @@ import org.rhythmeta.maimaid.core.network.StaticBundleClient
  * `filesDir/chart-audio/<sha256>.<ext>`; the PCM cache built from it lives next to it.
  *
  * This replaces the old `ChartAudioPlayer` download helper now that MediaPlayer is gone: the
- * preview always plays through the PCM engine.
+ * preview always plays through the PCM engine. The directory holds at most
+ * [ChartAudioCacheLru.MAX_TRACKS] songs; preparing a new one evicts the least recently used song
+ * together with its PCM files.
  */
 object ChartTrackCache {
     fun cacheDirectory(context: Context): File =
@@ -39,7 +44,17 @@ object ChartTrackCache {
                 throw error
             }
         }
-        return destination
+        // Mark the song as used and keep chart-audio/ to the configured song count. Both the MP3
+        // and PCM caches share this directory, so the eviction is done here as well as after the
+        // PCM is written.
+        return withContext(Dispatchers.IO) {
+            destination.setLastModified(System.currentTimeMillis())
+            ChartAudioCacheLru.prune(
+                cacheDirectory(context),
+                keepKeys = setOf(asset.sha256.lowercase()),
+            )
+            destination
+        }
     }
 }
 
