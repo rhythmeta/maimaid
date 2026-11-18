@@ -64,8 +64,8 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
@@ -262,7 +262,7 @@ private val LockNotRequiredDarkColor = Color(0xFF8FBC98)
 internal fun SongDetailScreen(
     song: SongEntity?,
     container: AppContainer,
-    contentTopPadding: androidx.compose.ui.unit.Dp,
+    contentTopPadding: Dp,
     onBackgroundChanged: (Color?) -> Unit,
     onTitleChanged: (String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
@@ -618,7 +618,7 @@ private fun SongHeader(
     onCopied: () -> Unit,
     onMessage: (String) -> Unit,
     coverTransition: CatalogCoverTransition? = null,
-    coverViewportTop: androidx.compose.ui.unit.Dp,
+    coverViewportTop: Dp,
     titleBounds: SongDetailTitleBounds,
 ) {
     val context = LocalContext.current
@@ -1432,7 +1432,7 @@ private fun MetadataChip(
 private fun SongDetailCard(
     color: Color,
     modifier: Modifier = Modifier,
-    cornerRadius: androidx.compose.ui.unit.Dp = 18.dp,
+    cornerRadius: Dp = 18.dp,
     borderColor: Color? = null,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {

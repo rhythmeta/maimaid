@@ -206,6 +206,13 @@ class ChartAudioPlayer(
         }
     }
 
+    /** The verified cache file for [asset], or null when the track has not been downloaded yet. */
+    fun cachedFile(asset: ChartAssetIndex.File): File? {
+        val extension = asset.path.substringAfterLast('.', missingDelimiterValue = "mp3")
+        val digest = asset.sha256.lowercase()
+        return File(cacheDirectory, "$digest.$extension").takeIf { it.isFile && it.length() > 0L }
+    }
+
     fun currentPositionMillis(): Int {
         val current = player ?: return 0
         return runCatching { current.currentPosition }.getOrDefault(0)

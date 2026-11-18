@@ -15,19 +15,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.VolumeOff
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -49,12 +51,16 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,18 +81,16 @@ import org.rhythmeta.maimaid.core.chart.ChartSoundScheduler
 import org.rhythmeta.maimaid.core.chart.SimaiParser
 import org.rhythmeta.maimaid.core.chart.TimingTimeline
 import org.rhythmeta.maimaid.core.chart.render.ChartRenderer
+import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.ui.components.squircleShape
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.SnackbarDuration
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
-import org.rhythmeta.maimaid.core.chart.TapNote
-import org.rhythmeta.maimaid.core.chart.HoldStartNote
-import org.rhythmeta.maimaid.core.chart.SlideNote
-import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
-import org.rhythmeta.maimaid.core.chart.TouchNote
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** Full-page chart preview: arcade-faithful stage plus transport controls. */
@@ -96,6 +100,8 @@ internal fun ChartPreviewScreen(
     sheetKey: String?,
     container: AppContainer,
     contentTopPadding: Dp,
+    saveRequested: Boolean = false,
+    onSaveRequestHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Keep the display awake while the preview page is open, otherwise the screen timeout cuts the
@@ -115,6 +121,33 @@ internal fun ChartPreviewScreen(
     val audioState by viewModel.audioState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val seekCompletions by viewModel.seekCompletions.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val savedMessage = stringResource(R.string.chart_preview_save_done)
+    val saveFailedMessage = stringResource(R.string.chart_preview_save_failed)
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { destination ->
+        if (destination != null) {
+            viewModel.saveChartZip(destination) { error ->
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = if (error == null) savedMessage else saveFailedMessage,
+                        duration = SnackbarDuration.Custom(CHART_SAVE_SNACKBAR_MS),
+                    )
+                }
+            }
+        }
+    }
+    val saveName = remember(state) {
+        val ready = state as? ChartPreviewUiState.Ready
+        chartSaveFileName(ready?.song?.title, ready?.selected?.sheet?.difficulty)
+    }
+    LaunchedEffect(saveRequested) {
+        if (!saveRequested) return@LaunchedEffect
+        onSaveRequestHandled()
+        saveLauncher.launch(saveName)
+    }
     val comboLabel = stringResource(R.string.chart_preview_hud_combo)
     val breakNoExLabel = stringResource(R.string.chart_preview_hud_break_no_ex)
     val renderConfig = remember(settings, comboLabel, breakNoExLabel) {
@@ -157,6 +190,7 @@ internal fun ChartPreviewScreen(
                 coverFile = current.song?.let { song ->
                     container.coverImageStore.fileFor(song.imageName)
                 },
+                embeddedCover = viewModel.cachedAudioCover(),
                 audioState = audioState,
                 settings = settings,
                 seekCompletions = seekCompletions,
@@ -174,6 +208,13 @@ internal fun ChartPreviewScreen(
                 isAudioPlaying = { viewModel.isAudioPlaying },
             )
         }
+        SnackbarHost(
+            state = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+        )
     }
 }
 
@@ -181,6 +222,7 @@ internal fun ChartPreviewScreen(
 private fun ChartPreviewContent(
     ready: ChartPreviewUiState.Ready,
     coverFile: java.io.File?,
+    embeddedCover: ByteArray?,
     audioState: ChartAudioState,
     settings: ChartPreviewSettings,
     seekCompletions: Int,
@@ -226,11 +268,24 @@ private fun ChartPreviewContent(
         )
     }
     val clock = remember(chart) { PreviewClock(playbackDurationMs) }
+    // Leaving the app must not leave the chart (and its audio) running in the background; the
+    // preview comes back paused so the user can resume deliberately.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, clock) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) clock.isPlaying = false
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val sfxPlayer = remember { ChartSfxPlayer(context) }
     val scheduler = remember(chart) {
         ChartSoundScheduler(ChartAudioEvents.prepare(chart.notes))
     }
-    val cover = remember(coverFile) { decodeCover(coverFile) }
+    // Community MP3s carry a sharper cover than the catalog image; prefer it when present.
+    val cover = remember(coverFile, embeddedCover) {
+        embeddedCover?.let(::decodeCover) ?: decodeCover(coverFile)
+    }
     var soundEnabled by rememberSaveable { mutableStateOf(true) }
     DisposableEffect(sfxPlayer) {
         onDispose { sfxPlayer.release() }
@@ -477,6 +532,14 @@ private fun ChartPreviewContent(
         ChartRhythmTimeline(
             data = rhythmData,
             positionMs = { clock.position.doubleValue },
+            // Keeping the chart flow speed also pins the lane's own wall-clock travel: with the
+            // chart slowed down, the lane must widen its window instead of crawling.
+            speedScale = settings.rhythmSpeed *
+                if (settings.alwaysKeepHiSpeed) {
+                    1.0 / settings.playbackSpeed.coerceAtLeast(0.1)
+                } else {
+                    1.0
+                },
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         ChartDensityLegend(
@@ -649,7 +712,7 @@ private fun PreviewTransport(
             modifier = Modifier.align(Alignment.CenterEnd),
         ) {
             Icon(
-                if (soundEnabled) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+                if (soundEnabled) Icons.AutoMirrored.Rounded.VolumeUp else Icons.AutoMirrored.Rounded.VolumeOff,
                 contentDescription = stringResource(
                     if (soundEnabled) {
                         R.string.chart_preview_sound_off
@@ -703,9 +766,34 @@ private fun audioTargetMillis(positionMs: Double, chart: Chart, audioOffsetMs: I
         .coerceAtLeast(0)
 
 private const val AUDIO_START_TOLERANCE_MS = 150
+private const val CHART_SAVE_SNACKBAR_MS = 2_500L
 
+
+/** File name offered by the save dialog; strips characters file systems reject. */
+private fun chartSaveFileName(title: String?, difficulty: String?): String {
+    val base = listOfNotNull(
+        title?.trim()?.takeIf { it.isNotEmpty() },
+        difficulty?.trim()?.takeIf { it.isNotEmpty() },
+    ).joinToString(" - ").ifEmpty { "chart" }
+    val sanitized = base.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
+    return "${sanitized.take(120)}.zip"
+}
 
 /** Counts playable objects (hold tails and touch hold tails are not separate objects). */
+
+private fun decodeCover(bytes: ByteArray): Bitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    var sample = 1
+    while (bounds.outWidth / sample > 1024 || bounds.outHeight / sample > 1024) sample *= 2
+    BitmapFactory.decodeByteArray(
+        bytes,
+        0,
+        bytes.size,
+        BitmapFactory.Options().apply { inSampleSize = sample },
+    )
+}.getOrNull()
 
 private fun decodeCover(file: java.io.File?): Bitmap? {
     if (file == null || !file.isFile) return null
@@ -735,7 +823,7 @@ private fun String.shortDifficultyName(): String = when {
 }
 
 
-private fun loadSensorImage(assets: android.content.res.AssetManager): android.graphics.Bitmap? =
+private fun loadSensorImage(assets: android.content.res.AssetManager): Bitmap? =
     runCatching {
         assets.open("maimai/chart/sensor.webp").use(BitmapFactory::decodeStream)
     }.getOrNull()

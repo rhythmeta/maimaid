@@ -16,6 +16,9 @@
 	<string name="action_open">開く</string>
 	<string name="chart_preview_action">譜面をプレビュー</string>
 	<string name="chart_preview_title">譜面プレビュー</string>
+	<string name="chart_preview_save">譜面を保存</string>
+	<string name="chart_preview_save_done">譜面を保存しました</string>
+	<string name="chart_preview_save_failed">譜面を保存できませんでした</string>
 	<string name="chart_preview_parse_failed">譜面を解析できません</string>
 	<string name="chart_preview_play">音楽を再生</string>
 	<string name="chart_preview_pause">音楽を一時停止</string>
@@ -725,6 +728,7 @@
 	<string name="chart_settings_speed">速度</string>
 	<string name="chart_settings_hi_speed">流速</string>
 	<string name="chart_settings_playback_speed">再生速度</string>
+	<string name="chart_settings_rhythm_speed">リズム解析速度</string>
 	<string name="chart_settings_slide_delay">スター遅延</string>
 	<string name="chart_settings_keep_hi_speed">譜面速度を維持</string>
 	<string name="chart_settings_display">表示</string>

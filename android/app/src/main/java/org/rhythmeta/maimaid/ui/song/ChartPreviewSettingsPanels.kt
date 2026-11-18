@@ -95,6 +95,16 @@ internal fun ChartSpeedSettings(
             onCommit = { onChange(settings.copy(playbackSpeed = it.toDouble())) },
         )
         SettingSlider(
+            label = stringResource(R.string.chart_settings_rhythm_speed),
+            value = settings.rhythmSpeed.toFloat(),
+            range = 0.5f..2f,
+            format = { "%.2fx".format(it) },
+            onCommit = {
+                val stepped = (Math.round(it * 100f) / 100f).toDouble()
+                onChange(settings.copy(rhythmSpeed = stepped))
+            },
+        )
+        SettingSlider(
             label = stringResource(R.string.chart_settings_slide_delay),
             value = settings.slideDelay.toFloat(),
             range = -1f..1f,

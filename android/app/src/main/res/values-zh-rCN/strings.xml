@@ -16,6 +16,9 @@
 	<string name="action_open">打开</string>
 	<string name="chart_preview_action">预览谱面</string>
 	<string name="chart_preview_title">谱面预览</string>
+	<string name="chart_preview_save">保存谱面</string>
+	<string name="chart_preview_save_done">谱面已保存</string>
+	<string name="chart_preview_save_failed">保存谱面失败</string>
 	<string name="chart_preview_parse_failed">谱面解析失败</string>
 	<string name="chart_preview_play">播放音乐</string>
 	<string name="chart_preview_pause">暂停音乐</string>
@@ -724,6 +727,7 @@
 	<string name="chart_settings_speed">速度</string>
 	<string name="chart_settings_hi_speed">流速</string>
 	<string name="chart_settings_playback_speed">播放速度</string>
+	<string name="chart_settings_rhythm_speed">节奏解析速度</string>
 	<string name="chart_settings_slide_delay">星星延迟</string>
 	<string name="chart_settings_keep_hi_speed">保持谱面流速</string>
 	<string name="chart_settings_display">显示</string>

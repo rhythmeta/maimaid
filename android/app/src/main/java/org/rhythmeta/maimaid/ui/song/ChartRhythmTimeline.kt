@@ -215,6 +215,7 @@ private fun RhythmStepKind.color(): Color = when (this) {
 internal fun ChartRhythmTimeline(
     data: ChartRhythmData,
     positionMs: () -> Double,
+    speedScale: Double = 1.0,
     modifier: Modifier = Modifier,
 ) {
     if (data.steps.isEmpty()) return
@@ -224,11 +225,11 @@ internal fun ChartRhythmTimeline(
     val active = MiuixTheme.colorScheme.onSurface
     val measureTick = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.10f)
     val description = stringResource(R.string.chart_rhythm_label)
-    val numberSize = with(density) { 9.sp.toPx() }
+    val numberSize = with(density) { 8.sp.toPx() }
     val bpmCaptionSize = with(density) { 8.sp.toPx() }
     val bpmValueSize = with(density) { 13.sp.toPx() }
-    val dotRadius = with(density) { 10.dp.toPx() }
-    val chordRingRadius = with(density) { 12.5.dp.toPx() }
+    val dotRadius = with(density) { 9.dp.toPx() }
+    val chordRingRadius = with(density) { 11.dp.toPx() }
     val ringWidth = with(density) { 1.5.dp.toPx() }
     val chordRingWidth = with(density) { 2.dp.toPx() }
     val currentRingWidth = with(density) { 2.8.dp.toPx() }
@@ -237,7 +238,7 @@ internal fun ChartRhythmTimeline(
     val holdLineY = with(density) { 6.dp.toPx() }
     val slideLineY = with(density) { 36.dp.toPx() }
     // Keep the numbers from touching once the dots get close; follows the font scale.
-    val numberGap = with(density) { 13.dp.toPx() }.coerceAtLeast(numberSize * 1.4f)
+    val numberGap = with(density) { 12.dp.toPx() }.coerceAtLeast(numberSize * 1.4f)
     val bpmCaptionBaseline = with(density) { 16.dp.toPx() }
     val bpmValueBaseline = with(density) { 36.dp.toPx() }
     val bpmGap = with(density) { 16.dp.toPx() }
@@ -273,7 +274,7 @@ internal fun ChartRhythmTimeline(
     ) {
         val width = size.width
         val anchorX = width * RHYTHM_ANCHOR_FRACTION
-        val pxPerMs = width / RHYTHM_WINDOW_MS
+        val pxPerMs = (width / RHYTHM_WINDOW_MS * speedScale.coerceIn(0.1, 5.0)).toFloat()
         val position = positionMs()
         fun xAt(timeMs: Double): Float =
             anchorX + ((timeMs - position) * pxPerMs).toFloat()

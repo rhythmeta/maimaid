@@ -14,12 +14,13 @@ import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Preview
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -264,6 +265,7 @@ fun MaimaidApp(
     var showHomeProfileEditor by rememberSaveable { mutableStateOf(false) }
     var profileCreateRequested by rememberSaveable { mutableStateOf(false) }
     var bestTableExportRequested by rememberSaveable { mutableStateOf(false) }
+    var chartPreviewSaveRequested by rememberSaveable { mutableStateOf(false) }
     var randomSongFilterRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsCreateRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsImportRequested by rememberSaveable { mutableStateOf(false) }
@@ -732,6 +734,7 @@ fun MaimaidApp(
                 selectedCollectionId = null
                 collectionsRenameRequested = false
             }
+            if (detail == AppDetail.ChartPreview) chartPreviewSaveRequested = false
             navBackStack.removeLastOrNull()
         }
     }
@@ -753,7 +756,7 @@ fun MaimaidApp(
                             if (navBackStack.lastOrNull() != route) navBackStack.add(route)
                         }) {
                             Icon(
-                                Icons.Rounded.Search,
+                                Icons.Rounded.Preview,
                                 contentDescription = stringResource(R.string.chart_preview_action),
                             )
                         }
@@ -840,6 +843,14 @@ fun MaimaidApp(
                             Icon(
                                 imageVector = Icons.Rounded.Add,
                                 contentDescription = stringResource(R.string.profile_create),
+                            )
+                        }
+                    }
+                    AppDetail.ChartPreview -> {
+                        IconButton(onClick = { chartPreviewSaveRequested = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.FileDownload,
+                                contentDescription = stringResource(R.string.chart_preview_save),
                             )
                         }
                     }
@@ -1010,10 +1021,12 @@ fun MaimaidApp(
                     showConstantTableFilter = showConstantTableFilter,
                     profileCreateRequested = profileCreateRequested,
                     bestTableExportRequested = bestTableExportRequested,
+                    chartPreviewSaveRequested = chartPreviewSaveRequested,
                     randomSongFilterRequested = randomSongFilterRequested,
                     randomSongSessionState = randomSongSessionState,
                     onProfileCreateRequestHandled = { profileCreateRequested = false },
                     onBestTableExportRequestHandled = { bestTableExportRequested = false },
+                    onChartPreviewSaveRequestHandled = { chartPreviewSaveRequested = false },
                     onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
                     onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
                     onDismissScoreQueryFilter = { showScoreQueryFilter = false },

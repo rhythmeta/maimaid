@@ -1,5 +1,8 @@
 package org.rhythmeta.maimaid.ui.song
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,15 +12,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.chart.ChartAssetIdResolver
 import org.rhythmeta.maimaid.core.chart.ChartAudioPlayer
 import org.rhythmeta.maimaid.core.chart.ChartAudioState
+import org.rhythmeta.maimaid.core.chart.Mp3CoverArt
 import org.rhythmeta.maimaid.core.chart.SimaiParser
 import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
+import java.io.BufferedOutputStream
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 
 /** One previewable sheet: its catalog sheet, simai slot and the published maidata it lives in. */
@@ -66,6 +76,7 @@ class ChartPreviewViewModel(
 
     private val audioPlayer = ChartAudioPlayer(container.applicationContext)
     private var preparedEntryId: Int? = null
+    private var coverArtCache: Pair<String, ByteArray?>? = null
 
     init {
         load()
@@ -171,6 +182,90 @@ class ChartPreviewViewModel(
         audioPlayer.seekTo(positionMillis, playAfterSeek)
 
     fun audioPositionMillis(): Int = audioPlayer.currentPositionMillis()
+
+    /**
+     * Cover art embedded in the selected track. Community MP3s often carry a much sharper image
+     * than the separately downloaded catalog cover, so the preview and the saved package prefer it.
+     */
+    fun cachedAudioCover(): ByteArray? {
+        val ready = mutableState.value as? ChartPreviewUiState.Ready ?: return null
+        val audio = ready.selected.entry.files.audio ?: return null
+        val file = audioPlayer.cachedFile(audio) ?: return null
+        coverArtCache?.let { (digest, cached) -> if (digest == audio.sha256) return cached }
+        val bytes = Mp3CoverArt.read(file)
+        coverArtCache = audio.sha256 to bytes
+        return bytes
+    }
+
+    /**
+     * Writes the selected sheet as a zip with `maidata.txt`, `track.mp3` and `bg.png`. The audio is
+     * downloaded first when it is not cached yet, so a save right after opening the page still
+     * produces the complete package.
+     */
+    fun saveChartZip(destination: Uri, onResult: (Throwable?) -> Unit) {
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            try {
+                val ready = mutableState.value as? ChartPreviewUiState.Ready
+                    ?: error("Chart is not ready")
+                val option = ready.selected
+                val audio = option.entry.files.audio
+                if (audio != null && audioPlayer.cachedFile(audio) == null) {
+                    audioPlayer.prepare(audio, container.staticBundleClient)
+                }
+                withContext(Dispatchers.IO) {
+                    val resolver = container.applicationContext.contentResolver
+                    val stream = resolver.openOutputStream(destination)
+                        ?: error("Unable to open the selected file")
+                    stream.use { output ->
+                        ZipOutputStream(BufferedOutputStream(output)).use { zip ->
+                            zip.putNextEntry(ZipEntry("maidata.txt"))
+                            zip.write(option.maidata.toByteArray(Charsets.UTF_8))
+                            zip.closeEntry()
+
+                            val audioFile = audio?.let(audioPlayer::cachedFile)
+                            if (audioFile != null) {
+                                zip.putNextEntry(ZipEntry("track.mp3"))
+                                audioFile.inputStream().use { it.copyTo(zip) }
+                                zip.closeEntry()
+                            }
+
+                            val embedded = audioFile?.let(Mp3CoverArt::read)
+                            if (embedded != null) {
+                                writePngEntry(zip, "bg.png", embedded)
+                            } else {
+                                val cover = ready.song?.imageName
+                                    ?.let { container.coverImageStore.fileFor(it) }
+                                if (cover != null) writePngEntry(zip, "bg.png", cover.readBytes())
+                            }
+                        }
+                    }
+                }
+            } catch (error: Throwable) {
+                failure = error
+            }
+            onResult(failure)
+        }
+    }
+
+    private fun writePngEntry(zip: ZipOutputStream, name: String, bytes: ByteArray) {
+        zip.putNextEntry(ZipEntry(name))
+        if (isPng(bytes)) {
+            zip.write(bytes)
+        } else {
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            if (bitmap != null) {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, zip)
+                bitmap.recycle()
+            }
+        }
+        zip.closeEntry()
+    }
+
+    private fun isPng(bytes: ByteArray): Boolean =
+        bytes.size > 8 &&
+            bytes[0] == 0x89.toByte() && bytes[1] == 'P'.code.toByte() &&
+            bytes[2] == 'N'.code.toByte() && bytes[3] == 'G'.code.toByte()
 
     fun updateSettings(transform: (org.rhythmeta.maimaid.core.chart.ChartPreviewSettings) ->
         org.rhythmeta.maimaid.core.chart.ChartPreviewSettings) {

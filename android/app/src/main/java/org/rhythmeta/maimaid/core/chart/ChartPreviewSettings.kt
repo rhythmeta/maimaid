@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 data class ChartPreviewSettings(
     val hiSpeed: Double = 6.0,
     val playbackSpeed: Double = 1.0,
+    /** Vertical flow of the rhythm lane, as a multiplier of its base pixel-per-ms scale. */
+    val rhythmSpeed: Double = 1.0,
     val slideDelay: Double = 0.0,
     val alwaysKeepHiSpeed: Boolean = false,
     val mirrorMode: MirrorMode = MirrorMode.NONE,

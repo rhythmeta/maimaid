@@ -108,10 +108,13 @@ internal fun DetailScreen(
     showConstantTableFilter: Boolean = false,
     profileCreateRequested: Boolean,
     bestTableExportRequested: Boolean,
+    chartPreviewSaveRequested: Boolean = false,
     randomSongFilterRequested: Boolean,
     randomSongSessionState: RandomSongSessionState,
     onProfileCreateRequestHandled: () -> Unit,
     onBestTableExportRequestHandled: () -> Unit,
+    onChartPreviewSaveHandled: () -> Unit = {},
+    onChartPreviewSaveRequestHandled: () -> Unit = {},
     onRandomSongFilterRequestHandled: () -> Unit,
     onRandomSongFilterActiveChanged: (Boolean) -> Unit,
     onDismissScoreQueryFilter: () -> Unit,
@@ -177,6 +180,8 @@ internal fun DetailScreen(
             sheetKey = selectedChartSheetKey,
             container = container,
             contentTopPadding = songContentTopPadding,
+            saveRequested = chartPreviewSaveRequested,
+            onSaveRequestHandled = onChartPreviewSaveHandled,
         )
         AppDetail.Collections -> SongCollectionsScreen(
             container = container,
