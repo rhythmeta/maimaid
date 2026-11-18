@@ -6,7 +6,8 @@ import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectStaticAssetCandidates, type StaticAssetCandidate } from "./assets.js";
-import { composeBundlePayload } from "./bundle.js";
+import { promoteEmbeddedCovers } from "./cover-hd.js";
+import { composeBundlePayload, computeBundleMd5 } from "./bundle.js";
 import { communityIndex } from "./community-index.js";
 import { downloadFirstAvailableImage, downloadImageFromSource } from "./download.js";
 import {
@@ -75,11 +76,6 @@ const writeStaticTree = async () => {
 
 	const createdAt = new Date().toISOString();
 	const version = `bundle-${Date.parse(createdAt)}`;
-	const bundlePath = `/bundles/${composed.md5}.json`;
-	const bundle = { version, md5: composed.md5, createdAt, payload: composed.payload, sourceMeta: composed.sourceMeta };
-	// Stringify once so the recorded size describes exactly the bytes that get written.
-	const bundleJson = JSON.stringify(bundle);
-	const bundleBytes = Buffer.byteLength(bundleJson, "utf8");
 	const assets: StaticManifestAssets = {
 		coverBaseUrl: `${staticAssetsBaseUrl}/cdn-cgi/image/format=png/covers/`,
 		presetAvatarBaseUrl: `${staticAssetsBaseUrl}/cdn-cgi/image/format=png/lxns-icons/`,
@@ -97,14 +93,7 @@ const writeStaticTree = async () => {
 		mkdir(path.join(outputDirectory, "covers"), { recursive: true }),
 		mkdir(path.join(outputDirectory, "lxns-icons"), { recursive: true }),
 	]);
-	await Promise.all([
-		writeFile(path.join(outputDirectory, bundlePath.slice(1)), bundleJson),
-		writeFile(path.join(outputDirectory, "_headers"), headersContent),
-	]);
-	await writeFile(
-		path.join(outputDirectory, "community-index.json"),
-		JSON.stringify(communityIndex(composed.payload, staticAssetsBaseUrl)),
-	);
+	await writeFile(path.join(outputDirectory, "_headers"), headersContent);
 
 	const candidates = collectStaticAssetCandidates(composed.payload);
 	const skipImages = process.env.SKIP_IMAGES === "1";
@@ -134,6 +123,38 @@ const writeStaticTree = async () => {
 		});
 	}
 
+	// Embedded jacket art replaces blurrier catalog covers before the bundle is serialized, so the
+	// published `imageName` already points at the promoted `hd-` file and clients never re-check.
+	const covers = await promoteEmbeddedCovers(composed.payload, {
+		outputDirectory,
+		chartAssetsDirectory: path.join(outputDirectory, "chart-assets"),
+	});
+	if (covers.published.length > 0) {
+		for (const candidate of covers.published) {
+			existingAssets.add(`${candidate.kind}|${candidate.name}`);
+			candidates.push(candidate);
+		}
+	}
+	if (covers.checked > 0 || covers.replaced > 0) {
+		console.log(
+			`[covers] ${covers.replaced} embedded cover(s) promoted from ${covers.checked} track(s) with art, ` +
+				`${covers.skippedWithoutAudio} without chart audio`,
+		);
+	}
+
+	// Covers were rewritten, so the bundle hash must be recomputed before it is named and stored.
+	const md5 = computeBundleMd5(composed.payload);
+	const bundlePath = `/bundles/${md5}.json`;
+	const bundle = { version, md5, createdAt, payload: composed.payload, sourceMeta: composed.sourceMeta };
+	// Stringify once so the recorded size describes exactly the bytes that get written.
+	const bundleJson = JSON.stringify(bundle);
+	const bundleBytes = Buffer.byteLength(bundleJson, "utf8");
+	await writeFile(path.join(outputDirectory, bundlePath.slice(1)), bundleJson);
+	await writeFile(
+		path.join(outputDirectory, "community-index.json"),
+		JSON.stringify(communityIndex(composed.payload, staticAssetsBaseUrl)),
+	);
+
 	// The manifest is written last so it can carry the measured sizes. `wrangler deploy` only runs
 	// after this script succeeds, and the Worker publishes the directory as one version, so clients
 	// never observe a manifest that points at assets which have not landed yet.
@@ -143,7 +164,7 @@ const writeStaticTree = async () => {
 	}
 	const manifest = createStaticManifest({
 		version,
-		md5: composed.md5,
+		md5,
 		createdAt,
 		bundlePath,
 		assets,
@@ -158,7 +179,7 @@ const writeStaticTree = async () => {
 	} else {
 		console.log("[build] sizes unavailable (image tree incomplete), omitted from manifest");
 	}
-	console.log(`[build] wrote ${outputDirectory}, md5=${composed.md5}`);
+	console.log(`[build] wrote ${outputDirectory}, md5=${md5}`);
 };
 
 writeStaticTree().catch((error: unknown) => {

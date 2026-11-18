@@ -41,6 +41,17 @@ hashed, and atomically moved into their content-addressed path. The published
 index is written only after every referenced asset passes validation; files no
 longer present upstream are omitted from the next deployment.
 
+Community chart audio often carries the jacket art in its ID3v2 tag. The
+build matches every catalog song to its chart audio, decodes the embedded
+picture (front cover first) and, when it is larger than the catalog cover,
+publishes it as `covers/hd-<sha256>.png|jpg` and rewrites the song's
+`imageName` to that file. The `hd-` prefix plus the content hash is the marker:
+clients download the sharper cover once and no later build has to inspect that
+track again. Songs without chart audio, without an embedded picture, or with a
+cover that is already sharper keep their existing `imageName`. The rewrite
+happens before the bundle is serialized, so its md5, the community index and
+the manifest sizes all describe the published tree.
+
 The chart mirror preserves the ADX catalog attribution in the index. The ADX
 catalog's CC BY 4.0 license applies to its metadata; chart and audio files
 remain subject to their original rights and the repository's media
