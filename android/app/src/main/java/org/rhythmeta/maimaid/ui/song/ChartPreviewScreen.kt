@@ -369,6 +369,7 @@ private fun ChartPreviewContent(
             if (usesPcm) pcmEngine.play()
             var lastFrameNanos = 0L
             var lastStatsLogMs = 0L
+            var lastProgressPollMs = 0L
             while (clock.isPlaying) {
                 withFrameNanos { now ->
                     if (clock.isScrubbing) {
@@ -382,7 +383,9 @@ private fun ChartPreviewContent(
                     }
                     val speed = settings.playbackSpeed *
                         (if (speedBoostActive) BOOST_SPEED.toDouble() else 1.0)
-                    if (BuildConfig.DEBUG) {
+                    val nowMs = android.os.SystemClock.uptimeMillis()
+                    if (nowMs - lastProgressPollMs >= DOWNLOAD_PROGRESS_POLL_MS) {
+                        lastProgressPollMs = nowMs
                         downloadProgress = pcmEngine.downloadProgress()
                     }
                     val position = if (usesPcm && pcmEngine.isReady) {
@@ -528,17 +531,15 @@ private fun ChartPreviewContent(
                 speedBoostActive = speedBoostActive,
             )
             PreviewStageOverlay(clock = clock, waitingForAudio = waitingForAudio)
-            if (BuildConfig.DEBUG) {
-                val progress = downloadProgress
-                if (progress != null) {
-                    MusicDownloadOverlay(
-                        progress = progress,
-                        // Bottom-left, just above the BREAK counter.
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 12.dp, bottom = 34.dp),
-                    )
-                }
+            val progress = downloadProgress
+            if (progress != null) {
+                MusicDownloadOverlay(
+                    progress = progress,
+                    // Bottom-left, just above the BREAK counter.
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 12.dp, bottom = 34.dp),
+                )
             }
         }
 
@@ -841,6 +842,7 @@ internal fun previewAudioPending(hasAudio: Boolean, audioState: ChartAudioState)
     }
 
 private const val AUDIO_STATS_INTERVAL_MS = 5_000L
+private const val DOWNLOAD_PROGRESS_POLL_MS = 100L
 private const val TAG_AUDIO = "ChartPreviewAudio"
 private const val BOOST_SPEED = 1.5f
 private const val CHART_SAVE_SNACKBAR_MS = 2_500L
