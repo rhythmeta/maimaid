@@ -62,6 +62,9 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -92,6 +95,8 @@ internal fun ChartSpeedSettings(
             range = 0.1f..2f,
             format = { "%.2fx".format(it) },
             onCommit = { onChange(settings.copy(playbackSpeed = it.toDouble())) },
+            // The handle sticks at exactly 1x so normal speed is easy to hit again.
+            snapPoints = listOf(1f),
         )
         SettingSlider(
             label = stringResource(R.string.chart_settings_rhythm_speed),
@@ -303,8 +308,16 @@ private fun SettingSlider(
     range: ClosedFloatingPointRange<Float>,
     format: (Float) -> String,
     onCommit: (Float) -> Unit,
+    /** Values the handle sticks to, e.g. exactly 1x playback speed. */
+    snapPoints: List<Float> = emptyList(),
+    snapThreshold: Float = 0.04f,
 ) {
     var sliderValue by remember(value) { mutableFloatStateOf(value) }
+    val haptics = LocalHapticFeedback.current
+    // True while the handle sits exactly on a snap point; the buzz fires only on entering it.
+    var onSnapPoint by remember(snapPoints) {
+        mutableStateOf(snapPoints.any { abs(it - value) < SNAP_EPSILON })
+    }
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -321,11 +334,36 @@ private fun SettingSlider(
         Spacer(Modifier.height(6.dp))
         Slider(
             value = sliderValue,
-            onValueChange = { sliderValue = it },
+            onValueChange = { raw ->
+                val snapped = snapSliderValue(raw, snapPoints, snapThreshold)
+                val nowOnSnapPoint = snapPoints.any { abs(it - snapped) < SNAP_EPSILON }
+                if (nowOnSnapPoint && !onSnapPoint) {
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+                onSnapPoint = nowOnSnapPoint
+                sliderValue = snapped
+            },
             onValueChangeFinished = { onCommit(sliderValue) },
             valueRange = range,
         )
     }
+}
+
+/** Tolerance used to decide that the slider sits exactly on a snap point. */
+private const val SNAP_EPSILON = 1e-4f
+
+/**
+ * Pulls a slider value onto the nearest snap point when it is within [threshold], so a speed of
+ * exactly 1x stays easy to hit. Kept pure so it can be unit tested without Compose.
+ */
+internal fun snapSliderValue(
+    value: Float,
+    snapPoints: List<Float>,
+    threshold: Float,
+): Float {
+    if (snapPoints.isEmpty()) return value
+    val nearest = snapPoints.minByOrNull { abs(it - value) } ?: return value
+    return if (abs(nearest - value) <= threshold) nearest else value
 }
 
 @Composable
