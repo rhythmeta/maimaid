@@ -23,7 +23,8 @@
 	<string name="chart_preview_play">音楽を再生</string>
 	<string name="chart_preview_pause">音楽を一時停止</string>
 	<string name="chart_preview_audio_loading">音楽を読み込み中…</string>
-	<string name="chart_preview_music_download">↓ %1$d%% · %2$s/s</string>
+	<string name="chart_preview_music_download_speed">%1$s/s</string>
+	<string name="chart_preview_music_download_percent">%1$d%%</string>
 	<string name="chart_preview_audio_unavailable">この譜面の音楽は利用できません</string>
 	<string name="action_randomize">もう一度</string>
 	<string name="random_count_three">3曲</string>

@@ -23,7 +23,8 @@
 	<string name="chart_preview_play">播放音乐</string>
 	<string name="chart_preview_pause">暂停音乐</string>
 	<string name="chart_preview_audio_loading">正在加载音乐…</string>
-	<string name="chart_preview_music_download">↓ %1$d%% · %2$s/s</string>
+	<string name="chart_preview_music_download_speed">%1$s/s</string>
+	<string name="chart_preview_music_download_percent">%1$d%%</string>
 	<string name="chart_preview_audio_unavailable">此谱面没有可用音乐</string>
 	<string name="action_randomize">重新随机</string>
 	<string name="random_count_three">一次 3 首</string>

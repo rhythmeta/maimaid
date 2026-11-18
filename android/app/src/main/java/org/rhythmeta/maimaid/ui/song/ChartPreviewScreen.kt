@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -530,12 +531,12 @@ private fun ChartPreviewContent(
             if (BuildConfig.DEBUG) {
                 val progress = downloadProgress
                 if (progress != null) {
-                    MusicDownloadBadge(
+                    MusicDownloadOverlay(
                         progress = progress,
-                        // Bottom centre: the top corners already carry the BPM / combo HUD.
+                        // Bottom-left, just above the BREAK counter.
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 10.dp),
+                            .align(Alignment.BottomStart)
+                            .padding(start = 12.dp, bottom = 34.dp),
                     )
                 }
             }
@@ -635,9 +636,12 @@ private fun ChartStage(
     }
 }
 
-/** Debug overlay for the streaming music download: percentage and current speed. */
+/**
+ * Debug overlay for the streaming music download: download speed on the first line and the
+ * percentage on the second. Plain white text without a background so the stage stays visible.
+ */
 @Composable
-private fun MusicDownloadBadge(
+private fun MusicDownloadOverlay(
     progress: TrackDownloadProgress,
     modifier: Modifier = Modifier,
 ) {
@@ -648,20 +652,18 @@ private fun MusicDownloadBadge(
             progress.bytesPerSecond.coerceAtLeast(0L),
         )
     }
-    Box(
-        modifier = modifier
-            .clip(squircleShape(10.dp))
-            .background(Color.Black.copy(alpha = 0.55f))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = stringResource(
-                R.string.chart_preview_music_download,
-                progress.percent,
-                speed,
-            ),
-            style = MiuixTheme.textStyles.footnote1,
+    Column(modifier = modifier) {
+    		Text(
+            text = stringResource(R.string.chart_preview_music_download_percent, progress.percent),
+            style = MiuixTheme.textStyles.footnote2,
             color = Color.White,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = stringResource(R.string.chart_preview_music_download_speed, speed),
+            style = MiuixTheme.textStyles.footnote2,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
