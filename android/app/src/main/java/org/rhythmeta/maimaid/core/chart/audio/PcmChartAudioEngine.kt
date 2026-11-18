@@ -79,8 +79,25 @@ class PcmChartAudioEngine(context: Context) {
     @Volatile
     private var trackFrameBase = 0L
 
+    /**
+     * Track playhead when the timeline was last anchored. `flush()` does not reset the AudioTrack
+     * playhead, so the frame timeline is `trackFrameBase + (playhead - playheadBase)`.
+     */
+    @Volatile
+    private var playheadBase = 0L
+
     @Volatile
     private var latestSeekGeneration = 0L
+
+    /** Chart position the playhead must show from the moment a seek is requested. */
+    @Volatile
+    private var requestedSeekPositionMs = 0.0
+
+    @Volatile
+    private var requestedSeekToken = 0L
+
+    @Volatile
+    private var appliedSeekToken = 0L
 
     @Volatile
     private var pendingSpeed = 1f
@@ -248,6 +265,14 @@ class PcmChartAudioEngine(context: Context) {
             sampleRate,
         ).coerceAtLeast(0L)
         latestSeekGeneration++
+        // Publish the target immediately: the mix thread needs a moment to flush the track, and
+        // reading the old position in the meantime is what made the chart visibly jump back for a
+        // few frames before snapping to the new spot.
+        requestedSeekPositionMs = chartTimeMs.coerceIn(
+            0.0,
+            if (chartDurationMs > 0) chartDurationMs else Double.MAX_VALUE,
+        )
+        requestedSeekToken = latestSeekGeneration
         enqueue(
             Command(
                 type = Type.SEEK,
@@ -264,6 +289,7 @@ class PcmChartAudioEngine(context: Context) {
     /** Audible chart position in milliseconds, extrapolated from the last AudioTrack timestamp. */
     fun chartPositionMs(): Double {
         if (!isReady) return 0.0
+        if (requestedSeekToken > appliedSeekToken) return requestedSeekPositionMs
         val frame = clock.positionFrameAt(System.nanoTime()).toLong().coerceAtLeast(0L)
         return AudioTimeline.chartTimeForFrame(frame, leadInMs, musicOffsetMs, sampleRate)
             .coerceIn(0.0, if (chartDurationMs > 0) chartDurationMs else Double.MAX_VALUE)
@@ -524,7 +550,14 @@ class PcmChartAudioEngine(context: Context) {
     private fun pollTimestamp(track: AudioTrack) {
         val timestamp = AudioTimestamp()
         if (!runCatching { track.getTimestamp(timestamp) }.getOrDefault(false)) return
-        val frame = trackFrameBase + timestamp.framePosition
+        val delta = (timestamp.framePosition.toLong() - playheadBase) and 0xFFFF_FFFFL
+        val frame = trackFrameBase + delta
+        // Right after a flush the framework can still report a timestamp from before the seek.
+        // Feeding that into the clock makes the chart jump and bounce back, so ignore positions
+        // that are far from what the mixer has actually produced.
+        val mixedFrame = mixer?.currentFrame ?: return
+        val tolerance = sampleRate / 2
+        if (frame > mixedFrame + tolerance || frame < mixedFrame - tolerance) return
         clock.onTimestamp(frame, timestamp.nanoTime)
     }
 
@@ -566,6 +599,8 @@ class PcmChartAudioEngine(context: Context) {
                     val wasPlaying = mixPlaying
                     runCatching { track.pause() }
                     runCatching { track.flush() }
+                    playheadBase = runCatching { track.playbackHeadPosition.toLong() }
+                        .getOrDefault(0L)
                     // If the seek lands past what the background decoder has produced, restart the
                     // decoder there instead of leaving the music silent until it catches up.
                     source?.let { stream ->
@@ -592,6 +627,12 @@ class PcmChartAudioEngine(context: Context) {
                         mixPlaying = false
                         isPlaying = false
                     }
+                    appliedSeekToken = command.generation
+                    Log.i(
+                        TAG,
+                        "seek applied frame=${command.longValue} playheadBase=$playheadBase " +
+                            "playing=$mixPlaying",
+                    )
                     mutableSeekCompletions.value = mutableSeekCompletions.value + 1
                 }
                 Type.SPEED -> syncPlaybackSpeed(track)

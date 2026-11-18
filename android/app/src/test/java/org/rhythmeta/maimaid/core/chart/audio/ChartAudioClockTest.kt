@@ -56,6 +56,21 @@ class ChartAudioClockTest {
     }
 
     @Test
+    fun aBackwardTimestampNeverMovesTheClockBackwards() {
+        val clock = ChartAudioClock(rate)
+        clock.reset(0.0, t0, playing = true)
+        val before = clock.positionFrameAt(t0 + 1_000_000_000)
+        // The AudioTrack reports a playhead far behind the projection (typical right after resume).
+        clock.onTimestamp(0, t0 + 1_000_000_000)
+        val after = clock.positionFrameAt(t0 + 1_000_000_000)
+        assertTrue("clock jumped back: $before -> $after", after >= before)
+        // It still converges instead of ignoring the sample: the rate is nudged down.
+        val later = clock.positionFrameAt(t0 + 1_500_000_000)
+        assertTrue(later > after)
+        assertTrue("drift was not corrected", later < after + 0.5 * rate)
+    }
+
+    @Test
     fun timestampWhilePausedIsIgnored() {
         val clock = ChartAudioClock(rate)
         clock.reset(0.0, t0, playing = false)

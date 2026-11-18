@@ -69,12 +69,16 @@ class ChartAudioClock(
         val projected = positionFrameAt(nanoTime)
         val errorFrames = sampled - projected
         val snapFrames = snapThresholdMs * sampleRate / 1000.0
-        if (abs(errorFrames) > snapFrames) {
+        if (errorFrames > snapFrames) {
+            // The audio is clearly ahead (e.g. after a track flush): snap forward.
             anchorFrame = sampled
             anchorNanos = nanoTime
             correction = 0.0
             return
         }
+        // Never snap backwards: right after a resume the framework still reports a playhead behind
+        // the projected clock, and jumping back is exactly the visible jitter this clock exists to
+        // avoid. A real backwards jump is delivered as an explicit reset instead.
         val errorSeconds = errorFrames / sampleRate.toDouble()
         val limit = maximumRelativeCorrection * speed
         correction = (errorSeconds / convergenceSeconds).coerceIn(-limit, limit)
