@@ -65,7 +65,7 @@ class PcmChartAudioEngine(context: Context) {
     private val wakeLock = Object()
 
     private var mixer: ChartMixer? = null
-    private var source: ChartPcmStream? = null
+    private var source: ChartTrackSource? = null
     private var sampleBank: ChartSfxSampleBank? = null
     private var track: AudioTrack? = null
     private var mixThread: Thread? = null
@@ -121,13 +121,19 @@ class PcmChartAudioEngine(context: Context) {
     private var timestampCounter = 0
     private var preparedAtUptime = 0L
 
+    /** Prepares a cached track file (decoded in the background while playback starts). */
+    suspend fun prepare(mp3File: File, sha256: String): Boolean =
+        prepare(
+            trackSource = ChartPcmStream(mp3File),
+            key = "${sha256.lowercase()}:${mp3File.lastModified()}:${mp3File.length()}",
+        )
+
     /**
-     * Starts decoding [mp3File] into memory and, as soon as a short lead is available, loads the SFX
-     * bank and starts the mix thread. Returns false when the track cannot be played at all; the chart
-     * then runs silently.
+     * Prepares a track source (cached file or network stream) and starts the mix thread once a short
+     * lead is decoded. Returns false when the track cannot be played at all; the chart then runs
+     * silently.
      */
-    suspend fun prepare(mp3File: File, sha256: String): Boolean {
-        val key = "${sha256.lowercase()}:${mp3File.lastModified()}:${mp3File.length()}"
+    suspend fun prepare(trackSource: ChartTrackSource, key: String): Boolean {
         if (preparedKey == key && isReady) return true
         // A different track replaces the current one: tear the old mixer/AudioTrack down first so
         // it cannot keep playing (or leak) while the new track is being decoded.
@@ -140,73 +146,44 @@ class PcmChartAudioEngine(context: Context) {
         val startedAt = SystemClock.uptimeMillis()
         var createdTrack: AudioTrack? = null
         var createdMixer: ChartMixer? = null
-        var stream: ChartPcmStream? = null
+        var createdTrackSource: ChartTrackSource? = null
         return try {
             // Decoding runs concurrently with playback: waiting for the whole track costs seconds
             // because MediaCodec returns one small buffer per MP3 frame.
-            val createdStream = ChartPcmStream(mp3File)
-            stream = createdStream
-            createdStream.start()
-            val formatReady = withContext(Dispatchers.IO) {
-                createdStream.awaitFormat(FORMAT_TIMEOUT_MS)
-            }
-            if (!formatReady || generation != prepareGeneration) {
-                createdStream.close()
+            createdTrackSource = trackSource
+            trackSource.start()
+            val ready = withContext(Dispatchers.IO) { trackSource.awaitReady() }
+            if (!ready || generation != prepareGeneration) {
+                trackSource.close()
                 return false
             }
             val bank = withContext(Dispatchers.IO) {
-                ChartSfxSampleBank.load(appContext.assets, createdStream.sampleRate)
+                ChartSfxSampleBank.load(appContext.assets, trackSource.sampleRate)
             }
             if (generation != prepareGeneration) {
-                createdStream.close()
+                trackSource.close()
                 return false
             }
-            val createdMixerLocal = ChartMixer(createdStream.sampleRate, bank)
-            createdMixerLocal.setMusicSource(createdStream)
+            val createdMixerLocal = ChartMixer(trackSource.sampleRate, bank)
+            createdMixerLocal.setMusicSource(trackSource)
             createdMixerLocal.musicVolume = musicVolume
             createdMixerLocal.answerVolume = answerVolume
             createdMixerLocal.judgeVolume = judgeVolume
             createdMixerLocal.sfxEnabled = sfxEnabled
-            val createdTrackLocal = createAudioTrack(createdStream.sampleRate)
+            val createdTrackLocal = createAudioTrack(trackSource.sampleRate)
             createdTrack = createdTrackLocal
             createdMixer = createdMixerLocal
             if (generation != prepareGeneration) {
                 runCatching { createdTrackLocal.release() }
                 createdMixerLocal.release()
-                createdStream.close()
+                trackSource.close()
                 createdTrack = null
                 createdMixer = null
-                stream = null
                 return false
             }
-            // Wait for the lead-in so the first seconds are never silent; the rest keeps decoding
-            // while the chart is already playing.
-            val prerollFrames = createdStream.sampleRate * ChartPcmStream.PREROLL_MS / 1_000
-            val prerollReady = withContext(Dispatchers.IO) {
-                createdStream.awaitPreroll(prerollFrames, PREROLL_TIMEOUT_MS)
-            }
-            if (!prerollReady) {
-                val error = createdStream.error
-                runCatching { createdTrackLocal.release() }
-                createdMixerLocal.release()
-                createdStream.close()
-                createdTrack = null
-                createdMixer = null
-                stream = null
-                throw error ?: IllegalStateException("Unable to decode the chart track")
-            }
-            if (generation != prepareGeneration) {
-                runCatching { createdTrackLocal.release() }
-                createdMixerLocal.release()
-                createdStream.close()
-                createdTrack = null
-                createdMixer = null
-                stream = null
-                return false
-            }
-            sampleRate = createdStream.sampleRate
+            sampleRate = trackSource.sampleRate
             mixer = createdMixerLocal
-            source = createdStream
+            source = trackSource
             sampleBank = bank
             track = createdTrackLocal
             startThread(createdMixerLocal, createdTrackLocal)
@@ -215,7 +192,7 @@ class PcmChartAudioEngine(context: Context) {
             mutableUsesPcm.value = true
             preparedAtUptime = startedAt
             applyConfigurationToMixer()
-            mutableState.value = ChartAudioState.Ready(createdStream.durationMillis)
+            mutableState.value = ChartAudioState.Ready(trackSource.durationMillis)
             Log.i(TAG, "ready in ${SystemClock.uptimeMillis() - startedAt}ms (streaming decode)")
             true
         } catch (error: CancellationException) {
@@ -230,7 +207,7 @@ class PcmChartAudioEngine(context: Context) {
         } finally {
             if (createdTrack != null && track !== createdTrack) runCatching { createdTrack.release() }
             if (createdMixer != null && mixer !== createdMixer) createdMixer.release()
-            if (source !== stream) stream?.close()
+            if (source !== createdTrackSource) createdTrackSource?.close()
             if (generation == prepareGeneration) mutablePreparing.value = false
         }
     }

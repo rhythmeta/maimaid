@@ -8,6 +8,8 @@ import android.util.Log
 import java.io.File
 import java.nio.ByteOrder
 import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Decodes a chart track into memory on a background thread and exposes the decoded part as a
@@ -21,7 +23,7 @@ import kotlin.math.max
  *
  * Nothing is written to disk: the samples live in [PcmChunkBuffer] and are released with the stream.
  */
-class ChartPcmStream(private val source: File) : PcmFrameSource {
+class ChartPcmStream(private val source: File) : ChartTrackSource {
     private val buffer = PcmChunkBuffer()
     private val formatLock = Object()
 
@@ -35,7 +37,7 @@ class ChartPcmStream(private val source: File) : PcmFrameSource {
     private var complete = false
 
     @Volatile
-    var sampleRate: Int = 0
+    override var sampleRate: Int = 0
         private set
 
     @Volatile
@@ -55,22 +57,28 @@ class ChartPcmStream(private val source: File) : PcmFrameSource {
             return buffer.base / 2 + buffer.availableFrames()
         }
 
-    val durationMillis: Int get() = (durationUs / 1_000).toInt()
+    override val durationMillis: Int get() = (durationUs / 1_000).toInt()
 
-    val error: Throwable? get() = failure
+    override val error: Throwable? get() = failure
+
+    override suspend fun awaitReady(): Boolean =
+        withContext(Dispatchers.IO) {
+            if (!awaitFormat(FORMAT_TIMEOUT_MS)) return@withContext false
+            awaitPreroll(sampleRate.toLong() * PREROLL_MS / 1_000, PREROLL_TIMEOUT_MS)
+        }
 
     override val isComplete: Boolean get() = complete
 
     /** First frame the buffer can still serve (moves forward after a decoder restart). */
-    val baseFrame: Long get() = buffer.base / 2
+    override val baseFrame: Long get() = buffer.base / 2
 
     /** One past the last decodable frame currently in memory. */
-    val decodedFrames: Long get() = baseFrame + buffer.availableFrames()
+    override val decodedFrames: Long get() = baseFrame + buffer.availableFrames()
 
     override fun readFrames(startFrame: Long, out: ShortArray, outOffset: Int, frames: Int): Int =
         buffer.readFrames(startFrame, out, outOffset, frames)
 
-    fun start() {
+    override fun start() {
         if (thread != null) return
         thread = Thread({ decodeLoop() }, "ChartPcmDecode").apply {
             priority = Thread.NORM_PRIORITY
@@ -106,7 +114,7 @@ class ChartPcmStream(private val source: File) : PcmFrameSource {
      * Asks the decoder to jump to [frame]. Used when a seek lands past the decoded frontier, where
      * the sequential decoder would otherwise leave the music silent until it caught up.
      */
-    fun requestSeek(frame: Long) {
+    override fun requestSeek(frame: Long) {
         if (complete) return
         pendingSeekFrame = frame.coerceAtLeast(0L)
     }
@@ -297,6 +305,8 @@ class ChartPcmStream(private val source: File) : PcmFrameSource {
     companion object {
         private const val TAG = "ChartPcmStream"
         private const val MAX_IDLE_LOOPS = 2_000
+        private const val FORMAT_TIMEOUT_MS = 3_000L
+        private const val PREROLL_TIMEOUT_MS = 3_000L
 
         /** Lead time decoded before playback is allowed to start. */
         const val PREROLL_MS = 400L

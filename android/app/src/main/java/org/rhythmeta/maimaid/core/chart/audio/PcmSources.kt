@@ -23,6 +23,31 @@ interface PcmFrameSource {
     fun close() = Unit
 }
 
+/**
+ * Music track that can be prepared asynchronously (from a cached file or straight off the network)
+ * and then read by the mixer while it is still being decoded.
+ */
+interface ChartTrackSource : PcmFrameSource {
+    val sampleRate: Int
+    val durationMillis: Int
+    val error: Throwable?
+
+    /** One past the last frame currently readable (grows while decoding). */
+    val decodedFrames: Long get() = frameCount
+
+    /** First frame still held in memory; moves forward after a decoder restart on seek. */
+    val baseFrame: Long get() = 0
+
+    /** Starts the background decode/download. Idempotent. */
+    fun start()
+
+    /** Asks a still-running decoder to restart at [frame] (used for seeks past the frontier). */
+    fun requestSeek(frame: Long) = Unit
+
+    /** Suspends until the format is known and [ChartPcmStream.PREROLL_MS] of audio is decoded. */
+    suspend fun awaitReady(): Boolean
+}
+
 /** In-memory source used by JVM tests and as a fallback for very small tracks. */
 class MemoryPcmFrameSource(private val samples: ShortArray) : PcmFrameSource {
     override val frameCount: Long = (samples.size / 2).toLong()

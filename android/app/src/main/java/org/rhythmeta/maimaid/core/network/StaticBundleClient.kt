@@ -109,6 +109,62 @@ class StaticBundleClient(
         }
     }
 
+    /**
+     * Streams a chart asset: every received chunk is handed to [onChunk] while the verified copy is
+     * written to [destination]. The preview can therefore start playing before the transfer ends;
+     * the file only appears at its final name once size and digest match the published values.
+     */
+    suspend fun streamChartAssetToFile(
+        asset: ChartAssetIndex.File,
+        destination: File,
+        onChunk: (ByteArray, Int, Int) -> Unit,
+    ) = withContext(Dispatchers.IO) {
+        validateChartAssetPath(asset)
+        require(asset.size > 0L) { "Chart asset must not be empty" }
+        val temporary = File(
+            destination.parentFile,
+            ".${destination.name}.${System.nanoTime()}.download",
+        )
+        val digest = MessageDigest.getInstance("SHA-256")
+        val connection =
+            URL("${baseUrl.trimEnd('/')}${asset.path}").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = CONNECT_TIMEOUT_MILLIS
+            connection.readTimeout = READ_TIMEOUT_MILLIS
+            connection.setRequestProperty("Accept", "audio/mpeg, text/plain, */*")
+            connection.setRequestProperty("X-Maimaid-Client", "android")
+            connection.setRequestProperty("User-Agent", "maimaid-android")
+            check(connection.responseCode in 200..299) { "HTTP ${connection.responseCode}" }
+            temporary.parentFile?.mkdirs()
+            var size = 0L
+            connection.inputStream.use { input ->
+                temporary.outputStream().use { output ->
+                    val buffer = ByteArray(TRANSFER_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        size += count
+                        check(size <= asset.size) { "Chart asset exceeds published size" }
+                        digest.update(buffer, 0, count)
+                        output.write(buffer, 0, count)
+                        onChunk(buffer, 0, count)
+                    }
+                }
+            }
+            check(size == asset.size) { "Chart asset size mismatch: expected ${asset.size}, got $size" }
+            val actualDigest = digest.digest().joinToString("") { byte ->
+                "%02x".format(byte.toInt() and 0xff)
+            }
+            check(actualDigest == asset.sha256.lowercase()) { "Chart asset digest mismatch" }
+            destination.parentFile?.mkdirs()
+            atomicReplace(temporary, destination)
+        } finally {
+            connection.disconnect()
+            temporary.delete()
+        }
+    }
+
     suspend fun downloadCover(
         imageName: String,
         destination: File,

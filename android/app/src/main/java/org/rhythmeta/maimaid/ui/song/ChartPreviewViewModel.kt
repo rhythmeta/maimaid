@@ -23,6 +23,8 @@ import org.rhythmeta.maimaid.core.chart.ChartAudioState
 import org.rhythmeta.maimaid.core.chart.ChartTrackCache
 import org.rhythmeta.maimaid.core.chart.Mp3CoverArt
 import org.rhythmeta.maimaid.core.chart.SimaiParser
+import org.rhythmeta.maimaid.core.chart.audio.ChartPcmStream
+import org.rhythmeta.maimaid.core.chart.audio.ChartStreamingTrack
 import org.rhythmeta.maimaid.core.chart.audio.PcmChartAudioEngine
 import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.database.SheetEntity
@@ -210,24 +212,51 @@ class ChartPreviewViewModel(
         // chart and the status line can report why playback has not begun yet.
         mutableAudioState.value = ChartAudioState.Preparing
         audioPrepareJob = viewModelScope.launch {
-            val trackFile = try {
-                ChartTrackCache.ensure(
-                    container.applicationContext,
-                    audio,
-                    container.staticBundleClient,
-                )
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                mutableAudioState.value = ChartAudioState.Failed(
-                    error.message ?: "Unable to download the chart track",
-                )
-                preparedAudioSha = null
-                audioPrepareJob = null
-                return@launch
+            val cached = ChartTrackCache.cachedFile(container.applicationContext, audio)
+            val prepared = if (cached != null) {
+                runCatching { pcmEngine.prepare(cached, audio.sha256) }.getOrDefault(false)
+            } else {
+                // Nothing cached yet: play straight from the network. Decoding starts on the first
+                // received bytes, so the preview no longer waits for the whole MP3 to download.
+                val streamed = runCatching {
+                    pcmEngine.prepare(
+                        trackSource = ChartStreamingTrack { sink ->
+                            ChartTrackCache.stream(
+                                context = container.applicationContext,
+                                asset = audio,
+                                client = container.staticBundleClient,
+                                onChunk = { bytes, offset, length ->
+                                    sink.onChunk(bytes, offset, length)
+                                },
+                            )
+                        },
+                        key = "stream:${audio.sha256}",
+                    )
+                }.getOrDefault(false)
+                if (streamed) {
+                    true
+                } else {
+                    // Streaming failed (offline hiccup, unusual encoding): fall back to the verified
+                    // download + file decode path so the chart still has music.
+                    val file = try {
+                        ChartTrackCache.ensure(
+                            container.applicationContext,
+                            audio,
+                            container.staticBundleClient,
+                        )
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        mutableAudioState.value = ChartAudioState.Failed(
+                            error.message ?: "Unable to download the chart track",
+                        )
+                        preparedAudioSha = null
+                        audioPrepareJob = null
+                        return@launch
+                    }
+                    runCatching { pcmEngine.prepare(file, audio.sha256) }.getOrDefault(false)
+                }
             }
-            val prepared = runCatching { pcmEngine.prepare(trackFile, audio.sha256) }
-                .getOrDefault(false)
             mutableAudioState.value = if (prepared) {
                 pcmEngine.state.value
             } else {

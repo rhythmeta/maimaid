@@ -29,6 +29,28 @@ object ChartTrackCache {
         return file.takeIf { it.isFile && it.length() > 0L }
     }
 
+    /**
+     * Downloads [asset] while forwarding its bytes to [onChunk], so decoding can start immediately.
+     * The verified file still lands in the cache under its usual name.
+     */
+    suspend fun stream(
+        context: Context,
+        asset: ChartAssetIndex.File,
+        client: StaticBundleClient,
+        onChunk: (ByteArray, Int, Int) -> Unit,
+    ): File {
+        val extension = asset.path.substringAfterLast('.', missingDelimiterValue = "mp3")
+        val destination = File(cacheDirectory(context), "${asset.sha256.lowercase()}.$extension")
+        client.streamChartAssetToFile(asset, destination, onChunk)
+        return withContext(Dispatchers.IO) {
+            val directory = cacheDirectory(context)
+            destination.setLastModified(System.currentTimeMillis())
+            ChartAudioCacheLru.purgeLegacyPcmFiles(directory)
+            ChartAudioCacheLru.prune(directory, keepKeys = setOf(asset.sha256.lowercase()))
+            destination
+        }
+    }
+
     /** Downloads [asset] unless a byte-identical cached copy already exists. */
     suspend fun ensure(
         context: Context,
