@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import android.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
+import org.rhythmeta.maimaid.core.chart.ChartConstants
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -46,13 +47,15 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
-/** Note-type colors used by the density timeline, matching the reference app. */
+/** Note-type colors used by the density timeline key and stacked bars. */
 internal object DensityColors {
-    val tap = Color(0xFFFFD700)
-    val hold = Color(0xFFFF8C00)
-    val slide = Color(0xFF00CED1)
-    val touch = Color(0xFF0080FF)
-    val breakNote = Color(0xFFFF69B4)
+    // Matches the stage renderer so the key reads like the notes on the stage. Holds share the
+    // tap fill there, so the key keeps them apart with yellow.
+    val tap = Color(ChartConstants.Colors.TAP_PINK)
+    val hold = Color(0xFFFFD700)
+    val slide = Color(ChartConstants.Colors.SLIDE_CYAN)
+    val touch = Color(ChartConstants.Colors.TOUCH_BLUE)
+    val breakNote = Color(ChartConstants.Colors.BREAK_ORANGE)
 }
 
 /**
