@@ -57,6 +57,7 @@ The Gradle root is `android/`, so run the wrapper from there — not from the re
   `Community/`, `Settings/`, and `Onboarding/`. Shared UI stays in
   `Components/`; app-level tab routing stays in `Navigation/`.
 - **Services/**: Backend API client (`BackendAPIClient`), session management (`BackendSessionManager`), manual snapshots (`CloudBackupService`), local score uploads, data import from Diving Fish / LXNS, image recognition (`MLScoreProcessor`, `MLChooseProcessor`, `MLDistinguishProcessor`), community aliases
+- **Chart/**: the chart-preview engine, a 1:1 Swift port of the Android `core/chart` tree (which ports `@lxns-network/maimai-chart-engine`): simai parser, stage geometry/renderers over SwiftUI `GraphicsContext`, the PCM music + answer/judge SFX mixer on `AVAudioEngine`, chart-asset index/download/verification, and the persisted preview settings. The page lives in `Views/Song/ChartPreview/` and is opened from the song detail top bar; assets ship in `Resources/maimai/chart/`. Parser output is locked to the reference engine by `SimaiParserTests` (the Android `SimaiParityTest` fixture), and `ChartAssetIntegrationTests` (network-gated with `TEST_RUNNER_MAIMAID_NETWORK_TESTS=1`) exercises the published bundle end to end.
 - **Localization**: `Localizable.strings` in `en`, `ja`, `zh-Hans`, `zh-Hant`. When adding user-facing strings, translate into all four languages.
 
 ### Android App (`android/`)

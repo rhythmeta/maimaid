@@ -758,3 +758,66 @@
 "import.sgwcmaid.error.catalogEmpty" = "楽曲データが空です。先に静的データを更新してください。";
 "import.sgwcmaid.error.login" = "舞萌サーバーにログインできませんでした。";
 "scanner.sgwcmaid.card.title" = "SGWCMAID コード";
+
+// MARK: - 譜面プレビュー
+"chart.preview.title" = "譜面プレビュー";
+"chart.preview.action" = "譜面をプレビュー";
+"chart.preview.action.save" = "譜面を保存";
+"chart.preview.save.failed" = "譜面を保存できません";
+"chart.preview.retry" = "再試行";
+"chart.preview.play" = "再生";
+"chart.preview.pause" = "一時停止";
+"chart.preview.previousMeasure" = "前の小節";
+"chart.preview.nextMeasure" = "次の小節";
+"chart.preview.soundOn" = "効果音をオン";
+"chart.preview.soundOff" = "効果音をオフ";
+"chart.preview.audioLoading" = "音声を読み込み中…";
+"chart.preview.hud.combo" = "コンボ";
+"chart.preview.hud.breakNoEx" = "NO EX";
+"chart.preview.error.noChart" = "この楽曲にはプレビューできる譜面がありません";
+"chart.preview.playback.hint" = "ダブルタップで再生・一時停止";
+
+// MARK: - Chart Preview Settings
+"chart.preview.settings.speed" = "速度";
+"chart.preview.settings.hiSpeed" = "流速";
+"chart.preview.settings.playbackSpeed" = "再生速度";
+"chart.preview.settings.rhythmSpeed" = "リズム解析速度";
+"chart.preview.settings.slideDelay" = "スター遅延";
+"chart.preview.settings.keepHiSpeed" = "譜面速度を維持";
+"chart.preview.settings.display" = "表示";
+"chart.preview.settings.mirror" = "ミラー";
+"chart.preview.settings.mirror.none" = "なし";
+"chart.preview.settings.mirror.horizontal" = "左右";
+"chart.preview.settings.mirror.vertical" = "上下";
+"chart.preview.settings.mirror.rotate" = "回転";
+"chart.preview.settings.judgment" = "判定線";
+"chart.preview.settings.judgment.hidden" = "非表示";
+"chart.preview.settings.judgment.noLine" = "線なし";
+"chart.preview.settings.judgment.simple" = "シンプル";
+"chart.preview.settings.judgment.sensor" = "センサー";
+"chart.preview.settings.effects" = "エフェクト";
+"chart.preview.settings.slideRotation" = "スライド矢印回転";
+"chart.preview.settings.pinkSlide" = "ピンクのスライド頭";
+"chart.preview.settings.highlightEx" = "EX を強調";
+"chart.preview.settings.breakSlideNormal" = "ブレイクスライドを通常色";
+"chart.preview.settings.fireworks" = "花火";
+"chart.preview.settings.hitEffect" = "ヒットエフェクト";
+"chart.preview.settings.counts" = "画面内カウント";
+"chart.preview.settings.noteTotal" = "画面内コンボ数";
+"chart.preview.settings.breakCount" = "画面内 BREAK 数";
+"chart.preview.settings.audio" = "オーディオ";
+"chart.preview.settings.musicVolume" = "音楽音量";
+"chart.preview.settings.answerVolume" = "正解音音量";
+"chart.preview.settings.judgeVolume" = "判定音音量";
+"chart.preview.settings.musicOffset" = "音楽オフセット (ms)";
+"chart.preview.settings.sfxOffset" = "効果音オフセット (ms)";
+"chart.preview.settings.reset" = "リセット";
+"chart.preview.settings.resetAll" = "すべてリセット";
+
+// MARK: - Chart Preview Timelines
+"chart.preview.density.label" = "譜面密度";
+"chart.preview.rhythm.label" = "譜面リズム";
+"chart.preview.density.hint" = "ドラッグでシーク";
+
+// MARK: - Chart Preview Navigation
+"chart.preview.close" = "戻る";

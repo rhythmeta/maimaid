@@ -754,3 +754,66 @@
 "import.sgwcmaid.error.catalogEmpty" = "曲库数据为空，请先更新静态数据。";
 "import.sgwcmaid.error.login" = "无法登录舞萌服务器。";
 "scanner.sgwcmaid.card.title" = "SGWCMAID 码";
+
+// MARK: - 谱面预览
+"chart.preview.title" = "谱面预览";
+"chart.preview.action" = "预览谱面";
+"chart.preview.action.save" = "保存谱面";
+"chart.preview.save.failed" = "无法保存谱面";
+"chart.preview.retry" = "重试";
+"chart.preview.play" = "播放";
+"chart.preview.pause" = "暂停";
+"chart.preview.previousMeasure" = "上一小节";
+"chart.preview.nextMeasure" = "下一小节";
+"chart.preview.soundOn" = "开启音效";
+"chart.preview.soundOff" = "关闭音效";
+"chart.preview.audioLoading" = "正在加载音频…";
+"chart.preview.hud.combo" = "连击";
+"chart.preview.hud.breakNoEx" = "NO EX";
+"chart.preview.error.noChart" = "该歌曲没有可预览的谱面";
+"chart.preview.playback.hint" = "双击播放或暂停";
+
+// MARK: - Chart Preview Settings
+"chart.preview.settings.speed" = "速度";
+"chart.preview.settings.hiSpeed" = "流速";
+"chart.preview.settings.playbackSpeed" = "播放速度";
+"chart.preview.settings.rhythmSpeed" = "节奏解析速度";
+"chart.preview.settings.slideDelay" = "星星延迟";
+"chart.preview.settings.keepHiSpeed" = "保持谱面流速";
+"chart.preview.settings.display" = "显示";
+"chart.preview.settings.mirror" = "镜像";
+"chart.preview.settings.mirror.none" = "无";
+"chart.preview.settings.mirror.horizontal" = "左右";
+"chart.preview.settings.mirror.vertical" = "上下";
+"chart.preview.settings.mirror.rotate" = "旋转";
+"chart.preview.settings.judgment" = "判定线";
+"chart.preview.settings.judgment.hidden" = "隐藏";
+"chart.preview.settings.judgment.noLine" = "无线";
+"chart.preview.settings.judgment.simple" = "简约";
+"chart.preview.settings.judgment.sensor" = "感应区";
+"chart.preview.settings.effects" = "效果";
+"chart.preview.settings.slideRotation" = "Slide 箭头旋转";
+"chart.preview.settings.pinkSlide" = "粉色 Slide 头";
+"chart.preview.settings.highlightEx" = "高亮 EX";
+"chart.preview.settings.breakSlideNormal" = "Break Slide 常规色";
+"chart.preview.settings.fireworks" = "烟花";
+"chart.preview.settings.hitEffect" = "打击特效";
+"chart.preview.settings.counts" = "画面内计数";
+"chart.preview.settings.noteTotal" = "画面内连击数";
+"chart.preview.settings.breakCount" = "画面内绝赞数";
+"chart.preview.settings.audio" = "音频";
+"chart.preview.settings.musicVolume" = "音乐音量";
+"chart.preview.settings.answerVolume" = "正解音音量";
+"chart.preview.settings.judgeVolume" = "打击音效音量";
+"chart.preview.settings.musicOffset" = "音乐偏移 (ms)";
+"chart.preview.settings.sfxOffset" = "音效偏移 (ms)";
+"chart.preview.settings.reset" = "重置";
+"chart.preview.settings.resetAll" = "全部重置";
+
+// MARK: - Chart Preview Timelines
+"chart.preview.density.label" = "谱面密度";
+"chart.preview.rhythm.label" = "谱面节奏";
+"chart.preview.density.hint" = "拖动以跳转";
+
+// MARK: - Chart Preview Navigation
+"chart.preview.close" = "返回";

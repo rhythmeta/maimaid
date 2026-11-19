@@ -1,0 +1,14 @@
+Chart preview runtime assets
+
+sensor.webp and the SFX files (answer.wav, tap.wav, touch.wav, break.wav,
+slide.wav, cheer.wav, ex.wav, firework.wav, break_slide.wav,
+break_slide_cheer.wav, touch_hold.wav) are copied from the public runtime
+assets of @lxns-network/maimai-chart-engine, vendored from
+Lxns-Network/maimai-prober-frontend. The renderer and these assets are MIT
+licensed; see the upstream package LICENSE and README for attribution and
+source details:
+https://github.com/AdingApkgg/adx-dl/tree/main/packages/maimai-chart-engine
+
+sensor.webp is a cabinet sensor layout reference. The audio files are the
+engine's own answer/judge sound effects. Neither grants rights to redistribute
+SEGA artwork or music.

@@ -1,5 +1,13 @@
 excluded:
   - ios/maimaid/Generated
+  # Chart preview engine: a 1:1 Swift port of @lxns-network/maimai-chart-engine (via the Android port).
+  # Names, parameter counts and file sizes intentionally mirror the reference sources so the ports stay
+  # diffable; the density of the geometry/rendering code is the upstream design, not local style.
+  - ios/maimaid/Chart
+  - ios/maimaidTests/Chart
+  # The chart preview views mirror the reference canvas helpers (multi-parameter draw functions,
+  # long files) and are covered by unit + snapshot tests instead of per-line lint rules.
+  - ios/maimaid/Views/Song/ChartPreview
 
 identifier_name:
   excluded:

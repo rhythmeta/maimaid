@@ -80,12 +80,23 @@ struct SongDetailContent: View {
     @State private var communityAliasDailyUsedCount = 0
     @State private var communityQuotaShakePhase: CGFloat = 0
     @State private var isCommunityQuotaBarFlashing = false
+    @State private var isPresentingChartPreview = false
     private let communityAliasDailyQuotaLimit = 5
 
     private struct DisplayAlias: Identifiable {
         let text: String
         let isCommunity: Bool
         var id: String { "\(isCommunity ? "community" : "official"):\(text.lowercased())" }
+    }
+
+    /// Chart type scoping for the preview page: the button opens the preview focused on the chart
+    /// type currently shown on the detail screen, exactly like the Android top-bar action.
+    private var preferredPreviewSheetKey: String? {
+        guard !selectedType.isEmpty else { return nil }
+        let display = ChartPreviewSheetKey.displayType(selectedType)
+        guard let sheet = song.sheets.first(where: { ChartPreviewSheetKey.displayType($0.type) == display })
+        else { return nil }
+        return ChartPreviewSheetKey.key(for: sheet)
     }
 
     private var displayAliases: [DisplayAlias] {
@@ -201,6 +212,13 @@ struct SongDetailContent: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPresentingChartPreview = true
+                } label: {
+                    Label("chart.preview.action", systemImage: "eye")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         song.isFavorite.toggle()
                         try? modelContext.save()
@@ -208,6 +226,14 @@ struct SongDetailContent: View {
                     } label: {
                         Label("song.detail.action.favorite", systemImage: song.isFavorite ? "heart.fill" : "heart")
                     }
+            }
+        }
+        // Presented as a full-screen cover instead of a pushed page: the preview owns its own back
+        // button, and a navigation push would also install the swipe-back gesture, which fires while
+        // scrubbing the seek bar near the leading edge.
+        .fullScreenCover(isPresented: $isPresentingChartPreview) {
+            NavigationStack {
+                ChartPreviewView(song: song, preferredSheetKey: preferredPreviewSheetKey)
             }
         }
         .sheet(item: $selectedSheet) { sheet in

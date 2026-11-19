@@ -758,3 +758,66 @@
 "import.sgwcmaid.error.catalogEmpty" = "The song catalog is empty. Update static data first.";
 "import.sgwcmaid.error.login" = "Could not log in to the maimai server.";
 "scanner.sgwcmaid.card.title" = "SGWCMAID code";
+
+// MARK: - Chart Preview
+"chart.preview.title" = "Chart Preview";
+"chart.preview.action" = "Preview Chart";
+"chart.preview.action.save" = "Save Chart";
+"chart.preview.save.failed" = "Unable to save the chart";
+"chart.preview.retry" = "Retry";
+"chart.preview.play" = "Play";
+"chart.preview.pause" = "Pause";
+"chart.preview.previousMeasure" = "Previous measure";
+"chart.preview.nextMeasure" = "Next measure";
+"chart.preview.soundOn" = "Play sound effects";
+"chart.preview.soundOff" = "Mute sound effects";
+"chart.preview.audioLoading" = "Loading audio...";
+"chart.preview.hud.combo" = "COMBO";
+"chart.preview.hud.breakNoEx" = "NO EX";
+"chart.preview.error.noChart" = "No previewable chart for this song";
+"chart.preview.playback.hint" = "Double-tap to play or pause";
+
+// MARK: - Chart Preview Settings
+"chart.preview.settings.speed" = "Speed";
+"chart.preview.settings.hiSpeed" = "Hi-speed";
+"chart.preview.settings.playbackSpeed" = "Playback speed";
+"chart.preview.settings.rhythmSpeed" = "Rhythm lane speed";
+"chart.preview.settings.slideDelay" = "Slide delay";
+"chart.preview.settings.keepHiSpeed" = "Keep chart speed";
+"chart.preview.settings.display" = "Display";
+"chart.preview.settings.mirror" = "Mirror";
+"chart.preview.settings.mirror.none" = "None";
+"chart.preview.settings.mirror.horizontal" = "Horizontal";
+"chart.preview.settings.mirror.vertical" = "Vertical";
+"chart.preview.settings.mirror.rotate" = "Rotate";
+"chart.preview.settings.judgment" = "Judgment line";
+"chart.preview.settings.judgment.hidden" = "Hidden";
+"chart.preview.settings.judgment.noLine" = "No line";
+"chart.preview.settings.judgment.simple" = "Simple";
+"chart.preview.settings.judgment.sensor" = "Sensor";
+"chart.preview.settings.effects" = "Effects";
+"chart.preview.settings.slideRotation" = "Slide arrow rotation";
+"chart.preview.settings.pinkSlide" = "Pink slide head";
+"chart.preview.settings.highlightEx" = "Highlight EX";
+"chart.preview.settings.breakSlideNormal" = "Normal break-slide color";
+"chart.preview.settings.fireworks" = "Fireworks";
+"chart.preview.settings.hitEffect" = "Hit effects";
+"chart.preview.settings.counts" = "In-canvas counters";
+"chart.preview.settings.noteTotal" = "Combo counter";
+"chart.preview.settings.breakCount" = "Break counter";
+"chart.preview.settings.audio" = "Audio";
+"chart.preview.settings.musicVolume" = "Music volume";
+"chart.preview.settings.answerVolume" = "Answer volume";
+"chart.preview.settings.judgeVolume" = "Judge SFX volume";
+"chart.preview.settings.musicOffset" = "Music offset (ms)";
+"chart.preview.settings.sfxOffset" = "SFX offset (ms)";
+"chart.preview.settings.reset" = "Reset";
+"chart.preview.settings.resetAll" = "Reset all";
+
+// MARK: - Chart Preview Timelines
+"chart.preview.density.label" = "Chart density";
+"chart.preview.rhythm.label" = "Chart rhythm";
+"chart.preview.density.hint" = "Drag to seek";
+
+// MARK: - Chart Preview Navigation
+"chart.preview.close" = "Back";
