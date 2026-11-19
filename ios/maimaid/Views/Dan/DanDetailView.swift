@@ -2,13 +2,18 @@ import SwiftUI
 import SwiftData
 
 struct DanDetailView: View {
+    private enum DanPage: Hashable {
+        case regular
+        case trueDan
+    }
+
     let category: DanCategory
     @Query private var allSongs: [Song]
     @Query(filter: #Predicate<UserProfile> { $0.isActive }) private var activeProfiles: [UserProfile]
     @Environment(\.modelContext) private var modelContext
 
     @State private var scoreCache: [String: Score] = [:]
-    @State private var selectedPage = 0
+    @State private var selectedPage: DanPage = .regular
     @State private var regularScrollPosition = ScrollPosition()
     @State private var trueScrollPosition = ScrollPosition()
 
@@ -42,19 +47,16 @@ struct DanDetailView: View {
         activeProfiles.first.flatMap { GameServer(rawValue: $0.server) } ?? .jp
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            if hasTruePage {
-                Picker("dan.detail.page.selection", selection: $selectedPage) {
-                    Text("dan.detail.page.regular").tag(0)
-                    Text("dan.detail.page.true").tag(1)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-            }
+    private var selectedPageTitle: LocalizedStringKey {
+        switch selectedPage {
+        case .regular: "dan.detail.page.regular"
+        case .trueDan: "dan.detail.page.true"
+        }
+    }
 
-            if selectedPage == 0 {
+    var body: some View {
+        Group {
+            if selectedPage == .regular {
                 DanSectionPageView(
                     categoryTitle: category.title,
                     sections: regularSections,
@@ -77,6 +79,21 @@ struct DanDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(category.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if hasTruePage {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("dan.detail.page.selection", selection: $selectedPage) {
+                            Text("dan.detail.page.regular").tag(DanPage.regular)
+                            Text("dan.detail.page.true").tag(DanPage.trueDan)
+                        }
+                    } label: {
+                        Label(selectedPageTitle, systemImage: "rectangle.2.swap")
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
+            }
+        }
         .task {
             await loadScoreCache()
         }

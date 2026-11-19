@@ -614,7 +614,7 @@
 "community.alias.submit.adminRejectedLocked" = "この別名は管理者により却下済みです。再投稿できるのは管理者のみです。";
 "community.alias.submit.loginRequired" = "投稿するにはクラウドアカウントにログインしてください。";
 "community.alias.submit.invalidRequest" = "投稿形式が無効です。入力内容を確認してください。";
-"community.alias.board.title" = "コミュニティ別名投票";
+"community.alias.board.title" = "コミュニティ別名";
 "community.alias.board.config.title" = "クラウド未設定";
 "community.alias.board.config.message" = "設定でクラウド URL/Key を入力し、アプリを再起動するかこの画面を開き直してください。";
 "community.alias.board.login.title" = "ログインが必要";
@@ -625,6 +625,15 @@
 "community.alias.board.loading" = "公開リストを読み込み中…";
 "community.alias.board.group.subtitle %lld" = "候補別名 %lld 件";
 "community.alias.board.deadline %@" = "締切 %@";
+"community.alias.board.mode" = "表示";
+"community.alias.board.mode.candidates" = "候補";
+"community.alias.board.mode.approved" = "承認済み";
+"community.alias.board.approved.empty.title" = "承認済みの別名はまだありません";
+"community.alias.board.approved.empty.message" = "投票を経て承認された別名がここに表示されます。";
+"community.alias.board.approved.loading" = "承認済みの別名を読み込み中…";
+"community.alias.board.approved.group.subtitle %lld" = "承認済みの別名 %lld 件";
+"community.alias.board.approved.at %@" = "承認日時 %@";
+"community.alias.board.approved.mine" = "自分の投稿";
 "community.alias.vote.support %lld" = "賛成 %lld";
 "community.alias.vote.oppose %lld" = "反対 %lld";
 "community.alias.vote.cancelSupport %lld" = "賛成を取り消す %lld";

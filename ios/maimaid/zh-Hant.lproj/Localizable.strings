@@ -614,7 +614,7 @@
 "community.alias.submit.adminRejectedLocked" = "該別名曾被管理員拒絕，僅管理員可再次投稿。";
 "community.alias.submit.loginRequired" = "請先登入雲端帳號再投稿。";
 "community.alias.submit.invalidRequest" = "投稿格式無效，請檢查輸入內容。";
-"community.alias.board.title" = "社群別名投票";
+"community.alias.board.title" = "社群別名";
 "community.alias.board.config.title" = "未配置雲端";
 "community.alias.board.config.message" = "請先在配置中填寫雲端 URL/Key，然後重啟應用或重新進入頁面。";
 "community.alias.board.login.title" = "需要登入";
@@ -625,6 +625,15 @@
 "community.alias.board.loading" = "正在載入公示列表…";
 "community.alias.board.group.subtitle %lld" = "%lld 個候選別名";
 "community.alias.board.deadline %@" = "截止於 %@";
+"community.alias.board.mode" = "顯示";
+"community.alias.board.mode.candidates" = "候選";
+"community.alias.board.mode.approved" = "已通過";
+"community.alias.board.approved.empty.title" = "尚無已通過的別名";
+"community.alias.board.approved.empty.message" = "別名通過投票並被採納後會顯示在這裡。";
+"community.alias.board.approved.loading" = "正在載入已通過的別名…";
+"community.alias.board.approved.group.subtitle %lld" = "%lld 個已通過別名";
+"community.alias.board.approved.at %@" = "通過時間 %@";
+"community.alias.board.approved.mine" = "我的投稿";
 "community.alias.vote.support %lld" = "支持 %lld";
 "community.alias.vote.oppose %lld" = "反對 %lld";
 "community.alias.vote.cancelSupport %lld" = "取消支持 %lld";

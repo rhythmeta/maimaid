@@ -610,7 +610,7 @@
 "community.alias.submit.adminRejectedLocked" = "该别名曾被管理员拒绝，仅管理员可再次投稿。";
 "community.alias.submit.loginRequired" = "请先登录云端账号再投稿。";
 "community.alias.submit.invalidRequest" = "投稿格式无效，请检查输入内容。";
-"community.alias.board.title" = "社区别名投票";
+"community.alias.board.title" = "社区别名";
 "community.alias.board.config.title" = "未配置云端";
 "community.alias.board.config.message" = "请先在配置中填写云端 URL/Key，然后重启应用或重新进入页面。";
 "community.alias.board.login.title" = "需要登录";
@@ -621,6 +621,15 @@
 "community.alias.board.loading" = "正在加载公示列表…";
 "community.alias.board.group.subtitle %lld" = "%lld 个候选别名";
 "community.alias.board.deadline %@" = "截止于 %@";
+"community.alias.board.mode" = "显示";
+"community.alias.board.mode.candidates" = "候选";
+"community.alias.board.mode.approved" = "已通过";
+"community.alias.board.approved.empty.title" = "暂无已通过的别名";
+"community.alias.board.approved.empty.message" = "别名通过投票并被采纳后会显示在这里。";
+"community.alias.board.approved.loading" = "正在加载已通过的别名…";
+"community.alias.board.approved.group.subtitle %lld" = "%lld 个已通过别名";
+"community.alias.board.approved.at %@" = "通过时间 %@";
+"community.alias.board.approved.mine" = "我的投稿";
 "community.alias.vote.support %lld" = "支持 %lld";
 "community.alias.vote.oppose %lld" = "反对 %lld";
 "community.alias.vote.cancelSupport %lld" = "取消支持 %lld";

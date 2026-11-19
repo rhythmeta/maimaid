@@ -13,6 +13,14 @@ extension CommunityAliasService {
         return matches
     }
 
+    /// Candidate ids the signed-in account submitted, used by the alias board to mark its own
+    /// approved aliases (the approved feed only carries the candidate id).
+    func fetchMyCandidateIds() async -> Set<String> {
+        guard isConfigured, isAuthenticated else { return [] }
+        guard let rows = await fetchMyCandidates(songIdentifier: nil, limit: 200) else { return [] }
+        return Set(rows.map(\.candidateId))
+    }
+
     /// Pulls every alias the signed-in account submitted so pending aliases stay locally searchable
     /// across launches, including candidates submitted from another device.
     func syncMyAliases() async {

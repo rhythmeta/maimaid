@@ -95,6 +95,17 @@ nonisolated struct CommunityAliasApprovedSyncRow: Codable, Sendable {
     let approvedAt: Date?
 }
 
+/// One published alias as the board presents it. The candidate id links the row back to the
+/// signed-in account's own submissions so the board can mark them.
+nonisolated struct CommunityAliasApprovedItem: Identifiable, Sendable {
+    let candidateId: String
+    let songIdentifier: String
+    let aliasText: String
+    let approvedAt: Date?
+
+    var id: String { candidateId }
+}
+
 private struct CommunityAliasSubmitPayload: Encodable {
     let songIdentifier: String
     let aliasText: String
@@ -228,6 +239,41 @@ final class CommunityAliasService {
             return response.rows
         } catch {
             print("CommunityAliasService.fetchVotingBoard failed: \(error)")
+            return []
+        }
+    }
+
+    /// Public approved-alias feed, newest approval first. A failed request returns an empty list so
+    /// the board keeps whatever it showed before.
+    func fetchApprovedAliases() async -> [CommunityAliasApprovedItem] {
+        guard isConfigured else { return [] }
+        do {
+            let response: CommunityAliasRowsResponse<CommunityAliasApprovedSyncRow> =
+                try await BackendAPIClient.request(
+                    path: "maimaid/v1/community/aliases:sync",
+                    method: "GET",
+                    authentication: .none
+                )
+            var seen = Set<String>()
+            return response.rows
+                .filter { ($0.status ?? "approved") == "approved" }
+                .compactMap { row in
+                    let alias = row.aliasText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !alias.isEmpty else { return nil }
+                    let key = "\(row.songIdentifier)|\(alias.lowercased())"
+                    guard seen.insert(key).inserted else { return nil }
+                    return CommunityAliasApprovedItem(
+                        candidateId: row.candidateId,
+                        songIdentifier: row.songIdentifier,
+                        aliasText: alias,
+                        approvedAt: row.approvedAt
+                    )
+                }
+                .sorted { lhs, rhs in
+                    (lhs.approvedAt ?? .distantPast) > (rhs.approvedAt ?? .distantPast)
+                }
+        } catch {
+            print("CommunityAliasService.fetchApprovedAliases failed: \(error)")
             return []
         }
     }

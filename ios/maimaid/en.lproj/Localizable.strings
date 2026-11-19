@@ -614,7 +614,7 @@
 "community.alias.submit.adminRejectedLocked" = "This alias was rejected by an admin. Only admins can submit it again.";
 "community.alias.submit.loginRequired" = "Please sign in to your cloud account before submitting.";
 "community.alias.submit.invalidRequest" = "Invalid submission format. Please check your input.";
-"community.alias.board.title" = "Community Alias Voting";
+"community.alias.board.title" = "Community Aliases";
 "community.alias.board.config.title" = "Cloud Not Configured";
 "community.alias.board.config.message" = "Fill in the cloud URL/Key in configuration, then restart the app or reopen this page.";
 "community.alias.board.login.title" = "Login Required";
@@ -625,6 +625,15 @@
 "community.alias.board.loading" = "Loading voting board...";
 "community.alias.board.group.subtitle %lld" = "%lld alias candidates";
 "community.alias.board.deadline %@" = "Deadline %@";
+"community.alias.board.mode" = "Show";
+"community.alias.board.mode.candidates" = "Candidates";
+"community.alias.board.mode.approved" = "Approved";
+"community.alias.board.approved.empty.title" = "No approved aliases yet";
+"community.alias.board.approved.empty.message" = "Aliases appear here once they pass voting and are approved.";
+"community.alias.board.approved.loading" = "Loading approved aliases...";
+"community.alias.board.approved.group.subtitle %lld" = "%lld approved aliases";
+"community.alias.board.approved.at %@" = "Approved %@";
+"community.alias.board.approved.mine" = "My submission";
 "community.alias.vote.support %lld" = "Support %lld";
 "community.alias.vote.oppose %lld" = "Oppose %lld";
 "community.alias.vote.cancelSupport %lld" = "Unvote support %lld";

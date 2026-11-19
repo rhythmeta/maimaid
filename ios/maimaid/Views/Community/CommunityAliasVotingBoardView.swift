@@ -2,12 +2,21 @@ import SwiftUI
 import SwiftData
 
 struct CommunityAliasVotingBoardView: View {
+    private enum BoardMode: Hashable {
+        case candidates
+        case approved
+    }
+
     @Query private var songs: [Song]
 
     private let service = CommunityAliasService.shared
     @State private var backendSessionManager = BackendSessionManager.shared
+    @State private var mode: BoardMode = .candidates
     @State private var items: [CommunityAliasVotingBoardItem] = []
+    @State private var approvedAliases: [CommunityAliasApprovedItem] = []
+    @State private var myCandidateIds: Set<String> = []
     @State private var isLoading = false
+    @State private var isApprovedLoading = false
     @State private var inFlightVoteCandidateId: String?
     @State private var tipMessage: String?
     @State private var tipDismissTask: Task<Void, Never>?
@@ -18,24 +27,192 @@ struct CommunityAliasVotingBoardView: View {
         var id: String { songIdentifier }
     }
 
-    private struct VotePresentation {
-        let iconName: String
-        let title: String
-        let accentColor: Color
-        let isSelected: Bool
+    private struct SongApprovedGroup: Identifiable {
+        let songIdentifier: String
+        let aliases: [CommunityAliasApprovedItem]
+        var id: String { songIdentifier }
     }
 
-    private var songTitleMap: [String: String] {
-        Dictionary(uniqueKeysWithValues: songs.map { ($0.songIdentifier, $0.title) })
+    private var modeTitle: LocalizedStringKey {
+        switch mode {
+        case .candidates: "community.alias.board.mode.candidates"
+        case .approved: "community.alias.board.mode.approved"
+        }
     }
 
-    private var songMap: [String: Song] {
-        Dictionary(uniqueKeysWithValues: songs.map { ($0.songIdentifier, $0) })
+    var body: some View {
+        let lookup = CommunityAliasSongLookup(songs: songs)
+
+        return Group {
+            switch mode {
+            case .candidates:
+                candidatesList(lookup)
+            case .approved:
+                approvedList(lookup)
+            }
+        }
+        .navigationTitle(String(localized: "community.alias.board.title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("community.alias.board.mode", selection: $mode) {
+                        Text("community.alias.board.mode.candidates").tag(BoardMode.candidates)
+                        Text("community.alias.board.mode.approved").tag(BoardMode.approved)
+                    }
+                } label: {
+                    Label(modeTitle, systemImage: "rectangle.2.swap")
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let tipMessage {
+                Text(tipMessage)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.82), in: Capsule())
+                    .padding(.bottom, 20)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .task(id: mode) {
+            await reloadActiveMode()
+        }
+        .onDisappear {
+            tipDismissTask?.cancel()
+            tipDismissTask = nil
+        }
     }
 
-    private var groupedItems: [SongVotingGroup] {
-        let grouped = Dictionary(grouping: items, by: \.songIdentifier)
-        return grouped
+    private func candidatesList(_ lookup: CommunityAliasSongLookup) -> some View {
+        List {
+            if !backendSessionManager.isConfigured {
+                CommunityAliasMessageSection(
+                    title: "community.alias.board.config.title",
+                    message: "community.alias.board.config.message"
+                )
+            } else if !backendSessionManager.isAuthenticated {
+                CommunityAliasMessageSection(
+                    title: "community.alias.board.login.title",
+                    message: "community.alias.board.login.message",
+                    actionTitle: "community.alias.board.login.refresh",
+                    onAction: {
+                        Task {
+                            await backendSessionManager.checkSession()
+                            await reloadBoard()
+                        }
+                    }
+                )
+            } else if items.isEmpty && !isLoading {
+                CommunityAliasMessageSection(
+                    title: "community.alias.board.empty.title",
+                    message: "community.alias.board.empty.message"
+                )
+            } else {
+                boardSection(lookup)
+            }
+        }
+        .refreshable {
+            await reloadBoard()
+        }
+    }
+
+    private func approvedList(_ lookup: CommunityAliasSongLookup) -> some View {
+        List {
+            if !backendSessionManager.isConfigured {
+                CommunityAliasMessageSection(
+                    title: "community.alias.board.config.title",
+                    message: "community.alias.board.config.message"
+                )
+            } else if approvedAliases.isEmpty && !isApprovedLoading {
+                CommunityAliasMessageSection(
+                    title: "community.alias.board.approved.empty.title",
+                    message: "community.alias.board.approved.empty.message"
+                )
+            } else {
+                approvedBoardSection(lookup)
+            }
+        }
+        .refreshable {
+            await reloadApproved()
+        }
+    }
+
+    private func boardSection(_ lookup: CommunityAliasSongLookup) -> some View {
+        Group {
+            if isLoading {
+                Section {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("community.alias.board.loading")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            ForEach(groupedItems(lookup)) { group in
+                Section {
+                    ForEach(group.items) { item in
+                        CommunityAliasCandidateRow(
+                            item: item,
+                            isVoting: inFlightVoteCandidateId == item.id
+                        ) { support in
+                            Task {
+                                await submitVote(candidateId: item.id, support: support)
+                            }
+                        }
+                    }
+                } header: {
+                    CommunityAliasSongGroupHeader(
+                        song: lookup.song(group.songIdentifier),
+                        title: lookup.title(group.songIdentifier),
+                        subtitle: String(
+                            localized: "community.alias.board.group.subtitle \(group.items.count)"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private func approvedBoardSection(_ lookup: CommunityAliasSongLookup) -> some View {
+        Group {
+            if isApprovedLoading {
+                Section {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("community.alias.board.approved.loading")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            ForEach(groupedApprovedAliases(lookup)) { group in
+                Section {
+                    ForEach(group.aliases) { alias in
+                        CommunityAliasApprovedRow(
+                            alias: alias,
+                            isMine: myCandidateIds.contains(alias.candidateId)
+                        )
+                    }
+                } header: {
+                    CommunityAliasSongGroupHeader(
+                        song: lookup.song(group.songIdentifier),
+                        title: lookup.title(group.songIdentifier),
+                        subtitle: String(
+                            localized: "community.alias.board.approved.group.subtitle \(group.aliases.count)"
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private func groupedItems(_ lookup: CommunityAliasSongLookup) -> [SongVotingGroup] {
+        Dictionary(grouping: items, by: \.songIdentifier)
             .map { key, value in
                 SongVotingGroup(
                     songIdentifier: key,
@@ -50,267 +227,44 @@ struct CommunityAliasVotingBoardView: View {
                 )
             }
             .sorted { lhs, rhs in
-                let lhsTitle = songTitleMap[lhs.songIdentifier] ?? lhs.songIdentifier
-                let rhsTitle = songTitleMap[rhs.songIdentifier] ?? rhs.songIdentifier
+                let lhsTitle = lookup.title(lhs.songIdentifier)
+                let rhsTitle = lookup.title(rhs.songIdentifier)
                 return lhsTitle.localizedStandardCompare(rhsTitle) == .orderedAscending
             }
     }
 
-    var body: some View {
-        List {
-            if !backendSessionManager.isConfigured {
-                configurationHintSection
-            } else if !backendSessionManager.isAuthenticated {
-                loginHintSection
-            } else if items.isEmpty && !isLoading {
-                emptyStateSection
-            } else {
-                boardSection
+    private func groupedApprovedAliases(_ lookup: CommunityAliasSongLookup) -> [SongApprovedGroup] {
+        Dictionary(grouping: approvedAliases, by: \.songIdentifier)
+            .map { key, value in
+                SongApprovedGroup(songIdentifier: key, aliases: value)
             }
-        }
-        .navigationTitle(String(localized: "community.alias.board.title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .overlay(alignment: .bottom) {
-            if let tipMessage {
-                Text(tipMessage)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.black.opacity(0.82), in: Capsule())
-                    .padding(.bottom, 20)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .sorted { lhs, rhs in
+                let lhsTitle = lookup.title(lhs.songIdentifier)
+                let rhsTitle = lookup.title(rhs.songIdentifier)
+                return lhsTitle.localizedStandardCompare(rhsTitle) == .orderedAscending
             }
-        }
-        .refreshable {
+    }
+
+    private func reloadActiveMode() async {
+        switch mode {
+        case .candidates:
             await reloadBoard()
-        }
-        .task {
-            await reloadBoard()
-        }
-        .onDisappear {
-            tipDismissTask?.cancel()
-            tipDismissTask = nil
+        case .approved:
+            await reloadApproved()
         }
     }
 
-    private var configurationHintSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("community.alias.board.config.title")
-                    .font(.headline)
-                Text("community.alias.board.config.message")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private var loginHintSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("community.alias.board.login.title")
-                    .font(.headline)
-                Text("community.alias.board.login.message")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    Task {
-                        await backendSessionManager.checkSession()
-                        await reloadBoard()
-                    }
-                } label: {
-                    Text("community.alias.board.login.refresh")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private var emptyStateSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("community.alias.board.empty.title")
-                    .font(.headline)
-                Text("community.alias.board.empty.message")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private var boardSection: some View {
-        Group {
-            if isLoading {
-                Section {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("community.alias.board.loading")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            ForEach(groupedItems) { group in
-                Section {
-                    ForEach(group.items) { item in
-                        boardRow(item)
-                    }
-                } header: {
-                    songGroupHeader(group)
-                }
-            }
-        }
-    }
-
-    private func songGroupHeader(_ group: SongVotingGroup) -> some View {
-        let song = songMap[group.songIdentifier]
-        let songTitle = songTitleMap[group.songIdentifier] ?? group.songIdentifier
-        let subtitle = String(localized: "community.alias.board.group.subtitle \(group.items.count)")
-
-        return Group {
-            if let song {
-                SongDetailLink(song: song) {
-                    songGroupHeaderContent(song: song, title: songTitle, subtitle: subtitle)
-                }
-            } else {
-                songGroupHeaderContent(song: nil, title: songTitle, subtitle: subtitle)
-            }
-        }
-        .textCase(nil)
-    }
-
-    private func songGroupHeaderContent(song: Song?, title: String, subtitle: String) -> some View {
-        HStack(spacing: 12) {
-            if let song {
-                SongJacketView(
-                    imageName: song.imageName,
-                    size: 46,
-                    cornerRadius: 9,
-                    useThumbnail: true
-                )
-            } else {
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(Color.primary.opacity(0.08))
-                    .frame(width: 46, height: 46)
-                    .overlay {
-                        Image(systemName: "music.note")
-                            .foregroundStyle(.secondary)
-                    }
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .lineLimit(1)
-                Text(subtitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func boardRow(_ item: CommunityAliasVotingBoardItem) -> some View {
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.aliasText)
-                        .font(.system(size: 16, weight: .semibold))
-                }
-
-                Spacer()
-
-                Text(String(localized: "community.alias.board.deadline \(formatDeadline(item.voteCloseAt))"))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 10) {
-                voteButton(item: item, support: true)
-                voteButton(item: item, support: false)
-                Spacer()
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func voteButton(item: CommunityAliasVotingBoardItem, support: Bool) -> some View {
-        let presentation = votePresentation(for: item, support: support)
-        let inFlight = inFlightVoteCandidateId == item.id
-
-        return Button {
-            Task {
-                await submitVote(candidateId: item.id, support: support)
-            }
-        } label: {
-            HStack(spacing: 6) {
-                if inFlight {
-                    ProgressView()
-                        .controlSize(.mini)
-                }
-                Image(systemName: presentation.iconName)
-                Text(presentation.title)
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .foregroundStyle(presentation.isSelected ? .white : presentation.accentColor)
-            .background(
-                Capsule()
-                    .fill(presentation.isSelected ? presentation.accentColor : .clear)
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(presentation.accentColor.opacity(0.35), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(inFlight)
-    }
-
-    private func votePresentation(for item: CommunityAliasVotingBoardItem, support: Bool) -> VotePresentation {
-        let isSelected = support ? (item.myVote == 1) : (item.myVote == -1)
-        let count = support ? item.supportCount : item.opposeCount
-        let accentColor: Color = support ? .green : .red
-
-        let iconName: String
-        if support {
-            iconName = isSelected ? "hand.thumbsup.fill" : "hand.thumbsup"
-        } else {
-            iconName = isSelected ? "hand.thumbsdown.fill" : "hand.thumbsdown"
+    private func reloadApproved() async {
+        guard backendSessionManager.isConfigured else {
+            approvedAliases = []
+            return
         }
 
-        let title: String
-        if support {
-            title = isSelected
-                ? String(localized: "community.alias.vote.cancelSupport \(count)")
-                : String(localized: "community.alias.vote.support \(count)")
-        } else {
-            title = isSelected
-                ? String(localized: "community.alias.vote.cancelOppose \(count)")
-                : String(localized: "community.alias.vote.oppose \(count)")
-        }
-
-        return VotePresentation(
-            iconName: iconName,
-            title: title,
-            accentColor: accentColor,
-            isSelected: isSelected
-        )
-    }
-
-    private func formatDeadline(_ date: Date?) -> String {
-        guard let date else { return "--" }
-        return date.formatted(date: .abbreviated, time: .shortened)
+        isApprovedLoading = true
+        approvedAliases = await service.fetchApprovedAliases()
+        // The approved feed is public; only a signed-in account can match its own submissions.
+        myCandidateIds = await service.fetchMyCandidateIds()
+        isApprovedLoading = false
     }
 
     private func reloadBoard() async {
