@@ -8,7 +8,7 @@ struct CommunityAliasVotingBoardView: View {
     @State private var backendSessionManager = BackendSessionManager.shared
     @State private var items: [CommunityAliasVotingBoardItem] = []
     @State private var isLoading = false
-    @State private var inFlightVoteCandidateId: UUID?
+    @State private var inFlightVoteCandidateId: String?
     @State private var tipMessage: String?
     @State private var tipDismissTask: Task<Void, Never>?
 
@@ -328,7 +328,7 @@ struct CommunityAliasVotingBoardView: View {
         isLoading = false
     }
 
-    private func submitVote(candidateId: UUID, support: Bool) async {
+    private func submitVote(candidateId: String, support: Bool) async {
         guard backendSessionManager.isAuthenticated else {
             showTip(String(localized: "community.alias.board.tip.loginRequired"))
             return

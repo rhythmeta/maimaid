@@ -168,7 +168,11 @@ struct SongsView: View {
             sortOrder: song.sortOrder,
             isFavorite: song.isFavorite,
             searchKeywords: song.searchKeywords,
-            aliases: song.aliases,
+            // Pending submissions by the signed-in account stay searchable before approval.
+            aliases: CommunityAliasService.shared.mergingSearchableAliases(
+                song.aliases,
+                for: song.songIdentifier
+            ),
             providerSongIds: providerSongIds,
             sheets: sheets
         )
@@ -497,6 +501,11 @@ struct SongsView: View {
             refreshScoreCache()
         }
         .onChange(of: songs) { _, _ in updateDisplayedSongs(refreshSnapshots: true) }
+        // Alias mutations do not change the identity of `songs`, so the cached snapshots must be rebuilt
+        // explicitly; otherwise newly synced community aliases are not searchable until the view reloads.
+        .onReceive(NotificationCenter.default.publisher(for: .maimaiSongAliasesDidChange)) { _ in
+            updateDisplayedSongs(refreshSnapshots: true)
+        }
         .onChange(of: searchText) { _, _ in updateDisplayedSongs(debounce: .milliseconds(200)) }
         .onChange(of: filterSettings) { _, _ in updateDisplayedSongs() }
         .onChange(of: sortOption) { _, _ in updateDisplayedSongs() }

@@ -8,6 +8,9 @@ import UIKit
 
 extension Notification.Name {
     static let maimaiCatalogDidChange = Notification.Name("MaimaiCatalogDidChange")
+    /// Posted when local searchable aliases change (approved community aliases or the signed-in
+    /// account's pending submissions) so cached catalog search snapshots rebuild.
+    static let maimaiSongAliasesDidChange = Notification.Name("MaimaiSongAliasesDidChange")
 }
 
 struct AliasListResponse: Decodable {
@@ -284,8 +287,8 @@ class MaimaiDataFetcher {
         }
 
         UserDefaults.app.communityAliasLastPollAt = Date()
-        let context = ModelContext(container)
-        await CommunityAliasService.shared.syncApprovedAliasesIntoSongs(modelContext: context)
+        // The container's main context keeps SwiftUI observers of Song.aliases in sync with the merge.
+        await CommunityAliasService.shared.syncApprovedAliasesIntoSongs(modelContext: container.mainContext)
     }
 
     /// Force a full approved-alias pull, typically after static data refresh.

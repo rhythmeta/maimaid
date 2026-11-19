@@ -46,8 +46,11 @@ nonisolated struct CommunityAliasSubmitResponse: Codable, Sendable {
     let quotaRemaining: Int?
 }
 
+// Candidate identifiers are opaque text on the backend: new submissions use UUIDs, while rows
+// migrated from the retired cloud database keep their original numeric IDs. Decoding them as UUIDs
+// fails the whole response, so every alias feed must treat them as strings.
 nonisolated struct CommunityAliasVotingBoardItem: Codable, Identifiable, Sendable {
-    let candidateId: UUID
+    let candidateId: String
     let songIdentifier: String
     let aliasText: String
     let submitterId: String
@@ -58,11 +61,11 @@ nonisolated struct CommunityAliasVotingBoardItem: Codable, Identifiable, Sendabl
     let myVote: Int?
     let createdAt: Date
 
-    var id: UUID { candidateId }
+    var id: String { candidateId }
 }
 
 nonisolated struct CommunityAliasMyCandidate: Codable, Identifiable, Sendable {
-    let candidateId: UUID
+    let candidateId: String
     let songIdentifier: String
     let aliasText: String
     let status: String
@@ -73,11 +76,11 @@ nonisolated struct CommunityAliasMyCandidate: Codable, Identifiable, Sendable {
     let createdAt: Date
     let updatedAt: Date
 
-    var id: UUID { candidateId }
+    var id: String { candidateId }
 }
 
 nonisolated struct CommunityAliasVoteResult: Codable, Sendable {
-    let candidateId: UUID
+    let candidateId: String
     let supportCount: Int
     let opposeCount: Int
     let myVote: Int?
@@ -85,7 +88,7 @@ nonisolated struct CommunityAliasVoteResult: Codable, Sendable {
 
 nonisolated struct CommunityAliasApprovedSyncRow: Codable, Sendable {
     let status: String?
-    let candidateId: UUID
+    let candidateId: String
     let songIdentifier: String
     let aliasText: String
     let updatedAt: Date
@@ -103,7 +106,7 @@ private struct CommunityAliasVotePayload: Encodable {
     let vote: Int
 }
 
-private struct CommunityAliasRowsResponse<Row: Decodable>: Decodable {
+struct CommunityAliasRowsResponse<Row: Decodable>: Decodable {
     let rows: [Row]
 }
 
@@ -118,6 +121,13 @@ final class CommunityAliasService {
     private init() {}
 
     private(set) var lastVoteErrorMessage: String?
+
+    /// Aliases submitted by the signed-in account that are searchable before they are approved.
+    /// Mirrors the Android contract: the owner sees their own pending aliases in local search,
+    /// while other accounts only see approved aliases from the sync feed.
+    /// Mutated by `CommunityAliasService+MyAliases.swift`.
+    var myAliasesBySong: [String: [String]] = [:]
+    var myAliasesOwnerId: String?
 
     var isConfigured: Bool { BackendSessionManager.shared.isConfigured }
     var isAuthenticated: Bool { BackendSessionManager.shared.isAuthenticated }
@@ -222,24 +232,6 @@ final class CommunityAliasService {
         }
     }
 
-    func fetchMySongCandidates(songIdentifier: String, limit: Int = 50) async -> [CommunityAliasMyCandidate] {
-        guard isConfigured, isAuthenticated else { return [] }
-        let safeLimit = max(1, min(limit, 200))
-        let escapedSongIdentifier =
-            songIdentifier.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? songIdentifier
-        do {
-            let response: CommunityAliasRowsResponse<CommunityAliasMyCandidate> = try await BackendAPIClient.request(
-                path: "maimaid/v1/community/candidates:my?songIdentifier=\(escapedSongIdentifier)&limit=\(safeLimit)",
-                method: "GET",
-                authentication: .required
-            )
-            return response.rows.filter { $0.songIdentifier == songIdentifier }
-        } catch {
-            print("CommunityAliasService.fetchMySongCandidates failed: \(error)")
-            return []
-        }
-    }
-
     func fetchMyDailySubmissionCount(localDate: Date = Date()) async -> Int? {
         guard isConfigured, isAuthenticated else { return nil }
         let formattedDate = localDate.formatted(
@@ -262,7 +254,7 @@ final class CommunityAliasService {
         }
     }
 
-    func vote(candidateId: UUID, support: Bool) async -> CommunityAliasVoteResult? {
+    func vote(candidateId: String, support: Bool) async -> CommunityAliasVoteResult? {
         guard isConfigured, isAuthenticated else {
             lastVoteErrorMessage = String(localized: "community.alias.service.vote.sessionInvalid")
             return nil
@@ -271,9 +263,10 @@ final class CommunityAliasService {
         lastVoteErrorMessage = nil
 
         do {
+            let normalizedCandidateId = Self.encodedCandidateId(candidateId)
             let escapedCandidateId =
-                candidateId.uuidString.lowercased().addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
-                ?? candidateId.uuidString.lowercased()
+                normalizedCandidateId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)
+                ?? normalizedCandidateId
             let payload = CommunityAliasVotePayload(vote: support ? 1 : -1)
             let response: CommunityAliasVoteResult = try await BackendAPIClient.request(
                 path: "maimaid/v1/community/candidates/\(escapedCandidateId):vote",
@@ -291,6 +284,12 @@ final class CommunityAliasService {
         }
     }
 
+    /// Candidate IDs are opaque server text: UUIDs for new submissions, legacy numeric IDs otherwise.
+    /// The backend stores new UUIDs lowercase, so preserve that form when building the vote route.
+    private static func encodedCandidateId(_ candidateId: String) -> String {
+        UUID(uuidString: candidateId) == nil ? candidateId : candidateId.lowercased()
+    }
+
     func syncApprovedAliasesIfNeeded(container: ModelContainer, minimumInterval: TimeInterval = 10 * 60) async {
         if let lastPoll = UserDefaults.app.communityAliasLastPollAt,
            Date.now.timeIntervalSince(lastPoll) < minimumInterval {
@@ -298,7 +297,8 @@ final class CommunityAliasService {
         }
 
         UserDefaults.app.communityAliasLastPollAt = Date.now
-        let context = ModelContext(container)
+        // Use the container's main context so catalog views observing Song.aliases pick the merge up.
+        let context = container.mainContext
         await syncApprovedAliasesIntoSongs(modelContext: context)
     }
 
@@ -319,85 +319,118 @@ final class CommunityAliasService {
             return
         }
 
-        let rows = response.rows.filter { ($0.status ?? "approved") == "approved" }
-        var didMutate = false
-        for row in response.rows where row.status != nil && row.status != "approved" {
-            if let song = fetchSong(songIdentifier: row.songIdentifier, modelContext: modelContext) {
-                song.aliases.removeAll { $0.localizedCaseInsensitiveCompare(row.aliasText) == .orderedSame }
-                didMutate = true
-            }
+        let approvedRows = response.rows.filter { ($0.status ?? "approved") == "approved" }
+        var didMutateSongAliases = purgeRejectedAliases(from: response.rows, modelContext: modelContext)
+        var didMutate = didMutateSongAliases
+
+        let remoteIdSet = Set(approvedRows.map(\.candidateId))
+        if reconcileApprovedCacheForForceSync(remoteIdSet: remoteIdSet, modelContext: modelContext) {
+            didMutate = true
         }
 
-        do {
-            let remoteIdSet = Set(rows.map { $0.candidateId.uuidString })
-            if reconcileApprovedCacheForForceSync(remoteIdSet: remoteIdSet, modelContext: modelContext) {
-                didMutate = true
-            }
-        }
-
-        guard !rows.isEmpty else {
+        guard !approvedRows.isEmpty else {
             if didMutate {
-                try? modelContext.save()
+                saveAliasChanges(
+                    modelContext: modelContext,
+                    didMutateSongAliases: didMutateSongAliases,
+                    maxUpdatedAt: nil,
+                    now: now
+                )
             }
             return
         }
 
         var maxUpdatedAt = Date.distantPast
-
-        for row in rows {
-            let remoteId = row.candidateId.uuidString
-            let cache = fetchCache(remoteId: remoteId, modelContext: modelContext)
-                ?? CommunityAliasCache(
-                    remoteId: remoteId,
-                    songIdentifier: row.songIdentifier,
-                    aliasText: row.aliasText,
-                    status: "approved",
-                    voteOpenAt: nil,
-                    voteCloseAt: nil,
-                    approvedAt: row.approvedAt,
-                    updatedAt: row.updatedAt,
-                    createdAt: row.approvedAt ?? row.updatedAt
-                )
-
-            cache.songIdentifier = row.songIdentifier
-            cache.aliasText = row.aliasText
-            cache.status = "approved"
-            cache.approvedAt = row.approvedAt
-            cache.updatedAt = row.updatedAt
-            didMutate = true
-
-            if cache.modelContext == nil {
-                modelContext.insert(cache)
+        for row in approvedRows {
+            if applyApprovedAliasRow(row, modelContext: modelContext, updateSongs: updateSongs) {
+                didMutateSongAliases = true
             }
-
-            if
-                updateSongs,
-                let song = fetchSong(songIdentifier: row.songIdentifier, modelContext: modelContext) {
-                let exists = song.aliases.contains {
-                    $0.localizedCaseInsensitiveCompare(row.aliasText) == .orderedSame
-                }
-                if !exists {
-                    song.aliases.append(row.aliasText)
-                    didMutate = true
-                }
-            }
-
-            if row.updatedAt > maxUpdatedAt {
-                maxUpdatedAt = row.updatedAt
-            }
+            maxUpdatedAt = max(maxUpdatedAt, row.updatedAt)
         }
 
-        if didMutate {
-            do {
-                try modelContext.save()
-                if maxUpdatedAt != .distantPast {
-                    UserDefaults.app.communityAliasApprovedSyncAt = min(maxUpdatedAt, now)
-                }
-            } catch {
-                print("CommunityAliasService.sync save failed: \(error)")
+        saveAliasChanges(
+            modelContext: modelContext,
+            didMutateSongAliases: didMutateSongAliases,
+            maxUpdatedAt: maxUpdatedAt,
+            now: now
+        )
+    }
+
+    /// Removes aliases the server tombstoned with a non-approved status; returns whether a song changed.
+    private func purgeRejectedAliases(
+        from rows: [CommunityAliasApprovedSyncRow],
+        modelContext: ModelContext
+    ) -> Bool {
+        var changed = false
+        for row in rows where row.status != nil && row.status != "approved" {
+            guard let song = fetchSong(songIdentifier: row.songIdentifier, modelContext: modelContext) else {
+                continue
             }
-        } else if maxUpdatedAt != .distantPast {
-            UserDefaults.app.communityAliasApprovedSyncAt = min(maxUpdatedAt, now)
+            let previousCount = song.aliases.count
+            song.aliases.removeAll { $0.localizedCaseInsensitiveCompare(row.aliasText) == .orderedSame }
+            changed = changed || song.aliases.count != previousCount
+        }
+        return changed
+    }
+
+    /// Upserts one approved alias into the cache and, when requested, into the song's searchable aliases.
+    /// Returns whether `song.aliases` changed.
+    private func applyApprovedAliasRow(
+        _ row: CommunityAliasApprovedSyncRow,
+        modelContext: ModelContext,
+        updateSongs: Bool
+    ) -> Bool {
+        let remoteId = row.candidateId
+        let cache = fetchCache(remoteId: remoteId, modelContext: modelContext)
+            ?? CommunityAliasCache(
+                remoteId: remoteId,
+                songIdentifier: row.songIdentifier,
+                aliasText: row.aliasText,
+                status: "approved",
+                voteOpenAt: nil,
+                voteCloseAt: nil,
+                approvedAt: row.approvedAt,
+                updatedAt: row.updatedAt,
+                createdAt: row.approvedAt ?? row.updatedAt
+            )
+
+        cache.songIdentifier = row.songIdentifier
+        cache.aliasText = row.aliasText
+        cache.status = "approved"
+        cache.approvedAt = row.approvedAt
+        cache.updatedAt = row.updatedAt
+
+        if cache.modelContext == nil {
+            modelContext.insert(cache)
+        }
+
+        guard updateSongs, let song = fetchSong(songIdentifier: row.songIdentifier, modelContext: modelContext) else {
+            return false
+        }
+        let exists = song.aliases.contains {
+            $0.localizedCaseInsensitiveCompare(row.aliasText) == .orderedSame
+        }
+        guard !exists else { return false }
+        song.aliases.append(row.aliasText)
+        return true
+    }
+
+    private func saveAliasChanges(
+        modelContext: ModelContext,
+        didMutateSongAliases: Bool,
+        maxUpdatedAt: Date?,
+        now: Date
+    ) {
+        do {
+            try modelContext.save()
+            if let maxUpdatedAt, maxUpdatedAt != .distantPast {
+                UserDefaults.app.communityAliasApprovedSyncAt = min(maxUpdatedAt, now)
+            }
+            if didMutateSongAliases {
+                NotificationCenter.default.post(name: .maimaiSongAliasesDidChange, object: nil)
+            }
+        } catch {
+            print("CommunityAliasService.sync save failed: \(error)")
         }
     }
 

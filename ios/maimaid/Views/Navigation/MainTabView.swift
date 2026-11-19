@@ -92,10 +92,26 @@ struct MainTabView: View {
             scheduleSongsPreloadIfNeeded()
 
         }
+        .task(id: BackendSessionManager.shared.currentUser?.id) {
+            await refreshCommunityAliasSessionState()
+        }
 
     }
 
     // MARK: - Migration
+
+    @MainActor
+    private func refreshCommunityAliasSessionState() async {
+        guard BackendSessionManager.shared.isConfigured else {
+            CommunityAliasService.shared.clearMyAliases()
+            return
+        }
+        if BackendSessionManager.shared.isAuthenticated {
+            await CommunityAliasService.shared.syncMyAliases()
+        } else {
+            CommunityAliasService.shared.clearMyAliases()
+        }
+    }
 
     private func importVersionConstantsIfNeeded() async {
         guard UserDefaults.app.didPerformInitialSync,

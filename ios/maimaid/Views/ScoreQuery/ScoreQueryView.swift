@@ -187,6 +187,9 @@ struct ScoreQueryView: View {
             }
             Task { await loadData() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .maimaiSongAliasesDidChange)) { _ in
+            applyFiltersAndSort()
+        }
         .task(id: activeProfiles.first?.server) {
             await loadData()
         }
@@ -484,11 +487,15 @@ struct ScoreQueryView: View {
         for entry in allEntries {
             // Search filter
             if hasSearch {
+                let searchableAliases = CommunityAliasService.shared.mergingSearchableAliases(
+                    entry.aliases,
+                    for: entry.songIdentifier
+                )
                 let matches = SearchTextNormalizer.matches(
                     entry.songTitle,
                     normalizedQuery: normalizedSearch,
                     compactQuery: compactSearch,
-                ) || entry.aliases.contains(where: {
+                ) || searchableAliases.contains(where: {
                     SearchTextNormalizer.matches(
                         $0,
                         normalizedQuery: normalizedSearch,

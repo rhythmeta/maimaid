@@ -66,6 +66,8 @@ struct MaimaidApp: App {
                 guard BackendSessionManager.shared.isConfigured else { return }
 
                 await BackendSessionManager.shared.checkSession()
+                // Refresh the signed-in account's pending aliases so local search stays current.
+                await CommunityAliasService.shared.syncMyAliases()
                 await MaimaiDataFetcher.shared.syncApprovedCommunityAliasesIfNeeded(
                     container: sharedModelContainer
                 )

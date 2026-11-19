@@ -390,6 +390,8 @@ struct SongDetailContent: View {
         switch result.status {
         case .created:
             communityAliasDraft = ""
+            // Own submissions are searchable immediately, even while the candidate is still voting.
+            communityAliasService.rememberSubmittedAlias(songIdentifier: song.songIdentifier, aliasText: text)
             showToast(message: String(localized: "community.alias.submit.success"))
             if let quotaRemaining = result.quotaRemaining {
                 let used = communityAliasDailyQuotaLimit - quotaRemaining
