@@ -1,5 +1,43 @@
 # Changelog
 
+## 1.4.0
+
+### 中文
+
+#### 新增
+
+- 谱面预览（Android / iOS）：新增完整的 maimai 舞台渲染与音乐播放，包含音符、判定、特效、封面盘背景、answer/judge 音效，以及流速、不透明度等设置；支持节奏时间线、BPM 变化闪烁、KPS、屏幕常亮和导出。
+- 歌曲详情新增当前成绩 Rating；宴谱支持进度点。进度点在 97%–100% 区间完整显示。
+
+#### 变更
+
+- Best 表重做（Android / iOS）：全新的 Rating 汇总卡展示新曲/旧曲 Rating 占比、平均达成率、DX 分数达成率、DX 星、平均单曲 Rating 和 B50/B15/B35 统计；B15/B35 分区展示；支持临时版本、容量、计算定数、理论 B50 和快速筛选。筛选与理论模式会同步影响汇总、列表和导出图片。理论 B50，按当前版本可用谱面与版本定数计算 35 + 15 的理论最高 Rating。
+- 歌曲详情难度卡底部按钮改用 Miuix 默认按钮。
+- Android 支持 CMF 调色板；统一 tint badge、筛选 chip 边框、成绩查询汇总卡、发送按钮圆角和歌单阴影等视觉细节，并优化应用内更新流程的交互与错误处理。
+
+#### 修复
+
+- 修复 iOS 社区别名无法正常搜索和展示，以及资源包下载显示的体积不准确。
+- 修复 SGWCMAID 在 < Android 13 上的响应解码问题。
+
+### English
+
+#### Added
+
+- Chart preview on Android and iOS: a full maimai stage renderer with music playback, including notes, judgments, effects, the jacket-disc background, and answer/judge SFX, plus note speed, opacity, and other settings. It supports a rhythm timeline, BPM-change flashes, KPS, keep-awake, and export.
+- Song details now show the current score rating, and utage charts support progress dots. Progress between 97% and 100% is now fully displayed.
+
+#### Changed
+
+- Redesigned Best 50 screen on Android and iOS: the new Rating summary card shows the new/old rating share, average achievement, DX-score achievement, DX stars, average single-chart rating, and B50/B15/B35 stats. B15/B35 are presented in separate sections/tabs, with support for a temporary version override, capacity, calculation constants, theoretical B50, and quick filters. Filters and theoretical mode affect the summary, list, and exported image. Theoretical B50 calculates the maximum 35 + 15 rating using the selected version's available charts and version constants.
+- The buttons at the bottom of the song-detail difficulty card now use the default Miuix button.
+- Android now supports the CMF palette; unified visual details including tint badges, filter-chip borders, the Score Query summary card, send-button corner radius, and collection shadows, and improved the interaction and error handling of the in-app update flow.
+
+#### Fixed
+
+- Fixed iOS community aliases not being searchable or displayed correctly, and inaccurate asset bundle download sizes.
+- Fixed SGWCMAID response decoding on Android versions below 13.
+
 ## 1.3.0
 
 ### 中文

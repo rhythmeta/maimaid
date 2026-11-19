@@ -1690,19 +1690,25 @@ private fun SheetScoreCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SongDetailButton(
+                    Button(
                         onClick = onRecord,
-                        surfaceColor = actionSurfaceColor,
                         modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            color = actionSurfaceColor,
+                            contentColor = accentColor,
+                        ),
                     ) {
                         Icon(Icons.Rounded.Edit, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.score_record_action))
                     }
-                    SongDetailButton(
+                    Button(
                         onClick = onAddToCollections,
-                        surfaceColor = actionSurfaceColor,
                         modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            color = actionSurfaceColor,
+                            contentColor = accentColor,
+                        ),
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
