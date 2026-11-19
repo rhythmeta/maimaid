@@ -48,6 +48,8 @@ class AppPreferencesRepository(
         "score_query_sort_mode" to "string",
         "score_query_sort_ascending" to "bool",
         "best50_constant_mode" to "string",
+        "best50_filter_settings" to "string",
+        "best50_theoretical" to "bool",
         "chart_audio_offset_ms" to "int",
         "chart_preview_settings" to "string"
     )
@@ -169,7 +171,7 @@ class AppPreferencesRepository(
         preferences[CatalogSortAscendingKey] ?: true
     }
 
-    private val chartPreviewJson = Json {
+    private val preferencesJson = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
@@ -179,7 +181,7 @@ class AppPreferencesRepository(
         context.appPreferencesDataStore.data.map { preferences ->
             preferences[ChartPreviewSettingsKey]?.let { encoded ->
                 runCatching {
-                    chartPreviewJson.decodeFromString<
+                    preferencesJson.decodeFromString<
                         org.rhythmeta.maimaid.core.chart.ChartPreviewSettings,
                         >(encoded)
                 }.getOrNull()
@@ -193,7 +195,7 @@ class AppPreferencesRepository(
         settings: org.rhythmeta.maimaid.core.chart.ChartPreviewSettings,
     ) {
         context.appPreferencesDataStore.edit { preferences ->
-            preferences[ChartPreviewSettingsKey] = chartPreviewJson.encodeToString(settings)
+            preferences[ChartPreviewSettingsKey] = preferencesJson.encodeToString(settings)
         }
     }
 
@@ -244,6 +246,18 @@ class AppPreferencesRepository(
         preferences[Best50ConstantModeKey]
             ?.let { stored -> Best50ConstantMode.entries.firstOrNull { it.name == stored } }
             ?: Best50ConstantMode.Server
+    }
+
+    /** Quick filters for the Best 50 table; persisted so they survive navigation and restarts. */
+    val best50FilterSettings: Flow<Best50FilterSettings> = context.appPreferencesDataStore.data.map { preferences ->
+        preferences[Best50FilterSettingsKey]?.let { encoded ->
+            runCatching { preferencesJson.decodeFromString<Best50FilterSettings>(encoded) }.getOrNull()
+        } ?: Best50FilterSettings()
+    }
+
+    /** Whether the Best 50 page shows the theoretical maximum list for the selected version. */
+    val best50Theoretical: Flow<Boolean> = context.appPreferencesDataStore.data.map { preferences ->
+        preferences[Best50TheoreticalKey] ?: false
     }
 
 	suspend fun setShowScannerBoundingBoxes(show: Boolean) {
@@ -320,6 +334,18 @@ class AppPreferencesRepository(
         }
     }
 
+    suspend fun setBest50FilterSettings(settings: Best50FilterSettings) {
+        context.appPreferencesDataStore.edit { preferences ->
+            preferences[Best50FilterSettingsKey] = preferencesJson.encodeToString(settings)
+        }
+    }
+
+    suspend fun setBest50Theoretical(enabled: Boolean) {
+        context.appPreferencesDataStore.edit { preferences ->
+            preferences[Best50TheoreticalKey] = enabled
+        }
+    }
+
     private companion object {
         val ColorModeKey = intPreferencesKey("color_mode")
         val KeyColorKey = intPreferencesKey("key_color")
@@ -347,5 +373,7 @@ class AppPreferencesRepository(
         val ScoreQuerySortModeKey = stringPreferencesKey("score_query_sort_mode")
         val ScoreQuerySortAscendingKey = booleanPreferencesKey("score_query_sort_ascending")
         val Best50ConstantModeKey = stringPreferencesKey("best50_constant_mode")
+        val Best50FilterSettingsKey = stringPreferencesKey("best50_filter_settings")
+        val Best50TheoreticalKey = booleanPreferencesKey("best50_theoretical")
     }
 }

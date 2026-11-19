@@ -25,6 +25,7 @@ object RatingUtils {
         val fc: String?,
         val fs: String?,
         val isNew: Boolean,
+        val category: String = "",
     )
 
     private val coefficients = listOf(

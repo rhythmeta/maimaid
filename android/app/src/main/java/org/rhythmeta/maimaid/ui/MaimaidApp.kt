@@ -96,7 +96,8 @@ import org.rhythmeta.maimaid.ui.catalog.CatalogCoverTransition
 import org.rhythmeta.maimaid.ui.catalog.LocalSongNavigationHost
 import org.rhythmeta.maimaid.ui.catalog.SongCoverSource
 import org.rhythmeta.maimaid.ui.catalog.SongNavigationHost
-import org.rhythmeta.maimaid.ui.best.BestTableConstantTopBarAction
+import org.rhythmeta.maimaid.ui.best.BestTableNewPage
+import org.rhythmeta.maimaid.ui.best.BestTablePageSwitcher
 import org.rhythmeta.maimaid.ui.common.DetailScreen
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTab
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTabBar
@@ -269,6 +270,10 @@ fun MaimaidApp(
     var showHomeProfileEditor by rememberSaveable { mutableStateOf(false) }
     var profileCreateRequested by rememberSaveable { mutableStateOf(false) }
     var bestTableExportRequested by rememberSaveable { mutableStateOf(false) }
+    var bestTableFilterRequested by rememberSaveable { mutableStateOf(false) }
+    var bestTableFilterActive by rememberSaveable { mutableStateOf(false) }
+    var bestTableSelectedPage by rememberSaveable { mutableIntStateOf(BestTableNewPage) }
+    var bestTableSwitcherVisible by rememberSaveable { mutableStateOf(true) }
     var chartPreviewSaveRequested by rememberSaveable { mutableStateOf(false) }
     var randomSongFilterRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsCreateRequested by rememberSaveable { mutableStateOf(false) }
@@ -464,6 +469,49 @@ fun MaimaidApp(
             }
         }
     }
+    val bestTableSwitcherScrollConnection = remember(
+        catalogSearchShowThreshold,
+        catalogSearchHideThreshold,
+    ) {
+        object : NestedScrollConnection {
+            private var downwardDistance = 0f
+            private var upwardDistance = 0f
+
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
+
+                when {
+                    available.y > 0f -> {
+                        upwardDistance = 0f
+                        if (bestTableSwitcherVisible) {
+                            downwardDistance = 0f
+                        } else {
+                            downwardDistance += available.y
+                            if (downwardDistance >= catalogSearchShowThreshold) {
+                                bestTableSwitcherVisible = true
+                                downwardDistance = 0f
+                            }
+                        }
+                    }
+                    available.y < 0f -> {
+                        downwardDistance = 0f
+                        if (bestTableSwitcherVisible) {
+                            upwardDistance -= available.y
+                            if (upwardDistance >= catalogSearchHideThreshold) {
+                                bestTableSwitcherVisible = false
+                                upwardDistance = 0f
+                            }
+                        } else {
+                            upwardDistance = 0f
+                        }
+                    }
+                }
+                return super.onPreScroll(available, source)
+            }
+        }
+    }
     val scoreQuerySearchScrollConnection = remember(
         catalogSearchShowThreshold,
         catalogSearchHideThreshold,
@@ -586,6 +634,9 @@ fun MaimaidApp(
         }
         if (next == AppDetail.ScoreQuery) {
             scoreQuerySearchVisible = true
+        }
+        if (next == AppDetail.BestTable) {
+            bestTableSwitcherVisible = true
         }
         val route = next.toRoute(
             songId = selectedSongId.takeIf { next == AppDetail.Song },
@@ -868,7 +919,17 @@ fun MaimaidApp(
                         }
                     }
                     AppDetail.BestTable -> {
-                        BestTableConstantTopBarAction(container)
+                        IconButton(onClick = { bestTableFilterRequested = true }) {
+                            Icon(
+                                imageVector = Icons.Rounded.FilterList,
+                                contentDescription = stringResource(R.string.best50_settings_title),
+                                tint = if (bestTableFilterActive) {
+                                    MiuixTheme.colorScheme.primary
+                                } else {
+                                    MiuixTheme.colorScheme.onSurface
+                                },
+                            )
+                        }
                         IconButton(onClick = { bestTableExportRequested = true }) {
                             Icon(
                                 imageVector = Icons.Rounded.IosShare,
@@ -979,6 +1040,11 @@ fun MaimaidApp(
                             onSelectedPageChange = { danSelectedPage = it },
                         )
                     }
+                    AppDetail.BestTable -> BestTablePageSwitcher(
+                        selectedPage = bestTableSelectedPage,
+                        visible = bestTableSwitcherVisible,
+                        onSelectedPageChange = { bestTableSelectedPage = it },
+                    )
                     AppDetail.ScoreQuery -> if (scoreQueryViewModel != null) {
                         CatalogSearchBar(
                             query = scoreQueryText,
@@ -1003,6 +1069,7 @@ fun MaimaidApp(
                     when (activeDetail) {
                         AppDetail.Recommendations -> Modifier.nestedScroll(recommendationSwitcherScrollConnection)
                         AppDetail.DanDetail -> Modifier.nestedScroll(danSwitcherScrollConnection)
+                        AppDetail.BestTable -> Modifier.nestedScroll(bestTableSwitcherScrollConnection)
                         AppDetail.ScoreQuery -> Modifier.nestedScroll(scoreQuerySearchScrollConnection)
                         else -> Modifier
                     },
@@ -1036,11 +1103,15 @@ fun MaimaidApp(
                     showConstantTableFilter = showConstantTableFilter,
                     profileCreateRequested = profileCreateRequested,
                     bestTableExportRequested = bestTableExportRequested,
+                    bestTableFilterRequested = bestTableFilterRequested,
+                    bestTableSelectedPage = bestTableSelectedPage,
                     chartPreviewSaveRequested = chartPreviewSaveRequested,
                     randomSongFilterRequested = randomSongFilterRequested,
                     randomSongSessionState = randomSongSessionState,
                     onProfileCreateRequestHandled = { profileCreateRequested = false },
                     onBestTableExportRequestHandled = { bestTableExportRequested = false },
+                    onBestTableFilterRequestHandled = { bestTableFilterRequested = false },
+                    onBestTableFilterActiveChanged = { bestTableFilterActive = it },
                     onChartPreviewSaveRequestHandled = { chartPreviewSaveRequested = false },
                     onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
                     onRandomSongFilterActiveChanged = { randomSongFilterActive = it },

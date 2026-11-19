@@ -31,6 +31,16 @@ object ScoreRules {
         }
     }
 
+    /** The same DX star thresholds, for an already-averaged achievement rate. */
+    fun dxStarsForRate(rate: Double): Int = when {
+        rate >= 0.97 -> 5
+        rate >= 0.95 -> 4
+        rate >= 0.93 -> 3
+        rate >= 0.90 -> 2
+        rate >= 0.85 -> 1
+        else -> 0
+    }
+
     fun effectiveMaxDxScore(sheetTotal: Int?, override: Int? = null): Int =
 			override?.takeIf { it > 0 } ?: ((sheetTotal ?: 0) * 3)
 

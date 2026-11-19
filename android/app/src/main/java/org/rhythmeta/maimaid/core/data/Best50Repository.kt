@@ -11,6 +11,7 @@ import org.rhythmeta.maimaid.core.database.Best50Row
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.core.database.MaimaidDatabase
 import org.rhythmeta.maimaid.core.database.SheetEntity
+import org.rhythmeta.maimaid.core.database.SongEntity
 
 data class Best50State(
     val total: Int = 0,
@@ -53,6 +54,36 @@ class Best50Repository(
                         b15Count = b15CountOverride ?: profile.b15Count,
                         versionOverride = versionOverride,
                         constantMode = constantMode,
+                        chartFit = chartFit,
+                    )
+                }
+            }
+        }.flowOn(Dispatchers.Default)
+
+    /**
+     * Theoretical Best 50 for a version: the highest-rated charts available with a perfect
+     * perfect 101% play (the rating formula still caps at 100.5%), always evaluated with
+     * version constants. Filters and capacities do not apply.
+     */
+    fun observeTheoreticalBest50(
+        versionOverride: String? = null,
+    ): Flow<Best50State> =
+        profileRepository.activeProfile.flatMapLatest { profile ->
+            if (profile == null) {
+                flowOf(Best50State())
+            } else {
+                combine(
+                    catalogRepository.versions,
+                    catalogRepository.songs,
+                    catalogRepository.sheets,
+                    catalogRepository.chartFit,
+                ) { versions, songs, sheets, chartFit ->
+                    calculateTheoreticalBest50(
+                        versions = versions,
+                        songs = songs,
+                        sheets = sheets,
+                        server = profile.server,
+                        versionOverride = versionOverride,
                         chartFit = chartFit,
                     )
                 }
@@ -138,6 +169,7 @@ internal fun calculateBest50(
                 fc = row.fc,
                 fs = row.fs,
                 isNew = isNew && !remasterUsesOldBucket,
+                category = row.category,
             ),
         )
     }
@@ -151,3 +183,103 @@ internal fun calculateBest50(
         isEmpty = selected35.isEmpty() && selected15.isEmpty(),
     )
 }
+
+
+internal fun calculateTheoreticalBest50(
+    versions: List<GameVersionEntity>,
+    songs: List<SongEntity>,
+    sheets: List<SheetEntity>,
+    server: String,
+    versionOverride: String?,
+    chartFit: StaticBundleResponse.ChartFitPayload = StaticBundleResponse.ChartFitPayload(),
+): Best50State {
+    val versionNames = versions.sortedBy { it.sortOrder }.map { it.name }
+    val latest = versionOverride?.takeIf { candidate ->
+        versionNames.any { it.equals(candidate, ignoreCase = true) }
+    } ?: RatingUtils.latestVersionForServer(songs, sheets, versions, server)
+    val hasVersionOverride = versionOverride != null
+    val categoryServer = if (hasVersionOverride && server.equals("cn", ignoreCase = true)) "jp" else server
+    val afterCircle = RatingUtils.isAfterCircle(latest, versionNames)
+    val songsById = songs.filterNot { it.isRemoved }.associateBy(SongEntity::songIdentifier)
+    val sheetsByKey = sheets.filterNot { it.isRemoved }
+    val sheetsBySong = sheetsByKey.groupBy(SheetEntity::songIdentifier)
+    val b35 = mutableListOf<RatingUtils.Entry>()
+    val b15 = mutableListOf<RatingUtils.Entry>()
+    sheetsByKey.forEach { sheet ->
+        if (sheet.type.contains("utage", ignoreCase = true)) return@forEach
+        val song = songsById[sheet.songIdentifier] ?: return@forEach
+        if (song.category.contains("utage", ignoreCase = true)) return@forEach
+        if (!hasVersionOverride && !ServerChartPolicy.isPlayable(sheet, server)) return@forEach
+        val metadata = ServerChartPolicy.metadata(sheet, server)
+        val isNew = RatingUtils.category(
+            metadata.version ?: song.version,
+            latest,
+            categoryServer,
+            true,
+            versionNames,
+            songId = sheet.providerSongId,
+        ) ?: return@forEach
+        val remasterUsesOldBucket = isNew &&
+            sheet.difficulty.equals("remaster", ignoreCase = true) &&
+            sheetsBySong[song.songIdentifier].orEmpty().any { baseSheet ->
+                !baseSheet.difficulty.equals("remaster", ignoreCase = true) &&
+                    RatingUtils.category(
+                        ServerChartPolicy.metadata(baseSheet, server).version ?: song.version,
+                        latest,
+                        categoryServer,
+                        hasVersionOverride || ServerChartPolicy.isPlayable(baseSheet, server),
+                        versionNames,
+                        songId = baseSheet.providerSongId,
+                    ) == false
+            }
+        val level = Best50ConstantResolver.resolve(
+            sheet = sheet,
+            serverConstant = metadata.ratingLevel,
+            selectedVersion = latest,
+            mode = Best50ConstantMode.Version,
+            chartFit = chartFit,
+        ) ?: return@forEach
+        val achievement = TheoreticalAchievement
+        val fc = TheoreticalFc
+        val rating = RatingUtils.calculate(level, achievement, fc, afterCircle)
+        if (rating <= 0) return@forEach
+        val maxDxScore = ScoreRules.effectiveMaxDxScore(sheet.total)
+        (if (isNew && !remasterUsesOldBucket) b15 else b35).add(
+            RatingUtils.Entry(
+                sheetKey = sheet.sheetKey,
+                songIdentifier = song.songIdentifier,
+                songId = sheet.providerSongId,
+                title = song.title,
+                imageName = song.imageName,
+                achievement = achievement,
+                rating = rating,
+                level = level,
+                difficulty = sheet.difficulty,
+                type = sheet.type,
+                dxScore = maxDxScore,
+                maxDxScore = maxDxScore,
+                fc = fc,
+                fs = TheoreticalFs,
+                isNew = isNew && !remasterUsesOldBucket,
+                category = song.category,
+            ),
+        )
+    }
+    val selected35 = b35.sortedWith(TheoreticalEntryOrder).take(TheoreticalOldCount)
+    val selected15 = b15.sortedWith(TheoreticalEntryOrder).take(TheoreticalNewCount)
+    return Best50State(
+        total = (selected35 + selected15).sumOf(RatingUtils.Entry::rating),
+        b35 = selected35,
+        b15 = selected15,
+        latestVersion = latest,
+        isEmpty = selected35.isEmpty() && selected15.isEmpty(),
+    )
+}
+
+private const val TheoreticalOldCount = 35
+private const val TheoreticalNewCount = 15
+private const val TheoreticalAchievement = 101.0
+private const val TheoreticalFc = "app"
+private const val TheoreticalFs = "fsdp"
+private val TheoreticalEntryOrder =
+    compareByDescending<RatingUtils.Entry> { it.rating }.thenBy { it.sheetKey }
