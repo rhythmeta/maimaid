@@ -50,8 +50,6 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -67,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.floor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import org.rhythmeta.maimaid.BuildConfig
 import org.rhythmeta.maimaid.R
@@ -102,8 +101,8 @@ internal fun ChartPreviewScreen(
     sheetKey: String?,
     container: AppContainer,
     contentTopPadding: Dp,
-    saveRequested: Boolean = false,
-    onSaveRequestHandled: () -> Unit = {},
+    shareRequested: Boolean = false,
+    onShareRequestHandled: () -> Unit = {},
 ) {
     // Keep the display awake while the preview page is open, otherwise the screen timeout cuts the
     // playback off mid-song. The window flag is used instead of a PowerManager wakelock, so no
@@ -125,30 +124,32 @@ internal fun ChartPreviewScreen(
     val pcmPreparing by viewModel.pcmEngine.preparing.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val savedMessage = stringResource(R.string.chart_preview_save_done)
-    val saveFailedMessage = stringResource(R.string.chart_preview_save_failed)
-    val saveLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/zip"),
-    ) { destination ->
-        if (destination != null) {
-            viewModel.saveChartZip(destination) { error ->
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = if (error == null) savedMessage else saveFailedMessage,
-                        duration = SnackbarDuration.Custom(CHART_SAVE_SNACKBAR_MS),
-                    )
-                }
+    val context = LocalContext.current
+    val shareFailedMessage = stringResource(R.string.chart_preview_share_failed)
+    val shareChooserTitle = stringResource(R.string.chart_preview_share_chooser)
+    // Building the package can include a track download, so a second tap while it runs is ignored
+    // instead of starting a duplicate build that would overwrite the package being shared.
+    var sharing by remember { mutableStateOf(false) }
+    LaunchedEffect(shareRequested) {
+        if (!shareRequested) return@LaunchedEffect
+        onShareRequestHandled()
+        if (sharing) return@LaunchedEffect
+        sharing = true
+        coroutineScope.launch {
+            try {
+                val packageFile = viewModel.buildChartZip()
+                shareChartPackage(context, packageFile, shareChooserTitle)
+                sharing = false
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                sharing = false
+                snackbarHostState.showSnackbar(
+                    message = shareFailedMessage,
+                    duration = SnackbarDuration.Custom(CHART_SHARE_SNACKBAR_MS),
+                )
             }
         }
-    }
-    val saveName = remember(state) {
-        val ready = state as? ChartPreviewUiState.Ready
-        chartSaveFileName(ready?.song?.title, ready?.selected?.sheet?.difficulty)
-    }
-    LaunchedEffect(saveRequested) {
-        if (!saveRequested) return@LaunchedEffect
-        onSaveRequestHandled()
-        saveLauncher.launch(saveName)
     }
     val comboLabel = stringResource(R.string.chart_preview_hud_combo)
     val breakNoExLabel = stringResource(R.string.chart_preview_hud_break_no_ex)
@@ -845,18 +846,7 @@ private const val AUDIO_STATS_INTERVAL_MS = 5_000L
 private const val DOWNLOAD_PROGRESS_POLL_MS = 100L
 private const val TAG_AUDIO = "ChartPreviewAudio"
 private const val BOOST_SPEED = 1.5f
-private const val CHART_SAVE_SNACKBAR_MS = 2_500L
-
-
-/** File name offered by the save dialog; strips characters file systems reject. */
-private fun chartSaveFileName(title: String?, difficulty: String?): String {
-    val base = listOfNotNull(
-        title?.trim()?.takeIf { it.isNotEmpty() },
-        difficulty?.trim()?.takeIf { it.isNotEmpty() },
-    ).joinToString(" - ").ifEmpty { "chart" }
-    val sanitized = base.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
-    return "${sanitized.take(120)}.zip"
-}
+private const val CHART_SHARE_SNACKBAR_MS = 2_500L
 
 /** Counts playable objects (hold tails and touch hold tails are not separate objects). */
 

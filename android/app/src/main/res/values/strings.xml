@@ -16,9 +16,9 @@
 	<string name="action_open">Open</string>
 	<string name="chart_preview_action">Preview chart</string>
 	<string name="chart_preview_title">Chart preview</string>
-	<string name="chart_preview_save">Save chart</string>
-	<string name="chart_preview_save_done">Chart saved</string>
-	<string name="chart_preview_save_failed">Unable to save the chart</string>
+	<string name="chart_preview_share">Share chart</string>
+	<string name="chart_preview_share_chooser">Share chart</string>
+	<string name="chart_preview_share_failed">Unable to share the chart</string>
 	<string name="chart_preview_parse_failed">Could not parse chart</string>
 	<string name="chart_preview_play">Play audio</string>
 	<string name="chart_preview_pause">Pause audio</string>

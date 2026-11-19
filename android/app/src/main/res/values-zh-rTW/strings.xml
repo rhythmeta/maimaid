@@ -16,9 +16,9 @@
 	<string name="action_open">開啟</string>
 	<string name="chart_preview_action">預覽譜面</string>
 	<string name="chart_preview_title">譜面預覽</string>
-	<string name="chart_preview_save">儲存譜面</string>
-	<string name="chart_preview_save_done">譜面已儲存</string>
-	<string name="chart_preview_save_failed">儲存譜面失敗</string>
+	<string name="chart_preview_share">分享譜面</string>
+	<string name="chart_preview_share_chooser">分享譜面</string>
+	<string name="chart_preview_share_failed">分享譜面失敗</string>
 	<string name="chart_preview_parse_failed">譜面解析失敗</string>
 	<string name="chart_preview_play">播放音樂</string>
 	<string name="chart_preview_pause">暫停音樂</string>

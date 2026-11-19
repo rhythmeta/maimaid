@@ -3,7 +3,6 @@ package org.rhythmeta.maimaid.ui.song
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -30,6 +29,7 @@ import org.rhythmeta.maimaid.core.data.ChartAssetIndex
 import org.rhythmeta.maimaid.core.database.SheetEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 import java.io.BufferedOutputStream
+import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
@@ -293,62 +293,71 @@ class ChartPreviewViewModel(
     }
 
     /**
-     * Writes the selected sheet as a zip with `maidata.txt`, `track.mp3` and `bg.png`. The audio is
-     * downloaded first when it is not cached yet, so a save right after opening the page still
-     * produces the complete package.
+     * Builds the shareable chart package — `maidata.txt`, `track.mp3` and `bg.png` — in the cache
+     * directory and returns the zip. The audio is downloaded first when it is not cached yet, so a
+     * share right after opening the page still produces the complete package.
      */
-    fun saveChartZip(destination: Uri, onResult: (Throwable?) -> Unit) {
-        viewModelScope.launch {
-            var failure: Throwable? = null
-            try {
-                val ready = mutableState.value as? ChartPreviewUiState.Ready
-                    ?: error("Chart is not ready")
-                val option = ready.selected
-                val audio = songAudioAsset
-                if (audio != null &&
-                    ChartTrackCache.cachedFile(container.applicationContext, audio) == null
-                ) {
-                    ChartTrackCache.ensure(
-                        container.applicationContext,
-                        audio,
-                        container.staticBundleClient,
-                    )
-                }
-                withContext(Dispatchers.IO) {
-                    val resolver = container.applicationContext.contentResolver
-                    val stream = resolver.openOutputStream(destination)
-                        ?: error("Unable to open the selected file")
-                    stream.use { output ->
-                        ZipOutputStream(BufferedOutputStream(output)).use { zip ->
-                            zip.putNextEntry(ZipEntry("maidata.txt"))
-                            zip.write(option.maidata.toByteArray(Charsets.UTF_8))
-                            zip.closeEntry()
+    suspend fun buildChartZip(): File {
+        val ready = mutableState.value as? ChartPreviewUiState.Ready
+            ?: error("Chart is not ready")
+        val option = ready.selected
+        val audio = songAudioAsset
+        if (audio != null &&
+            ChartTrackCache.cachedFile(container.applicationContext, audio) == null
+        ) {
+            ChartTrackCache.ensure(
+                container.applicationContext,
+                audio,
+                container.staticBundleClient,
+            )
+        }
+        return withContext(Dispatchers.IO) {
+            val directory = File(container.applicationContext.cacheDir, CHART_PACKAGE_DIRECTORY)
+                .apply { mkdirs() }
+            // Each share replaces the previous package, so sharing every chart of a session cannot
+            // pile up copies in the cache.
+            directory.listFiles()?.forEach { it.delete() }
+            val destination = File(
+                directory,
+                chartPackageFileName(ready.song?.title, option.sheet.difficulty),
+            )
+            destination.outputStream().use { output ->
+                ZipOutputStream(BufferedOutputStream(output)).use { zip ->
+                    zip.putNextEntry(ZipEntry("maidata.txt"))
+                    zip.write(option.maidata.toByteArray(Charsets.UTF_8))
+                    zip.closeEntry()
 
-                            val audioFile = audio?.let {
-                                ChartTrackCache.cachedFile(container.applicationContext, it)
-                            }
-                            if (audioFile != null) {
-                                zip.putNextEntry(ZipEntry("track.mp3"))
-                                audioFile.inputStream().use { it.copyTo(zip) }
-                                zip.closeEntry()
-                            }
+                    val audioFile = audio?.let {
+                        ChartTrackCache.cachedFile(container.applicationContext, it)
+                    }
+                    if (audioFile != null) {
+                        zip.putNextEntry(ZipEntry("track.mp3"))
+                        audioFile.inputStream().use { it.copyTo(zip) }
+                        zip.closeEntry()
+                    }
 
-                            val embedded = audioFile?.let(Mp3CoverArt::read)
-                            if (embedded != null) {
-                                writePngEntry(zip, "bg.png", embedded)
-                            } else {
-                                val cover = ready.song?.imageName
-                                    ?.let { container.coverImageStore.fileFor(it) }
-                                if (cover != null) writePngEntry(zip, "bg.png", cover.readBytes())
-                            }
-                        }
+                    val embedded = audioFile?.let(Mp3CoverArt::read)
+                    if (embedded != null) {
+                        writePngEntry(zip, "bg.png", embedded)
+                    } else {
+                        val cover = ready.song?.imageName
+                            ?.let { container.coverImageStore.fileFor(it) }
+                        if (cover != null) writePngEntry(zip, "bg.png", cover.readBytes())
                     }
                 }
-            } catch (error: Throwable) {
-                failure = error
             }
-            onResult(failure)
+            destination
         }
+    }
+
+    /** File name handed to the share sheet; strips characters file systems reject. */
+    private fun chartPackageFileName(title: String?, difficulty: String?): String {
+        val base = listOfNotNull(
+            title?.trim()?.takeIf { it.isNotEmpty() },
+            difficulty?.trim()?.takeIf { it.isNotEmpty() },
+        ).joinToString(" - ").ifEmpty { "chart" }
+        val sanitized = base.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
+        return "${sanitized.take(120)}.zip"
     }
 
     private fun writePngEntry(zip: ZipOutputStream, name: String, bytes: ByteArray) {
@@ -412,3 +421,6 @@ internal fun simaiDifficultySlot(difficulty: String): Int = when {
     difficulty.contains("basic", ignoreCase = true) -> 2
     else -> 5
 }
+
+/** Cache directory holding the zip handed to the system share sheet. */
+private const val CHART_PACKAGE_DIRECTORY = "shared_charts"

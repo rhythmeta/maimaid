@@ -16,9 +16,9 @@
 	<string name="action_open">開く</string>
 	<string name="chart_preview_action">譜面をプレビュー</string>
 	<string name="chart_preview_title">譜面プレビュー</string>
-	<string name="chart_preview_save">譜面を保存</string>
-	<string name="chart_preview_save_done">譜面を保存しました</string>
-	<string name="chart_preview_save_failed">譜面を保存できませんでした</string>
+	<string name="chart_preview_share">譜面を共有</string>
+	<string name="chart_preview_share_chooser">譜面を共有</string>
+	<string name="chart_preview_share_failed">譜面を共有できませんでした</string>
 	<string name="chart_preview_parse_failed">譜面を解析できません</string>
 	<string name="chart_preview_play">音楽を再生</string>
 	<string name="chart_preview_pause">音楽を一時停止</string>
