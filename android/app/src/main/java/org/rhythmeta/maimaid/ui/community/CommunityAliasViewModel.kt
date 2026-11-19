@@ -3,11 +3,13 @@ package org.rhythmeta.maimaid.ui.community
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.CommunityAliasApprovedItem
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 
 data class CommunityAliasBoardUiState(
@@ -15,6 +17,11 @@ data class CommunityAliasBoardUiState(
     val isAuthenticated: Boolean = false,
     val isLoading: Boolean = true,
     val items: List<CommunityAliasVotingBoardItem> = emptyList(),
+    /** Published approved aliases with their approval time; public, so they load without a session. */
+    val approvedItems: List<CommunityAliasApprovedItem> = emptyList(),
+    /** Candidate ids submitted by the signed-in user, used to mark their own approvals. */
+    val myCandidateIds: Set<String> = emptySet(),
+    val isApprovedLoading: Boolean = true,
     val inFlightCandidateId: String? = null,
     val message: String? = null,
 )
@@ -34,7 +41,8 @@ class CommunityAliasBoardViewModel(
         refresh()
     }
 
-    fun refresh() {
+    /** Reloads both tabs; [force] bypasses the approved-alias sync throttle for a manual refresh. */
+    fun refresh(force: Boolean = false) {
         viewModelScope.launch {
             val service = container.communityAliasService
             val configured = service.isConfigured
@@ -44,10 +52,39 @@ class CommunityAliasBoardViewModel(
                     isConfigured = configured,
                     isAuthenticated = authenticated,
                     isLoading = configured && authenticated,
+                    isApprovedLoading = configured,
                     message = null,
                 )
             }
-            if (!configured || !authenticated) {
+            if (!configured) {
+                mutableState.update {
+                    it.copy(
+                        isLoading = false,
+                        isApprovedLoading = false,
+                        items = emptyList(),
+                        approvedItems = emptyList(),
+                        myCandidateIds = emptySet(),
+                    )
+                }
+                return@launch
+            }
+            // Approved aliases are public, so the approved tab works without signing in.
+            try {
+                service.syncApprovedAliasesIfNeeded(force = force)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                // Keep the previously synced list; an offline session can still browse it.
+            }
+            val myCandidateIds = if (authenticated) service.fetchMyCandidateIds() else emptySet()
+            mutableState.update {
+                it.copy(
+                    approvedItems = service.approvedItems.value,
+                    myCandidateIds = myCandidateIds,
+                    isApprovedLoading = false,
+                )
+            }
+            if (!authenticated) {
                 mutableState.update { it.copy(isLoading = false, items = emptyList()) }
                 return@launch
             }

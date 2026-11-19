@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.core.data
 
+import java.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -90,6 +91,14 @@ data class CommunityAliasApprovedSyncRow(
     val aliasText: String,
     val updatedAt: String = "",
     val approvedAt: String? = null,
+)
+
+/** One published alias with the data the board needs to present it. */
+data class CommunityAliasApprovedItem(
+    val candidateId: String,
+    val songIdentifier: String,
+    val aliasText: String,
+    val approvedAt: Instant?,
 )
 
 @Serializable

@@ -510,10 +510,15 @@
 	<string name="community_alias_unconfigured_message">コミュニティ別名を使うにはクラウドサービスを設定してください。</string>
 	<string name="community_alias_login_title">ログインが必要です</string>
 	<string name="community_alias_login_message">ログインすると候補の閲覧と投票ができます。</string>
+	<string name="community_alias_tab_candidates">候補</string>
+	<string name="community_alias_tab_approved">承認済み</string>
 	<string name="community_alias_refresh_session">ログイン状態を更新</string>
 	<string name="community_alias_empty_title">投票中の候補はありません</string>
 	<string name="community_alias_empty_message">新しい候補は投票期間中にここへ表示されます。</string>
+	<string name="community_alias_approved_empty_title">承認済みの別名はまだありません</string>
+	<string name="community_alias_approved_empty_message">投票を経て承認された別名がここに表示されます。</string>
 	<string name="community_alias_candidate_count">候補 %1$d 件</string>
+	<string name="community_alias_approved_count">承認済み %1$d 件</string>
 	<string name="community_alias_deadline">締切</string>
 	<string name="community_alias_support">賛成 %1$d</string>
 	<string name="community_alias_oppose">反対 %1$d</string>
@@ -527,6 +532,8 @@
 	<string name="community_alias_my_submissions">自分の投稿</string>
 	<string name="community_alias_status_voting">投票中</string>
 	<string name="community_alias_status_approved">承認済み</string>
+	<string name="community_alias_approved_by_me">自分の投稿</string>
+	<string name="community_alias_approved_at_prefix">承認日時</string>
 	<string name="community_alias_status_rejected">却下済み</string>
 	<string name="community_alias_status_unknown">不明</string>
 	<string name="community_alias_submit_success">別名を投稿し、投票を開始しました</string>

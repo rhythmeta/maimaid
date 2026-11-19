@@ -97,6 +97,8 @@ import org.rhythmeta.maimaid.ui.catalog.SongCoverSource
 import org.rhythmeta.maimaid.ui.catalog.SongNavigationHost
 import org.rhythmeta.maimaid.ui.best.BestTableNewPage
 import org.rhythmeta.maimaid.ui.best.BestTablePageSwitcher
+import org.rhythmeta.maimaid.ui.community.CommunityAliasCandidatesPage
+import org.rhythmeta.maimaid.ui.community.CommunityAliasPageSwitcher
 import org.rhythmeta.maimaid.ui.common.DetailScreen
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTab
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTabBar
@@ -273,6 +275,10 @@ fun MaimaidApp(
     var bestTableFilterActive by rememberSaveable { mutableStateOf(false) }
     var bestTableSelectedPage by rememberSaveable { mutableIntStateOf(BestTableNewPage) }
     var bestTableSwitcherVisible by rememberSaveable { mutableStateOf(true) }
+    var communityAliasSelectedPage by rememberSaveable {
+        mutableIntStateOf(CommunityAliasCandidatesPage)
+    }
+    var communityAliasSwitcherVisible by rememberSaveable { mutableStateOf(true) }
     var chartPreviewShareRequested by rememberSaveable { mutableStateOf(false) }
     var randomSongFilterRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsCreateRequested by rememberSaveable { mutableStateOf(false) }
@@ -511,6 +517,49 @@ fun MaimaidApp(
             }
         }
     }
+    val communityAliasSwitcherScrollConnection = remember(
+        catalogSearchShowThreshold,
+        catalogSearchHideThreshold,
+    ) {
+        object : NestedScrollConnection {
+            private var downwardDistance = 0f
+            private var upwardDistance = 0f
+
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    return super.onPreScroll(available, source)
+                }
+
+                when {
+                    available.y > 0f -> {
+                        upwardDistance = 0f
+                        if (communityAliasSwitcherVisible) {
+                            downwardDistance = 0f
+                        } else {
+                            downwardDistance += available.y
+                            if (downwardDistance >= catalogSearchShowThreshold) {
+                                communityAliasSwitcherVisible = true
+                                downwardDistance = 0f
+                            }
+                        }
+                    }
+                    available.y < 0f -> {
+                        downwardDistance = 0f
+                        if (communityAliasSwitcherVisible) {
+                            upwardDistance -= available.y
+                            if (upwardDistance >= catalogSearchHideThreshold) {
+                                communityAliasSwitcherVisible = false
+                                upwardDistance = 0f
+                            }
+                        } else {
+                            upwardDistance = 0f
+                        }
+                    }
+                }
+                return super.onPreScroll(available, source)
+            }
+        }
+    }
     val scoreQuerySearchScrollConnection = remember(
         catalogSearchShowThreshold,
         catalogSearchHideThreshold,
@@ -636,6 +685,13 @@ fun MaimaidApp(
         }
         if (next == AppDetail.BestTable) {
             bestTableSwitcherVisible = true
+        }
+        if (next == AppDetail.CommunityAliases) {
+            // The board keeps one scroll behavior while the app is composed, so re-entering after
+            // scrolling would otherwise start with the title (and its page switcher) collapsed.
+            communityAliasSwitcherVisible = true
+            communityAliasScrollBehavior.state.heightOffset = 0f
+            communityAliasScrollBehavior.state.contentOffset = 0f
         }
         val route = next.toRoute(
             songId = selectedSongId.takeIf { next == AppDetail.Song },
@@ -1044,6 +1100,11 @@ fun MaimaidApp(
                         visible = bestTableSwitcherVisible,
                         onSelectedPageChange = { bestTableSelectedPage = it },
                     )
+                    AppDetail.CommunityAliases -> CommunityAliasPageSwitcher(
+                        selectedPage = communityAliasSelectedPage,
+                        visible = communityAliasSwitcherVisible,
+                        onSelectedPageChange = { communityAliasSelectedPage = it },
+                    )
                     AppDetail.ScoreQuery -> if (scoreQueryViewModel != null) {
                         CatalogSearchBar(
                             query = scoreQueryText,
@@ -1069,6 +1130,7 @@ fun MaimaidApp(
                         AppDetail.Recommendations -> Modifier.nestedScroll(recommendationSwitcherScrollConnection)
                         AppDetail.DanDetail -> Modifier.nestedScroll(danSwitcherScrollConnection)
                         AppDetail.BestTable -> Modifier.nestedScroll(bestTableSwitcherScrollConnection)
+                        AppDetail.CommunityAliases -> Modifier.nestedScroll(communityAliasSwitcherScrollConnection)
                         AppDetail.ScoreQuery -> Modifier.nestedScroll(scoreQuerySearchScrollConnection)
                         else -> Modifier
                     },
@@ -1105,6 +1167,7 @@ fun MaimaidApp(
                     bestTableFilterRequested = bestTableFilterRequested,
                     bestTableSelectedPage = bestTableSelectedPage,
                     chartPreviewShareRequested = chartPreviewShareRequested,
+                    communityAliasSelectedPage = communityAliasSelectedPage,
                     randomSongFilterRequested = randomSongFilterRequested,
                     randomSongSessionState = randomSongSessionState,
                     onProfileCreateRequestHandled = { profileCreateRequested = false },

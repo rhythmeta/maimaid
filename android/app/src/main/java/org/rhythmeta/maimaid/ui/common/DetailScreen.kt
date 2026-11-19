@@ -111,6 +111,7 @@ internal fun DetailScreen(
     bestTableFilterRequested: Boolean = false,
     bestTableSelectedPage: Int = 0,
     chartPreviewShareRequested: Boolean = false,
+    communityAliasSelectedPage: Int = 0,
     randomSongFilterRequested: Boolean,
     randomSongSessionState: RandomSongSessionState,
     onProfileCreateRequestHandled: () -> Unit,
@@ -336,6 +337,7 @@ internal fun DetailScreen(
             songs = state.songs,
             contentTopPadding = songContentTopPadding,
             listState = communityAliasListState,
+            selectedPage = communityAliasSelectedPage,
             onOpenSong = onOpenSong,
         )
         AppDetail.Profiles -> ProfileScreen(

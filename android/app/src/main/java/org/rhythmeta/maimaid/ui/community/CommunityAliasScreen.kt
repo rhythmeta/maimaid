@@ -1,5 +1,10 @@
 package org.rhythmeta.maimaid.ui.community
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -22,7 +28,9 @@ import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +48,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.CommunityAliasApprovedItem
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
@@ -58,6 +67,7 @@ import top.yukonga.miuix.kmp.basic.PullToRefresh
 import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -68,6 +78,7 @@ internal fun CommunityAliasScreen(
     songs: List<SongEntity>,
     contentTopPadding: Dp,
     listState: LazyListState,
+    selectedPage: Int = CommunityAliasCandidatesPage,
     onOpenSong: (String) -> Unit,
 ) {
     val viewModel = viewModel<CommunityAliasBoardViewModel>(
@@ -75,13 +86,31 @@ internal fun CommunityAliasScreen(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val songsById = remember(songs) { songs.associateBy(SongEntity::songIdentifier) }
-    val groups = remember(state.items) {
+    val candidateGroups = remember(state.items, songsById) {
         state.items
             .groupBy(CommunityAliasVotingBoardItem::songIdentifier)
             .entries
             .sortedBy { (songIdentifier, _) ->
                 songsById[songIdentifier]?.title?.lowercase() ?: songIdentifier.lowercase()
             }
+    }
+    val approvedGroups = remember(state.approvedItems, songsById) {
+        state.approvedItems
+            .groupBy(CommunityAliasApprovedItem::songIdentifier)
+            .entries
+            .sortedBy { (songIdentifier, _) ->
+                songsById[songIdentifier]?.title?.lowercase() ?: songIdentifier.lowercase()
+            }
+    }
+    // The tabs hold different boards; switching starts at the top of the selected one instead of
+    // keeping the scroll offset of the board that was visible before. Entering the page keeps its
+    // restored position.
+    var lastPage by remember { mutableIntStateOf(selectedPage) }
+    LaunchedEffect(selectedPage) {
+        if (selectedPage != lastPage) {
+            lastPage = selectedPage
+            listState.scrollToItem(0)
+        }
     }
     val voteUpdated = stringResource(R.string.community_alias_vote_updated)
     val voteFailed = stringResource(R.string.community_alias_vote_failed)
@@ -100,8 +129,12 @@ internal fun CommunityAliasScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         PullToRefresh(
-            isRefreshing = state.isLoading,
-            onRefresh = viewModel::refresh,
+            isRefreshing = if (selectedPage == CommunityAliasApprovedPage) {
+                state.isApprovedLoading
+            } else {
+                state.isLoading
+            },
+            onRefresh = { viewModel.refresh(force = true) },
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = contentTopPadding),
         ) {
@@ -117,50 +150,25 @@ internal fun CommunityAliasScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    when {
-                        !state.isConfigured -> item("unconfigured") {
-                            CommunityAliasMessageCard(
-                                title = stringResource(R.string.community_alias_unconfigured_title),
-                                message = stringResource(R.string.community_alias_unconfigured_message),
-                            )
-                        }
-                        !state.isAuthenticated -> item("login") {
-                            CommunityAliasMessageCard(
-                                title = stringResource(R.string.community_alias_login_title),
-                                message = stringResource(R.string.community_alias_login_message),
-                                action = stringResource(R.string.community_alias_refresh_session),
-                                onAction = viewModel::checkSession,
-                            )
-                        }
-                        state.isLoading && state.items.isEmpty() -> Unit
-                        state.items.isEmpty() -> item("empty") {
-                            CommunityAliasMessageCard(
-                                title = stringResource(R.string.community_alias_empty_title),
-                                message = stringResource(R.string.community_alias_empty_message),
-                            )
-                        }
-                        else -> groups.forEach { (songIdentifier, candidates) ->
-                            val song = songsById[songIdentifier]
-                            item(key = "header-$songIdentifier") {
-                                CommunityAliasSongHeader(
-                                    song = song,
-                                    fallbackTitle = songIdentifier,
-                                    count = candidates.size,
-                                    container = container,
-                                    onOpenSong = onOpenSong,
-                                )
-                            }
-                            items(
-                                items = candidates,
-                                key = CommunityAliasVotingBoardItem::candidateId,
-                            ) { item ->
-                                CommunityAliasCandidateCard(
-                                    item = item,
-                                    isVoting = state.inFlightCandidateId == item.candidateId,
-                                    onVote = { support -> viewModel.vote(item.candidateId, support) },
-                                )
-                            }
-                        }
+                    if (selectedPage == CommunityAliasApprovedPage) {
+                        approvedBoard(
+                            state = state,
+                            groups = approvedGroups,
+                            songsById = songsById,
+                            myCandidateIds = state.myCandidateIds,
+                            container = container,
+                            onOpenSong = onOpenSong,
+                        )
+                    } else {
+                        candidateBoard(
+                            state = state,
+                            groups = candidateGroups,
+                            songsById = songsById,
+                            container = container,
+                            onOpenSong = onOpenSong,
+                            onCheckSession = viewModel::checkSession,
+                            onVote = viewModel::vote,
+                        )
                     }
                 }
                 SongListScrollBar(
@@ -178,11 +186,199 @@ internal fun CommunityAliasScreen(
     }
 }
 
+internal const val CommunityAliasCandidatesPage = 0
+internal const val CommunityAliasApprovedPage = 1
+
+/** Top-bar switcher between the candidate and approved boards; hidden while scrolling up. */
+@Composable
+internal fun CommunityAliasPageSwitcher(
+    selectedPage: Int,
+    visible: Boolean,
+    onSelectedPageChange: (Int) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+    ) {
+        TabRowWithContour(
+            tabs = listOf(
+                stringResource(R.string.community_alias_tab_candidates),
+                stringResource(R.string.community_alias_tab_approved),
+            ),
+            selectedTabIndex = selectedPage,
+            onTabSelected = onSelectedPageChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            minWidth = 112.dp,
+            maxWidth = 180.dp,
+        )
+    }
+}
+
+/** Candidates waiting for votes; requires a session because the board endpoint is private. */
+private fun LazyListScope.candidateBoard(
+    state: CommunityAliasBoardUiState,
+    groups: List<Map.Entry<String, List<CommunityAliasVotingBoardItem>>>,
+    songsById: Map<String, SongEntity>,
+    container: AppContainer,
+    onOpenSong: (String) -> Unit,
+    onCheckSession: () -> Unit,
+    onVote: (String, Boolean) -> Unit,
+) {
+    when {
+        !state.isConfigured -> item("unconfigured") {
+            CommunityAliasMessageCard(
+                title = stringResource(R.string.community_alias_unconfigured_title),
+                message = stringResource(R.string.community_alias_unconfigured_message),
+            )
+        }
+        !state.isAuthenticated -> item("login") {
+            CommunityAliasMessageCard(
+                title = stringResource(R.string.community_alias_login_title),
+                message = stringResource(R.string.community_alias_login_message),
+                action = stringResource(R.string.community_alias_refresh_session),
+                onAction = onCheckSession,
+            )
+        }
+        state.isLoading && state.items.isEmpty() -> Unit
+        state.items.isEmpty() -> item("empty") {
+            CommunityAliasMessageCard(
+                title = stringResource(R.string.community_alias_empty_title),
+                message = stringResource(R.string.community_alias_empty_message),
+            )
+        }
+        else -> groups.forEach { (songIdentifier, candidates) ->
+            item(key = "header-$songIdentifier") {
+                CommunityAliasSongHeader(
+                    song = songsById[songIdentifier],
+                    fallbackTitle = songIdentifier,
+                    countLabel = stringResource(
+                        R.string.community_alias_candidate_count,
+                        candidates.size,
+                    ),
+                    container = container,
+                    onOpenSong = onOpenSong,
+                )
+            }
+            items(
+                items = candidates,
+                key = CommunityAliasVotingBoardItem::candidateId,
+            ) { item ->
+                CommunityAliasCandidateCard(
+                    item = item,
+                    isVoting = state.inFlightCandidateId == item.candidateId,
+                    onVote = { support -> onVote(item.candidateId, support) },
+                )
+            }
+        }
+    }
+}
+
+/** Published aliases, grouped by song. Public, so this list does not need a session. */
+private fun LazyListScope.approvedBoard(
+    state: CommunityAliasBoardUiState,
+    groups: List<Map.Entry<String, List<CommunityAliasApprovedItem>>>,
+    songsById: Map<String, SongEntity>,
+    myCandidateIds: Set<String>,
+    container: AppContainer,
+    onOpenSong: (String) -> Unit,
+) {
+    when {
+        !state.isConfigured -> item("approved-unconfigured") {
+            CommunityAliasMessageCard(
+                title = stringResource(R.string.community_alias_unconfigured_title),
+                message = stringResource(R.string.community_alias_unconfigured_message),
+            )
+        }
+        state.isApprovedLoading && state.approvedItems.isEmpty() -> Unit
+        state.approvedItems.isEmpty() -> item("approved-empty") {
+            CommunityAliasMessageCard(
+                title = stringResource(R.string.community_alias_approved_empty_title),
+                message = stringResource(R.string.community_alias_approved_empty_message),
+            )
+        }
+        else -> groups.forEach { (songIdentifier, aliases) ->
+            item(key = "approved-header-$songIdentifier") {
+                CommunityAliasSongHeader(
+                    song = songsById[songIdentifier],
+                    fallbackTitle = songIdentifier,
+                    countLabel = stringResource(
+                        R.string.community_alias_approved_count,
+                        aliases.size,
+                    ),
+                    container = container,
+                    onOpenSong = onOpenSong,
+                )
+            }
+            items(
+                items = aliases,
+                key = CommunityAliasApprovedItem::candidateId,
+            ) { item ->
+                CommunityAliasApprovedCard(
+                    item = item,
+                    isMine = item.candidateId in myCandidateIds,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunityAliasApprovedCard(
+    item: CommunityAliasApprovedItem,
+    isMine: Boolean,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 14.dp,
+        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = item.aliasText,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (isMine) CommunityAliasOwnedBadge()
+            }
+            item.approvedAt?.let { approvedAt ->
+                Text(
+                    text = formatApprovedAt(approvedAt),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
+}
+
+/** Marks an approved alias the signed-in user submitted themselves. */
+@Composable
+private fun CommunityAliasOwnedBadge() {
+    Text(
+        text = stringResource(R.string.community_alias_approved_by_me),
+        style = MiuixTheme.textStyles.footnote2,
+        color = MiuixTheme.colorScheme.primary,
+        modifier = Modifier
+            .squircleSurface(
+                color = MiuixTheme.colorScheme.primary.copy(alpha = 0.12f),
+                cornerRadius = 4.dp,
+                extension = SquircleExtension,
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
 @Composable
 private fun CommunityAliasSongHeader(
     song: SongEntity?,
     fallbackTitle: String,
-    count: Int,
+    countLabel: String,
     container: AppContainer,
     onOpenSong: (String) -> Unit,
 ) {
@@ -248,7 +444,7 @@ private fun CommunityAliasSongHeader(
                     .fadingMarquee(),
             )
             Text(
-                text = stringResource(R.string.community_alias_candidate_count, count),
+                text = countLabel,
                 style = MiuixTheme.textStyles.footnote2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
@@ -371,6 +567,15 @@ private fun CommunityAliasMessageCard(
             }
         }
     }
+}
+
+@Composable
+private fun formatApprovedAt(value: Instant): String {
+    val prefix = stringResource(R.string.community_alias_approved_at_prefix)
+    val formatted = value
+        .atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT))
+    return "$prefix $formatted"
 }
 
 @Composable

@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.core.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import java.net.URLEncoder
 import java.time.Instant
@@ -29,9 +30,12 @@ class CommunityAliasService(
     private val approvedSyncMutex = Mutex()
     private var lastApprovedSyncAt: Instant? = null
     private val mutableApprovedAliases = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    private val mutableApprovedItems = MutableStateFlow<List<CommunityAliasApprovedItem>>(emptyList())
     private val mutableMyAliases = MutableStateFlow<List<SongAliasEntity>>(emptyList())
     private var myAliasesOwnerId: String? = null
     val approvedAliases = mutableApprovedAliases.asStateFlow()
+    /** Approved aliases with their approval time, newest first; drives the approved board tab. */
+    val approvedItems = mutableApprovedItems.asStateFlow()
     val searchableAliases: Flow<List<SongAliasEntity>> = combine(
         catalogDao.observeAliases(),
         mutableMyAliases,
@@ -158,6 +162,22 @@ class CommunityAliasService(
         return json.decodeFromJsonElement(CommunityAliasVoteResult.serializer(), payload)
     }
 
+    /**
+     * IDs of the signed-in user's submissions. The board uses them to mark approved aliases the
+     * user submitted themselves; the approved sync rows only carry the candidate id.
+     */
+    suspend fun fetchMyCandidateIds(): Set<String> {
+        if (!isConfigured || !isAuthenticated) return emptySet()
+        return try {
+            fetchMyCandidates(songIdentifier = null, limit = 200)
+                .mapTo(HashSet(), CommunityAliasMyCandidate::candidateId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            emptySet()
+        }
+    }
+
     private suspend fun fetchMyCandidates(
         songIdentifier: String?,
         limit: Int,
@@ -188,10 +208,17 @@ class CommunityAliasService(
         )
     }
 
-    suspend fun syncApprovedAliasesIfNeeded() = approvedSyncMutex.withLock {
+    /**
+     * Refreshes the public approved-alias list. Throttled unless [force] is set, which the alias
+     * board uses for an explicit pull-to-refresh.
+     */
+    suspend fun syncApprovedAliasesIfNeeded(force: Boolean = false) = approvedSyncMutex.withLock {
         val now = Instant.now()
         val previousSync = lastApprovedSyncAt
-        if (previousSync != null && now.isBefore(previousSync.plusSeconds(APPROVED_SYNC_INTERVAL_SECONDS))) {
+        if (!force &&
+            previousSync != null &&
+            now.isBefore(previousSync.plusSeconds(APPROVED_SYNC_INTERVAL_SECONDS))
+        ) {
             return@withLock
         }
         val rows = runCatching {
@@ -203,6 +230,21 @@ class CommunityAliasService(
         }.getOrElse { return@withLock }
         rows.filter { it.status != "approved" }.forEach { catalogDao.deleteAlias(it.songIdentifier, it.aliasText) }
         val approved = rows.filter { it.status == "approved" }
+        mutableApprovedItems.value = approved
+            .mapNotNull { row ->
+                val alias = row.aliasText.trim()
+                if (alias.isEmpty()) return@mapNotNull null
+                CommunityAliasApprovedItem(
+                    candidateId = row.candidateId,
+                    songIdentifier = row.songIdentifier,
+                    aliasText = alias,
+                    approvedAt = row.approvedAt?.let { value ->
+                        runCatching { Instant.parse(value) }.getOrNull()
+                    },
+                )
+            }
+            .distinctBy { it.songIdentifier to it.aliasText.lowercase() }
+            .sortedByDescending(CommunityAliasApprovedItem::approvedAt)
         mutableApprovedAliases.value = approved
             .groupBy(CommunityAliasApprovedSyncRow::songIdentifier)
             .mapValues { (_, values) ->

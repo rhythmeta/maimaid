@@ -529,11 +529,16 @@
 		community aliases.</string>
 	<string name="community_alias_login_title">Sign in required</string>
 	<string name="community_alias_login_message">Sign in to view candidates and cast votes.</string>
+	<string name="community_alias_tab_candidates">Candidates</string>
+	<string name="community_alias_tab_approved">Approved</string>
 	<string name="community_alias_refresh_session">Refresh session</string>
 	<string name="community_alias_empty_title">No aliases are being voted on</string>
 	<string name="community_alias_empty_message">New candidates will appear here during their voting
 		period.</string>
+	<string name="community_alias_approved_empty_title">No approved aliases yet</string>
+	<string name="community_alias_approved_empty_message">Aliases appear here once they pass voting and are approved.</string>
 	<string name="community_alias_candidate_count">%1$d candidates</string>
+	<string name="community_alias_approved_count">%1$d approved</string>
 	<string name="community_alias_deadline">Ends</string>
 	<string name="community_alias_support">Support %1$d</string>
 	<string name="community_alias_oppose">Oppose %1$d</string>
@@ -547,6 +552,8 @@
 	<string name="community_alias_my_submissions">My submissions</string>
 	<string name="community_alias_status_voting">Voting</string>
 	<string name="community_alias_status_approved">Approved</string>
+	<string name="community_alias_approved_by_me">My submission</string>
+	<string name="community_alias_approved_at_prefix">Approved</string>
 	<string name="community_alias_status_rejected">Rejected</string>
 	<string name="community_alias_status_unknown">Unknown</string>
 	<string name="community_alias_submit_success">Alias submitted for voting</string>

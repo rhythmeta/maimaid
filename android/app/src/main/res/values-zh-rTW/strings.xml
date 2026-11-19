@@ -509,10 +509,15 @@
 	<string name="community_alias_unconfigured_message">設定雲端服務後即可使用社群別名。</string>
 	<string name="community_alias_login_title">需要登入</string>
 	<string name="community_alias_login_message">登入後可以瀏覽候選別名並投票。</string>
+	<string name="community_alias_tab_candidates">候選</string>
+	<string name="community_alias_tab_approved">已通過</string>
 	<string name="community_alias_refresh_session">重新整理登入狀態</string>
 	<string name="community_alias_empty_title">目前沒有投票中的候選別名</string>
 	<string name="community_alias_empty_message">新的候選別名會在公示期間顯示於此。</string>
+	<string name="community_alias_approved_empty_title">尚無已通過的別名</string>
+	<string name="community_alias_approved_empty_message">別名通過投票並被採納後會顯示在這裡。</string>
 	<string name="community_alias_candidate_count">%1$d 個候選別名</string>
+	<string name="community_alias_approved_count">%1$d 個已通過別名</string>
 	<string name="community_alias_deadline">截止</string>
 	<string name="community_alias_support">支持 %1$d</string>
 	<string name="community_alias_oppose">反對 %1$d</string>
@@ -526,6 +531,8 @@
 	<string name="community_alias_my_submissions">我的投稿</string>
 	<string name="community_alias_status_voting">投票中</string>
 	<string name="community_alias_status_approved">已通過</string>
+	<string name="community_alias_approved_by_me">我的投稿</string>
+	<string name="community_alias_approved_at_prefix">通過時間</string>
 	<string name="community_alias_status_rejected">已拒絕</string>
 	<string name="community_alias_status_unknown">未知</string>
 	<string name="community_alias_submit_success">別名已提交並進入投票</string>
