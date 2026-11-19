@@ -5,7 +5,7 @@ import CoreData
 // Best-list calculation state and export presentation are coordinated by this screen.
 // swiftlint:disable:next type_body_length
 struct BestTableView: View {
-    private enum CapacityField: Hashable {
+    private enum CapacityField {
         case old
         case new
     }
@@ -17,14 +17,13 @@ struct BestTableView: View {
     @Query(filter: #Predicate<UserProfile> { $0.isActive == true }) private var activeProfiles: [UserProfile]
 
     @State private var cache = B50CacheService.shared
+    @State private var preferences = BestTablePreferences()
 
-    private var activeProfile: UserProfile? { activeProfiles.first }
-
+    @State private var showSettings = false
     @State private var isExporting = false
 
     // MARK: - 临时版本覆盖 (退出页面即失效)
     @State private var overriddenVersion: String?
-    @State private var showVersionPicker = false
     @State private var cachedServerVersion: String?
     @AppStorage(AppStorageKeys.best50ConstantMode) private var constantMode: Best50ConstantMode = .server
     @AppStorage(AppStorageKeys.useFitDiff) private var legacyUseFitDiff = false
@@ -35,36 +34,15 @@ struct BestTableView: View {
     @State private var isVisible = false
     @State private var b35CountDraft = 35
     @State private var b15CountDraft = 15
-    @FocusState private var focusedCapacityField: CapacityField?
 
-    /// 可选的版本列表
+    private var activeProfile: UserProfile? { activeProfiles.first }
+
     private var availableVersions: [String] {
-        let sequence = UserDefaults.app.maimaiVersionSequence
-        return sequence
-    }
-
-    /// 当前实际使用的版本（覆盖或默认）
-    private var effectiveVersion: String? {
-        overriddenVersion ?? serverVersion
+        UserDefaults.app.maimaiVersionSequence
     }
 
     private var serverVersion: String? {
         cachedServerVersion
-    }
-
-    private var constantModeSelection: Binding<Best50ConstantMode?> {
-        Binding(
-            get: { constantMode == .server ? nil : constantMode },
-            set: { constantMode = $0 ?? .server }
-        )
-    }
-
-    private var b35Sum: Int {
-        cache.b50Result.b35.reduce(0) { $0 + $1.rating }
-    }
-
-    private var b15Sum: Int {
-        cache.b50Result.b15.reduce(0) { $0 + $1.rating }
     }
 
     private var currentB35Count: Int {
@@ -75,165 +53,103 @@ struct BestTableView: View {
         activeProfile?.b15Count ?? configs.first?.b15Count ?? 15
     }
 
+    private var newCapacity: Int {
+        preferences.theoretical ? 15 : currentB15Count
+    }
+
+    private var oldCapacity: Int {
+        preferences.theoretical ? 35 : currentB35Count
+    }
+
+    private var filterCategories: [String] {
+        Set(songs.map(\.category))
+            .filter { !$0.lowercased().contains("utage") && !$0.contains("宴") }
+            .sorted { ThemeUtils.categorySortOrder($0) < ThemeUtils.categorySortOrder($1) }
+    }
+
+    private var isFilterActive: Bool {
+        !preferences.theoretical && !preferences.filters.isEmpty
+    }
+
+    private var isSettingsActive: Bool {
+        preferences.theoretical || isFilterActive || overriddenVersion != nil
+    }
+
+    private var displayedB35: [RatingUtils.RatingEntry] {
+        filtered(cache.b50Result.b35)
+    }
+
+    private var displayedB15: [RatingUtils.RatingEntry] {
+        filtered(cache.b50Result.b15)
+    }
+
+    private var summaryData: BestTableSummaryData {
+        BestTableSummaryData(b35: displayedB35, b15: displayedB15)
+    }
+
     var body: some View {
         List {
             Section {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("bestTable.rating")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("\(cache.b50Result.total)")
-                            .font(.system(size: 34, weight: .black, design: .rounded))
-                            .foregroundStyle(ThemeUtils.ratingGradient(cache.b50Result.total))
-                            .brightness(colorScheme == .light ? -0.28 : 0)
-                            .opacity(cache.isLoading ? 0.3 : 1.0)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing) {
-                        Text("bestTable.old.count \(b35Sum)")
-                        Text("bestTable.new.count \(b15Sum)")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 8)
+                BestTableSummaryCard(data: summaryData)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
-            Section("bestTable.settings.version") {
-                Button {
-                    showVersionPicker = true
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("bestTable.settings.version.current")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(versionDisplayName)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(overriddenVersion != nil ? .orange : .primary)
-                        }
-
-                        Spacer()
-
-                        if overriddenVersion != nil {
-                            Button {
-                                overriddenVersion = nil
-                            } label: {
-                                Text("bestTable.settings.version.reset")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .foregroundStyle(.primary)
-            }
-
-            Section("bestTable.settings.capacity") {
-                HStack(spacing: 20) {
-                    capacityInput(
-                        title: "bestTable.settings.old",
-                        value: $b35CountDraft,
-                        field: .old
-                    )
-
-                    VStack {
-                        Image(systemName: "plus")
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                    }
-
-                    capacityInput(
-                        title: "bestTable.settings.new",
-                        value: $b15CountDraft,
-                        field: .new
-                    )
-
-                    Divider()
-                        .frame(height: 30)
-
-                    VStack(alignment: .center, spacing: 4) {
-                        Text("bestTable.settings.total").font(.caption2).foregroundStyle(.secondary)
-                        Text("\(currentB35Count + currentB15Count)")
-                            .font(.system(.body, design: .rounded).bold())
-                            .foregroundStyle(.orange)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.vertical, 4)
-
-            }
-
-            Section(String(localized: "bestTable.section.new \(currentB15Count)")) {
+            Section(String(localized: "bestTable.section.new \(newCapacity)")) {
                 if cache.isLoading && cache.isFirstLoad {
-                    ForEach(0..<min(5, currentB15Count), id: \.self) { _ in
+                    ForEach(0..<min(5, newCapacity), id: \.self) { _ in
                         RatingRowSkeletonView()
                             .listRowSeparator(.hidden)
                     }
-                } else if cache.b50Result.b15.isEmpty {
+                } else if displayedB15.isEmpty {
                     Text("bestTable.empty")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(cache.b50Result.b15) { entry in
-                        if let song = cache.getSong(identifier: entry.songIdentifier) {
-                            SongDetailLink(song: song, preferredType: entry.type) {
-                                ratingRow(entry: entry)
-                            }
-                        } else {
-                            ratingRow(entry: entry)
+                    ForEach(displayedB15) { entry in
+                        SongDetailLink(
+                            song: cache.getSong(identifier: entry.songIdentifier),
+                            preferredType: entry.type
+                        ) {
+                            BestTableEntryRow(entry: entry)
                         }
                     }
                 }
             }
 
-            Section(String(localized: "bestTable.section.old \(currentB35Count)")) {
+            Section(String(localized: "bestTable.section.old \(oldCapacity)")) {
                 if cache.isLoading && cache.isFirstLoad {
-                    ForEach(0..<min(8, currentB35Count), id: \.self) { _ in
+                    ForEach(0..<min(8, oldCapacity), id: \.self) { _ in
                         RatingRowSkeletonView()
                             .listRowSeparator(.hidden)
                     }
-                } else if cache.b50Result.b35.isEmpty {
+                } else if displayedB35.isEmpty {
                     Text("bestTable.empty")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(cache.b50Result.b35) { entry in
-                        if let song = cache.getSong(identifier: entry.songIdentifier) {
-                            SongDetailLink(song: song, preferredType: entry.type) {
-                                ratingRow(entry: entry)
-                            }
-                        } else {
-                            ratingRow(entry: entry)
+                    ForEach(displayedB35) { entry in
+                        SongDetailLink(
+                            song: cache.getSong(identifier: entry.songIdentifier),
+                            preferredType: entry.type
+                        ) {
+                            BestTableEntryRow(entry: entry)
                         }
                     }
                 }
             }
         }
-        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("bestTable.title")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker(selection: constantModeSelection) {
-                        Text("bestTable.settings.constants.default")
-                            .tag(nil as Best50ConstantMode?)
-                        Text("bestTable.settings.useFitDiff")
-                            .tag(Best50ConstantMode.fitted as Best50ConstantMode?)
-                        Text("bestTable.settings.useVersionConstant")
-                            .tag(Best50ConstantMode.version as Best50ConstantMode?)
-                    } label: {
-                        Text("bestTable.settings.constants")
-                    }
+                Button {
+                    showSettings = true
                 } label: {
-                    Image(systemName: "function")
+                    Image(systemName: "slider.horizontal.3")
                 }
-                .accessibilityLabel(Text("bestTable.settings.constants"))
+                .tint(isSettingsActive ? .orange : .primary)
+                .accessibilityLabel(Text("bestTable.settings.title"))
             }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     exportImage()
@@ -243,23 +159,29 @@ struct BestTableView: View {
                             .controlSize(.small)
                     } else {
                         Label("bestTable.action.export", systemImage: "square.and.arrow.up")
+                            .labelStyle(.iconOnly)
                     }
                 }
                 .disabled(
-                    cache.isLoading || isExporting || (cache.b50Result.b35.isEmpty && cache.b50Result.b15.isEmpty))
-            }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("filter.done") {
-                    focusedCapacityField = nil
-                }
+                    cache.isLoading
+                        || isExporting
+                        || (summaryData.b15.isEmpty && summaryData.b35.isEmpty)
+                )
             }
         }
-        .sheet(isPresented: $showVersionPicker) {
-            VersionPickerSheet(
-                versions: availableVersions,
+        .sheet(isPresented: $showSettings) {
+            BestTableSettingsView(
+                preferences: preferences,
+                constantMode: $constantMode,
                 selectedVersion: $overriddenVersion,
-                currentServerVersion: serverVersion
+                b35Count: $b35CountDraft,
+                b15Count: $b15CountDraft,
+                serverVersion: cachedServerVersion,
+                availableVersions: availableVersions,
+                categories: filterCategories,
+                onCommitB35: { commitCapacity(.old) },
+                onCommitB15: { commitCapacity(.new) },
+                onReset: resetSettings
             )
         }
         .onAppear {
@@ -283,7 +205,6 @@ struct BestTableView: View {
             cachedServerVersion = ServerVersionService.shared.latestVersion(for: server, songs: songs)
         }
         .onDisappear {
-            commitFocusedCapacity()
             isVisible = false
             calculationTask?.cancel()
             calculationTask = nil
@@ -300,26 +221,23 @@ struct BestTableView: View {
             scheduleCalculation()
         }
         .onChange(of: currentB35Count) { _, newValue in
-            if focusedCapacityField != .old {
-                b35CountDraft = newValue
-            }
+            b35CountDraft = newValue
             scheduleCalculation()
         }
         .onChange(of: currentB15Count) { _, newValue in
-            if focusedCapacityField != .new {
-                b15CountDraft = newValue
-            }
+            b15CountDraft = newValue
             scheduleCalculation()
-        }
-        .onChange(of: focusedCapacityField) { oldValue, _ in
-            if let oldValue {
-                commitCapacity(oldValue)
-            }
         }
         .onChange(of: overriddenVersion) { _, _ in
             scheduleCalculation()
         }
         .onChange(of: constantMode) { _, _ in
+            scheduleCalculation()
+        }
+        .onChange(of: preferences.theoretical) { _, newValue in
+            if newValue, constantMode != .version {
+                constantMode = .version
+            }
             scheduleCalculation()
         }
         .onReceive(NotificationCenter.default.publisher(for: .maimaiScoresDidChange)) { notification in
@@ -347,127 +265,112 @@ struct BestTableView: View {
         }
     }
 
-    // MARK: - Version Display
+    private func synchronizeCapacityDrafts() {
+        b35CountDraft = currentB35Count
+        b15CountDraft = currentB15Count
+    }
 
-    private var versionDisplayName: String {
-        if let version = effectiveVersion {
-            let abbr = ThemeUtils.versionAbbreviation(version)
-            if overriddenVersion != nil {
-                return String(abbr)
-            }
-            return abbr
+    private func filtered(_ entries: [RatingUtils.RatingEntry]) -> [RatingUtils.RatingEntry] {
+        guard !preferences.theoretical, !preferences.filters.isEmpty else { return entries }
+        let settings = preferences.filters
+        return entries.filter { entry in
+            settings.matches(
+                entry: entry,
+                songCategory: cache.getSong(identifier: entry.songIdentifier)?.category
+            )
         }
-        return String(localized: "bestTable.settings.version.unknown")
     }
 
     // MARK: - Export
 
     private func exportImage() {
+        let b35 = displayedB35
+        let b15 = displayedB15
+        let totalRating = b35.reduce(0) { $0 + $1.rating } + b15.reduce(0) { $0 + $1.rating }
+        guard !isExporting, !(b35.isEmpty && b15.isEmpty) else { return }
+
         isExporting = true
 
         Task {
             let image = await MainActor.run {
                 B50ExportView.renderImage(
-                    b35: cache.b50Result.b35,
-                    b15: cache.b50Result.b15,
-                    totalRating: cache.b50Result.total,
-                    userName: activeProfile?.name ?? configs.first?.userName,
-                    currentVersion: effectiveVersion,
-                    constantMode: constantMode,
+                    b35: b35,
+                    b15: b15,
+                    totalRating: totalRating,
+                    userName: activeProfile?.name,
+                    currentVersion: overriddenVersion ?? serverVersion,
+                    constantMode: preferences.theoretical ? .version : constantMode,
                     colorScheme: colorScheme
                 )
             }
 
             isExporting = false
 
-            guard let image = image else { return }
+            guard let image else { return }
 
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = scene.windows.first?.rootViewController {
-
-                var topVC = rootVC
-                while let presented = topVC.presentedViewController {
-                    topVC = presented
-                }
-
-                let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-
-                if let popover = activityVC.popoverPresentationController {
-                    popover.sourceView = topVC.view
-                    popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: 0, width: 0, height: 0)
-                    popover.permittedArrowDirections = []
-                }
-
-                topVC.present(activityVC, animated: true)
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let rootVC = scene.windows.first?.rootViewController else {
+                return
             }
+
+            var topVC = rootVC
+            while let presented = topVC.presentedViewController {
+                topVC = presented
+            }
+
+            let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = topVC.view
+                popover.sourceRect = CGRect(x: topVC.view.bounds.midX, y: 0, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+
+            topVC.present(activityVC, animated: true)
         }
     }
 
-    private func capacityInput(
-        title: LocalizedStringKey,
-        value: Binding<Int>,
-        field: CapacityField
-    ) -> some View {
-        VStack(alignment: .center, spacing: 6) {
-            Text(title).font(.caption2).foregroundStyle(.secondary)
-
-            TextField("", value: value, format: .number)
-            .keyboardType(.numberPad)
-            .multilineTextAlignment(.center)
-            .font(.system(.body, design: .monospaced).bold())
-            .frame(width: 60)
-            .padding(.vertical, 8)
-            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-            .focused($focusedCapacityField, equals: field)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func synchronizeCapacityDrafts() {
-        if focusedCapacityField != .old {
-            b35CountDraft = currentB35Count
-        }
-        if focusedCapacityField != .new {
-            b15CountDraft = currentB15Count
-        }
-    }
-
-    private func commitFocusedCapacity() {
-        guard let focusedCapacityField else { return }
-        commitCapacity(focusedCapacityField)
-    }
+    // MARK: - Capacity
 
     private func commitCapacity(_ field: CapacityField) {
         switch field {
         case .old:
-            let value = max(1, b35CountDraft)
+            let value = min(max(1, b35CountDraft), 99)
             b35CountDraft = value
             if let activeProfile {
                 if activeProfile.b35Count != value {
                     activeProfile.b35Count = value
                 }
-            } else {
-                if configs.first?.b35Count != value {
-                    configs.first?.b35Count = value
-                }
+            } else if configs.first?.b35Count != value {
+                configs.first?.b35Count = value
             }
         case .new:
-            let value = max(1, b15CountDraft)
+            let value = min(max(1, b15CountDraft), 99)
             b15CountDraft = value
             if let activeProfile {
                 if activeProfile.b15Count != value {
                     activeProfile.b15Count = value
                 }
-            } else {
-                if configs.first?.b15Count != value {
-                    configs.first?.b15Count = value
-                }
+            } else if configs.first?.b15Count != value {
+                configs.first?.b15Count = value
             }
         }
     }
 
+    private func resetSettings() {
+        overriddenVersion = nil
+        constantMode = .server
+        b35CountDraft = 35
+        b15CountDraft = 15
+        preferences.filters = BestTableFilterSettings()
+        commitCapacity(.old)
+        commitCapacity(.new)
+    }
+
+    // MARK: - Calculation
+
     private func performCalculation() async {
-        if constantMode == .fitted {
+        if !preferences.theoretical, constantMode == .fitted {
             await ChartStatsService.shared.fetchStats()
         }
 
@@ -478,7 +381,8 @@ struct BestTableView: View {
             activeProfile: activeProfile,
             configs: configs,
             overriddenVersion: overriddenVersion,
-            constantMode: constantMode
+            constantMode: constantMode,
+            theoretical: preferences.theoretical
         )
     }
 
@@ -488,168 +392,6 @@ struct BestTableView: View {
             constantMode = .fitted
         }
         legacyUseFitDiff = false
-    }
-
-    private func ratingRow(entry: RatingUtils.RatingEntry) -> some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(ThemeUtils.colorForDifficulty(entry.diff, entry.type, colorScheme))
-                    .frame(width: 4)
-                    .padding(.vertical, 8)
-
-                SongJacketView(
-                    imageName: entry.imageName ?? "",
-                    size: 56,
-                    cornerRadius: 10,
-                    useThumbnail: true
-                )
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                MarqueeText(
-                    text: entry.songTitle, font: .system(size: 15, weight: .bold), fontWeight: .bold, color: .primary
-                )
-                    .frame(height: 20)
-
-                HStack(spacing: 6) {
-                    let rank = RatingUtils.calculateRank(achievement: entry.achievement)
-                    Text(rank)
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(RatingUtils.colorForRank(rank))
-
-                    Text("\(entry.achievement, format: .number.precision(.fractionLength(4)))%")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.secondary)
-
-                    if entry.dxScore > 0 {
-                        HStack(spacing: 2) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 8))
-                            Text("\(entry.dxScore)")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        }
-                        .fixedSize()
-                        .foregroundStyle(.yellow)
-                    }
-                }
-
-                HStack(spacing: 4) {
-                    ScoreTintBadge(
-                        text: entry.type.uppercased(), tint: entry.type.uppercased() == "DX" ? .orange : .blue)
-
-                    if let fc = entry.fc, !fc.isEmpty {
-                        ScoreTintBadge(text: ThemeUtils.normalizeFC(fc), tint: ThemeUtils.fcColor(fc))
-                    }
-
-                    if let fs = entry.fs, !fs.isEmpty {
-                        ScoreTintBadge(text: ThemeUtils.normalizeFS(fs), tint: ThemeUtils.fsColor(fs))
-                    }
-                }
-            }
-            .frame(minHeight: 56, alignment: .leading)
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(entry.rating)")
-                    .font(.system(size: 18, weight: .black, design: .rounded))
-                    .foregroundStyle(.orange)
-                Text("bestTable.base \(entry.level, specifier: "%.1f")")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-            .fixedSize()
-        }
-        .padding(.vertical, 6)
-    }
-}
-
-// MARK: - Version Picker Sheet
-
-struct VersionPickerSheet: View {
-    @Environment(\.dismiss) var dismiss
-    let versions: [String]
-    @Binding var selectedVersion: String?
-    let currentServerVersion: String?
-
-    @State private var tempSelection: String?
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Button {
-                        tempSelection = nil
-                    } label: {
-                        HStack {
-                            Text("bestTable.settings.version.auto")
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if tempSelection == nil {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.primary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                } footer: {
-                    if let serverVersion = currentServerVersion {
-                        Text(ThemeUtils.versionAbbreviation(serverVersion))
-                    }
-                }
-
-                Section("bestTable.settings.version.available") {
-                    ForEach(versions.reversed(), id: \.self) { version in
-                        Button {
-                            tempSelection = version
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(ThemeUtils.versionAbbreviation(version))
-                                        .foregroundStyle(.primary)
-                                    Text(version)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if tempSelection == version {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.primary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .navigationTitle("bestTable.settings.version.title")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("bestTable.settings.version.cancel") {
-                        dismiss()
-                    }
-                    .foregroundStyle(.primary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("bestTable.settings.version.confirm") {
-                        selectedVersion = tempSelection
-                        dismiss()
-                    }
-                    .foregroundStyle(.primary)
-                    .bold()
-                }
-            }
-            .onAppear {
-                tempSelection = selectedVersion
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 }
 

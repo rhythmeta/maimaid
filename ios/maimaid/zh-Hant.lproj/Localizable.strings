@@ -326,12 +326,21 @@
 
 // MARK: - Best Table
 "bestTable.title" = "Best 表";
+"bestTable.settings.title" = "Best 50 設定";
+"bestTable.settings.calculation" = "計算";
+"bestTable.settings.totalValue %lld" = "目前總計 %lld 首";
+"bestTable.settings.theoretical" = "理論 B50";
+"bestTable.stats.average" = "平均達成率";
+"bestTable.averageRating.line %@" = "平均單曲：%@";
+"bestTable.stats.dx" = "DX 分數達成率";
+"bestTable.stats.stars" = "DX 星";
+"bestTable.capacity.unit" = "首";
 "bestTable.rating" = "DX Rating";
 "bestTable.old.count %lld" = "舊曲: %lld";
 "bestTable.new.count %lld" = "新曲: %lld";
 "bestTable.settings.capacity" = "容量設定";
-"bestTable.settings.old" = "舊曲 (Old)";
-"bestTable.settings.new" = "新曲 (New)";
+"bestTable.settings.old" = "舊曲";
+"bestTable.settings.new" = "新曲";
 "bestTable.settings.total" = "目前總計";
 "bestTable.section.new %lld" = "新曲 B%lld";
 "bestTable.section.old %lld" = "舊曲 B%lld";

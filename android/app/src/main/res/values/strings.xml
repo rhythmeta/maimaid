@@ -416,8 +416,8 @@
 	<string name="best50_stats_average">Avg. achievement</string>
 	<string name="best50_stats_dx">DX achievement</string>
 	<string name="best50_stats_stars">DX stars</string>
+	<string name="best50_average_rating_line">Avg.: %1$.1f</string>
 	<string name="best50_share">%1$s %2$.1f%%</string>
-	<string name="best50_average_rating">Avg. rating</string>
 	<string name="best50_old_sum">Old: %1$d</string>
 	<string name="best50_new_sum">New: %1$d</string>
 	<string name="best50_version_section">Game version</string>

@@ -417,7 +417,7 @@ enum RatingUtils {
     /// Re:MASTER charts follow a special rule: when the song's BASIC through
     /// MASTER charts are from an older version, its Re:MASTER is an old-song
     /// (B35) candidate even if the Re:MASTER itself was added recently.
-    private static func determineSheetCategory(
+    static func determineSheetCategory(
         sheet: SheetCalculationData,
         song: SongCalculationData,
         latestServerVersion: String?,

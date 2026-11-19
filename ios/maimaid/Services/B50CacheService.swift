@@ -86,41 +86,53 @@ final class B50CacheService {
     /// Triggers calculation if parameters have changed or if forced.
     /// Returns true if a calculation was performed.
     @discardableResult
+    // swiftlint:disable:next function_body_length
     func calculateIfNeeded(
         modelContext: ModelContext,
         activeProfile: UserProfile?,
         configs: [SyncConfig],
         overriddenVersion: String?,
         constantMode: Best50ConstantMode = .server,
+        theoretical: Bool = false,
         force: Bool = false
     ) async -> Bool {
         let profileId = activeProfile?.id
         let profileKey = profileId?.uuidString ?? "none"
-        let b35Limit = activeProfile?.b35Count ?? configs.first?.b35Count ?? 35
-        let b15Limit = activeProfile?.b15Count ?? configs.first?.b15Count ?? 15
+        let b35Limit = theoretical ? 35 : (activeProfile?.b35Count ?? configs.first?.b35Count ?? 35)
+        let b15Limit = theoretical ? 15 : (activeProfile?.b15Count ?? configs.first?.b15Count ?? 15)
         let version = overriddenVersion ?? "auto"
         let serverRaw = activeProfile?.server ?? "none"
         let songCount = allSongs.count
 
-        // Single score fetch instead of fetchCount + latest fetch + scoreMap rebuild
-        let snapshot = await buildScoreSnapshot(modelContext: modelContext, profileId: profileId)
+        // Single score fetch instead of fetchCount + latest fetch + scoreMap rebuild.
+        // Theoretical mode never reads the player's scores.
+        let snapshot: (fingerprint: String, scoreMap: [String: Score])
+        if theoretical {
+            snapshot = ("theoretical", [:])
+        } else {
+            snapshot = await buildScoreSnapshot(modelContext: modelContext, profileId: profileId)
+        }
 
-        let params = [
+        var params = [
             profileKey,
             serverRaw,
             "\(songCount)",
             "\(b35Limit)",
             "\(b15Limit)",
             version,
-            "constantMode:\(constantMode.rawValue)",
-            "scores:\(snapshot.fingerprint)"
-        ].joined(separator: "|")
+            "theoretical:\(theoretical)",
+            "constantMode:\(theoretical ? Best50ConstantMode.version.rawValue : constantMode.rawValue)"
+        ]
+        if !theoretical {
+            params.append("scores:\(snapshot.fingerprint)")
+        }
+        let paramsKey = params.joined(separator: "|")
 
-        if !force && params == lastCalculationParams && !isFirstLoad {
+        if !force && paramsKey == lastCalculationParams && !isFirstLoad {
             return false
         }
 
-        lastCalculationParams = params
+        lastCalculationParams = paramsKey
         isLoading = true
 
         currentCalculationTask?.cancel()
@@ -139,12 +151,20 @@ final class B50CacheService {
             userProfileId: profileId,
             server: server,
             preloadedScores: snapshot.scoreMap,
-            constantMode: constantMode,
+            constantMode: theoretical ? .version : constantMode,
             selectedVersion: latestVersion
         )
 
         let task = Task<(total: Int, b35: [RatingUtils.RatingEntry], b15: [RatingUtils.RatingEntry]), Never> {
-            await RatingUtils.calculateB50(
+            if theoretical {
+                return RatingUtils.calculateTheoreticalB50(
+                    input: input,
+                    b35Count: b35Limit,
+                    b15Count: b15Limit,
+                    latestVersion: latestVersion
+                )
+            }
+            return await RatingUtils.calculateB50(
                 input: input,
                 b35Count: b35Limit,
                 b15Count: b15Limit,
@@ -159,7 +179,7 @@ final class B50CacheService {
         guard currentCalculationTask?.isCancelled != true else { return false }
 
         // Ensure no newer params replaced this calculation while awaiting
-        if lastCalculationParams != params {
+        if lastCalculationParams != paramsKey {
             return false
         }
 

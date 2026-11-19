@@ -401,8 +401,8 @@
 	<string name="best50_stats_average">平均達成率</string>
 	<string name="best50_stats_dx">DX スコア達成率</string>
 	<string name="best50_stats_stars">DX 星</string>
+	<string name="best50_average_rating_line">平均単曲：%1$.1f</string>
 	<string name="best50_share">%1$s %2$.1f%%</string>
-	<string name="best50_average_rating">平均単曲 Rating</string>
 	<string name="best50_old_sum">旧曲：%1$d</string>
 	<string name="best50_new_sum">新曲：%1$d</string>
 	<string name="best50_version_section">ゲームバージョン</string>

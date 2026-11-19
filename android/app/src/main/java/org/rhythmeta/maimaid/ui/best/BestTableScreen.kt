@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -397,6 +398,11 @@ private fun BestRatingSummary(
     val totalStats = remember(b35, b15) { Best50StatsCalculator.calculate(b35 + b15) }
     val newStats = remember(b15) { Best50StatsCalculator.calculate(b15) }
     val oldStats = remember(b35) { Best50StatsCalculator.calculate(b35) }
+    val totalRating = b35Sum + b15Sum
+    val entryCount = b35.size + b15.size
+    val averageRating = if (entryCount > 0) totalRating.toDouble() / entryCount else 0.0
+    val oldPercent = if (totalRating > 0) b35Sum * 100.0 / totalRating else 0.0
+    val newPercent = if (totalRating > 0) b15Sum * 100.0 / totalRating else 0.0
     Card(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 18.dp,
@@ -405,8 +411,10 @@ private fun BestRatingSummary(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.Top,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -417,6 +425,7 @@ private fun BestRatingSummary(
                     Text(
                         text = total.toString(),
                         style = MiuixTheme.textStyles.headline1.copy(
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.SansSerif,
                             brush = ratingBrush(total, darkTheme),
@@ -425,27 +434,28 @@ private fun BestRatingSummary(
                     )
                 }
                 Column(
+                    modifier = Modifier.fillMaxHeight(),
                     horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         text = stringResource(R.string.best50_old_sum, b35Sum),
-                        style = MiuixTheme.textStyles.footnote1,
+                        style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                     Text(
                         text = stringResource(R.string.best50_new_sum, b15Sum),
-                        style = MiuixTheme.textStyles.footnote1,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                    Text(
+                        text = stringResource(R.string.best50_average_rating_line, averageRating),
+                        style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val totalRating = b35Sum + b15Sum
-                val oldPercent = if (totalRating > 0) b35Sum * 100.0 / totalRating else 0.0
-                val newPercent = if (totalRating > 0) b15Sum * 100.0 / totalRating else 0.0
-                val entryCount = b35.size + b15.size
-                val averageRating = if (entryCount > 0) totalRating.toDouble() / entryCount else 0.0
                 RatingShareBar(newRating = b15Sum, oldRating = b35Sum)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -472,25 +482,6 @@ private fun BestRatingSummary(
                         fontWeight = FontWeight.Bold,
                         color = OldShareColor,
                         textAlign = TextAlign.End,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.best50_average_rating),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = String.format(Locale.ROOT, "%.1f", averageRating),
-                        style = MiuixTheme.textStyles.title3.copy(
-                            fontWeight = FontWeight.Black,
-                            brush = ratingBrush((averageRating * 50).roundToInt(), darkTheme),
-                        ),
-                        color = Color.Unspecified,
                     )
                 }
             }
@@ -607,7 +598,7 @@ private fun BestSummaryStatsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "B${count.toString()}",
+            text = "B${count}",
             style = MiuixTheme.textStyles.footnote1,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.weight(0.6f),

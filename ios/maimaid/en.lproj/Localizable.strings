@@ -327,6 +327,15 @@
 
 // MARK: - Best Table
 "bestTable.title" = "Best Table";
+"bestTable.settings.title" = "Best 50 Options";
+"bestTable.settings.calculation" = "Calculation";
+"bestTable.settings.totalValue %lld" = "Total %lld songs";
+"bestTable.settings.theoretical" = "Theoretical B50";
+"bestTable.stats.average" = "Avg. Achievement";
+"bestTable.averageRating.line %@" = "Avg.: %@";
+"bestTable.stats.dx" = "DX Achievement";
+"bestTable.stats.stars" = "DX Stars";
+"bestTable.capacity.unit" = "songs";
 "bestTable.rating" = "DX Rating";
 "bestTable.old.count %lld" = "Old: %lld";
 "bestTable.new.count %lld" = "New: %lld";

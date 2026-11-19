@@ -323,12 +323,21 @@
 
 // MARK: - Best Table
 "bestTable.title" = "Best 表";
+"bestTable.settings.title" = "Best 50 设置";
+"bestTable.settings.calculation" = "计算";
+"bestTable.settings.totalValue %lld" = "当前总计 %lld 首";
+"bestTable.settings.theoretical" = "理论 B50";
+"bestTable.stats.average" = "平均达成率";
+"bestTable.averageRating.line %@" = "平均单曲：%@";
+"bestTable.stats.dx" = "DX 分数达成率";
+"bestTable.stats.stars" = "DX 星";
+"bestTable.capacity.unit" = "首";
 "bestTable.rating" = "DX Rating";
 "bestTable.old.count %lld" = "旧曲: %lld";
 "bestTable.new.count %lld" = "新曲: %lld";
 "bestTable.settings.capacity" = "容量设置";
-"bestTable.settings.old" = "旧曲 (Old)";
-"bestTable.settings.new" = "新曲 (New)";
+"bestTable.settings.old" = "旧曲";
+"bestTable.settings.new" = "新曲";
 "bestTable.settings.total" = "当前总计";
 "bestTable.section.new %lld" = "新曲 B%lld";
 "bestTable.section.old %lld" = "旧曲 B%lld";
