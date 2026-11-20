@@ -94,13 +94,25 @@ internal fun CommunityAliasScreen(
                 songsById[songIdentifier]?.title?.lowercase() ?: songIdentifier.lowercase()
             }
     }
+    // The approved board reads newest first: aliases inside a song are ordered by approval time,
+    // and songs by their most recent approval. Entries without a timestamp fall back to the end.
     val approvedGroups = remember(state.approvedItems, songsById) {
         state.approvedItems
             .groupBy(CommunityAliasApprovedItem::songIdentifier)
-            .entries
-            .sortedBy { (songIdentifier, _) ->
-                songsById[songIdentifier]?.title?.lowercase() ?: songIdentifier.lowercase()
+            .mapValues { (_, aliases) ->
+                aliases.sortedWith(
+                    compareByDescending<CommunityAliasApprovedItem> { it.approvedAt ?: Instant.MIN }
+                        .thenBy(CommunityAliasApprovedItem::aliasText),
+                )
             }
+            .entries
+            .sortedWith(
+                compareByDescending<Map.Entry<String, List<CommunityAliasApprovedItem>>> { entry ->
+                    entry.value.maxOfOrNull { it.approvedAt ?: Instant.MIN } ?: Instant.MIN
+                }.thenBy { entry ->
+                    songsById[entry.key]?.title?.lowercase() ?: entry.key.lowercase()
+                },
+            )
     }
     // The tabs hold different boards; switching starts at the top of the selected one instead of
     // keeping the scroll offset of the board that was visible before. Entering the page keeps its

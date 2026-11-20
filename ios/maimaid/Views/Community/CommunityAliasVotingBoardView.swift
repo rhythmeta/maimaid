@@ -230,12 +230,29 @@ struct CommunityAliasVotingBoardView: View {
             }
     }
 
+    /// Approved aliases read newest first: inside a song by approval time, and songs by their most
+    /// recent approval. Entries without a timestamp fall back to the end.
     private func groupedApprovedAliases(_ lookup: CommunityAliasSongLookup) -> [SongApprovedGroup] {
         Dictionary(grouping: approvedAliases, by: \.songIdentifier)
             .map { key, value in
-                SongApprovedGroup(songIdentifier: key, aliases: value)
+                SongApprovedGroup(
+                    songIdentifier: key,
+                    aliases: value.sorted { lhs, rhs in
+                        let lhsDate = lhs.approvedAt ?? .distantPast
+                        let rhsDate = rhs.approvedAt ?? .distantPast
+                        if lhsDate != rhsDate {
+                            return lhsDate > rhsDate
+                        }
+                        return lhs.aliasText.localizedStandardCompare(rhs.aliasText) == .orderedAscending
+                    }
+                )
             }
             .sorted { lhs, rhs in
+                let lhsDate = lhs.aliases.first?.approvedAt ?? .distantPast
+                let rhsDate = rhs.aliases.first?.approvedAt ?? .distantPast
+                if lhsDate != rhsDate {
+                    return lhsDate > rhsDate
+                }
                 let lhsTitle = lookup.title(lhs.songIdentifier)
                 let rhsTitle = lookup.title(rhs.songIdentifier)
                 return lhsTitle.localizedStandardCompare(rhsTitle) == .orderedAscending
