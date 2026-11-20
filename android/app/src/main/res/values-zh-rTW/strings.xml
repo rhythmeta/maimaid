@@ -233,6 +233,8 @@
 	<string name="settings_color_spec">色彩規範</string>
 	<string name="settings_enable_blur">模糊</string>
 	<string name="settings_enable_blur_summary">在支援的裝置上模糊頂部列與頁面</string>
+	<string name="settings_enable_progressive_top_bar_blur">頂部列漸進式模糊</string>
+	<string name="settings_enable_progressive_top_bar_blur_summary">頂部列的模糊強度由上而下逐漸減弱</string>
 	<string name="settings_floating_bottom_bar">浮動底列</string>
 	<string name="settings_floating_bottom_bar_summary">使用浮動導覽列</string>
 	<string name="settings_enable_glass">底列玻璃</string>

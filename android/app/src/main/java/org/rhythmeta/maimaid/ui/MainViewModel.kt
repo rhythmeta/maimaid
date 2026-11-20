@@ -222,6 +222,12 @@ class MainViewModel(
         }
     }
 
+    fun setEnableTopBarProgressiveBlur(enabled: Boolean) {
+        viewModelScope.launch {
+            container.appPreferencesRepository.setEnableTopBarProgressiveBlur(enabled)
+        }
+    }
+
     fun setEnableFloatingBottomBar(enabled: Boolean) {
         viewModelScope.launch {
             container.appPreferencesRepository.setEnableFloatingBottomBar(enabled)

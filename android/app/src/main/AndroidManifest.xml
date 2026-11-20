@@ -13,6 +13,14 @@
         android:name="android.hardware.camera.any"
         android:required="false" />
 
+    <!--
+        MIUIX's blur module declares minSdk 33 because its AGSL blur pipeline only runs on
+        Android 13+. Every blur surface in this app is already gated on that API level, and the
+        module keeps the API-33 types inside one lazily-invoked shader class, so older devices
+        never load or execute it and keep their opaque fallback surfaces.
+    -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
     <application
         android:networkSecurityConfig="@xml/network_security_config"
         android:name=".MaimaidApplication"

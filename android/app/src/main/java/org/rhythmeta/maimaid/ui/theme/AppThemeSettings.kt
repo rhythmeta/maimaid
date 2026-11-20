@@ -93,6 +93,7 @@ data class AppThemeSettings(
     val paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
     val colorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2025,
     val enableBlur: Boolean = true,
+    val enableTopBarProgressiveBlur: Boolean = true,
     val enableFloatingBottomBar: Boolean = true,
     val enableFloatingBottomBarBlur: Boolean = true,
     val enablePredictiveBack: Boolean = true,

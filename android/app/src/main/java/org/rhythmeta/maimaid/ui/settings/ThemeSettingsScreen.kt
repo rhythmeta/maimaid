@@ -24,6 +24,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuOpen
 import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.BlurLinear
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.CallToAction
 import androidx.compose.material.icons.rounded.Colorize
@@ -89,6 +90,7 @@ fun ThemeSettingsScreen(
     onPaletteStyleChange: (PaletteStyle) -> Unit,
     onColorSpecChange: (ColorSpec.SpecVersion) -> Unit,
     onEnableBlurChange: (Boolean) -> Unit,
+    onEnableTopBarProgressiveBlurChange: (Boolean) -> Unit,
     onEnableFloatingBottomBarChange: (Boolean) -> Unit,
     onEnableFloatingBottomBarBlurChange: (Boolean) -> Unit,
     onEnablePredictiveBackChange: (Boolean) -> Unit,
@@ -204,6 +206,15 @@ fun ThemeSettingsScreen(
                         onCheckedChange = onEnableBlurChange,
                         startAction = { ThemeIcon(Icons.Rounded.BlurOn) },
                     )
+                    AnimatedVisibility(settings.enableBlur) {
+                        SwitchPreference(
+                            title = stringResource(R.string.settings_enable_progressive_top_bar_blur),
+                            summary = stringResource(R.string.settings_enable_progressive_top_bar_blur_summary),
+                            checked = settings.enableTopBarProgressiveBlur,
+                            onCheckedChange = onEnableTopBarProgressiveBlurChange,
+                            startAction = { ThemeIcon(Icons.Rounded.BlurLinear) },
+                        )
+                    }
                 }
                 SwitchPreference(
                     title = stringResource(R.string.settings_floating_bottom_bar),

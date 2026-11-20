@@ -237,6 +237,8 @@
 	<string name="settings_color_spec">Color specification</string>
 	<string name="settings_enable_blur">Blur</string>
 	<string name="settings_enable_blur_summary">Blur top bars and surfaces when supported</string>
+	<string name="settings_enable_progressive_top_bar_blur">Progressive top bar blur</string>
+	<string name="settings_enable_progressive_top_bar_blur_summary">Fade the top bar blur towards its bottom edge</string>
 	<string name="settings_floating_bottom_bar">Floating bottom bar</string>
 	<string name="settings_floating_bottom_bar_summary">Use a floating navigation bar</string>
 	<string name="settings_enable_glass">Bottom bar glass</string>

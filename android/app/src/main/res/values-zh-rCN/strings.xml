@@ -233,6 +233,8 @@
 	<string name="settings_color_spec">色彩规范</string>
 	<string name="settings_enable_blur">模糊</string>
 	<string name="settings_enable_blur_summary">在支持的设备上模糊顶部栏和页面</string>
+	<string name="settings_enable_progressive_top_bar_blur">顶栏渐进式模糊</string>
+	<string name="settings_enable_progressive_top_bar_blur_summary">顶栏的模糊强度由上而下逐渐减弱</string>
 	<string name="settings_floating_bottom_bar">浮动底栏</string>
 	<string name="settings_floating_bottom_bar_summary">使用浮动导航底栏</string>
 	<string name="settings_enable_glass">底栏玻璃</string>

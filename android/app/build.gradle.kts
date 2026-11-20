@@ -98,6 +98,8 @@ val releaseSigningConfigured = listOf(
 android {
     namespace = "org.rhythmeta.maimaid"
     compileSdk = 37
+    // Compose 1.13 (pulled in by MIUIX 0.9.5) requires the 37.1+ platform AAR metadata.
+    compileSdkMinor = 2
 
     defaultConfig {
         applicationId = "org.rhythmeta.maimaid"
@@ -207,6 +209,7 @@ dependencies {
     implementation(libs.miuix.ui)
     implementation(libs.miuix.nav)
     implementation(libs.miuix.preference)
+    implementation(libs.miuix.blur)
     implementation(libs.onnxruntime.android)
     implementation(libs.backdrop)
     implementation(libs.androidx.camera.camera2)

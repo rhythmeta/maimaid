@@ -29,6 +29,7 @@ class AppPreferencesRepository(
         "color_style" to "string",
         "color_spec" to "string",
         "enable_blur" to "bool",
+        "enable_top_bar_progressive_blur" to "bool",
         "enable_floating_bottom_bar" to "bool",
         "enable_floating_bottom_bar_blur" to "bool",
         "enable_predictive_back" to "bool",
@@ -107,6 +108,8 @@ class AppPreferencesRepository(
             paletteStyle = paletteStyle,
             colorSpec = colorSpec.effectiveFor(paletteStyle),
             enableBlur = preferences[EnableBlurKey] ?: DefaultAppThemeSettings.enableBlur,
+            enableTopBarProgressiveBlur = preferences[EnableTopBarProgressiveBlurKey]
+                ?: DefaultAppThemeSettings.enableTopBarProgressiveBlur,
             enableFloatingBottomBar = preferences[EnableFloatingBottomBarKey]
                 ?: DefaultAppThemeSettings.enableFloatingBottomBar,
             enableFloatingBottomBarBlur = preferences[EnableFloatingBottomBarBlurKey]
@@ -124,6 +127,7 @@ class AppPreferencesRepository(
             preferences[ColorStyleKey] = settings.paletteStyle.toString()
             preferences[ColorSpecKey] = settings.colorSpec.effectiveFor(settings.paletteStyle).name
             preferences[EnableBlurKey] = settings.enableBlur
+            preferences[EnableTopBarProgressiveBlurKey] = settings.enableTopBarProgressiveBlur
             preferences[EnableFloatingBottomBarKey] = settings.enableFloatingBottomBar
             preferences[EnableFloatingBottomBarBlurKey] = settings.enableFloatingBottomBarBlur
             preferences[EnablePredictiveBackKey] = settings.enablePredictiveBack
@@ -136,6 +140,14 @@ class AppPreferencesRepository(
     suspend fun setPaletteStyle(style: PaletteStyle) = updateTheme { it.copy(paletteStyle = style) }
     suspend fun setColorSpec(spec: ColorSpec.SpecVersion) = updateTheme { it.copy(colorSpec = spec) }
     suspend fun setEnableBlur(enabled: Boolean) = updateTheme { it.copy(enableBlur = enabled) }
+
+    /**
+     * The progressive top bar option is only meaningful with the master blur switch on, but the
+     * stored value survives that switch so re-enabling blur restores the user's choice.
+     */
+    suspend fun setEnableTopBarProgressiveBlur(enabled: Boolean) = updateTheme {
+        it.copy(enableTopBarProgressiveBlur = enabled)
+    }
     suspend fun setEnableFloatingBottomBar(enabled: Boolean) = updateTheme {
         it.copy(
             enableFloatingBottomBar = enabled,
@@ -352,6 +364,7 @@ class AppPreferencesRepository(
         val ColorStyleKey = stringPreferencesKey("color_style")
         val ColorSpecKey = stringPreferencesKey("color_spec")
         val EnableBlurKey = booleanPreferencesKey("enable_blur")
+        val EnableTopBarProgressiveBlurKey = booleanPreferencesKey("enable_top_bar_progressive_blur")
         val EnableFloatingBottomBarKey = booleanPreferencesKey("enable_floating_bottom_bar")
         val EnableFloatingBottomBarBlurKey = booleanPreferencesKey("enable_floating_bottom_bar_blur")
         val EnablePredictiveBackKey = booleanPreferencesKey("enable_predictive_back")

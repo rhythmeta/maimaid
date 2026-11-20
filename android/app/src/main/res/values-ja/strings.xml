@@ -233,6 +233,8 @@
 	<string name="settings_color_spec">カラー仕様</string>
 	<string name="settings_enable_blur">ぼかし</string>
 	<string name="settings_enable_blur_summary">対応端末でトップバーと画面をぼかす</string>
+	<string name="settings_enable_progressive_top_bar_blur">上部バーのプログレッシブぼかし</string>
+	<string name="settings_enable_progressive_top_bar_blur_summary">上部バーのぼかしを下に向かって徐々に弱めます</string>
 	<string name="settings_floating_bottom_bar">フローティング ボトムバー</string>
 	<string name="settings_floating_bottom_bar_summary">フローティング ナビゲーションバーを使用</string>
 	<string name="settings_enable_glass">ボトムバー ガラス</string>

@@ -4,20 +4,20 @@ coreKtx = "1.19.1"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-lifecycle = "2.11.0"
+lifecycle = "2.11.1"
 activityCompose = "1.13.0"
 kotlin = "2.4.21"
 ksp = "2.3.12"
-composeBom = "2026.09.00"
+composeBom = "2026.11.01"
 room = "2.8.5"
 dataStore = "1.3.0"
-serialization = "1.12.0"
+serialization = "1.13.0"
 coroutines = "1.11.0"
-miuix = "0.9.4"
-miuixNav = "0.9.4"
-onnxRuntime = "1.31.1"
+miuix = "0.9.5-beta02"
+miuixNav = "0.9.5-beta02"
+onnxRuntime = "1.32.0"
 backdrop = "2.0.1"
-camerax = "1.6.2"
+camerax = "1.7.0"
 mlkitBarcode = "17.3.0"
 browser = "1.10.0"
 glance = "1.2.0"
@@ -55,6 +55,7 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 miuix-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-ui", version.ref = "miuix" }
 miuix-nav = { group = "top.yukonga.miuix.kmp", name = "miuix-nav", version.ref = "miuixNav" }
 miuix-preference = { group = "top.yukonga.miuix.kmp", name = "miuix-preference", version.ref = "miuix" }
+miuix-blur = { group = "top.yukonga.miuix.kmp", name = "miuix-blur", version.ref = "miuix" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxRuntime" }
 backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }

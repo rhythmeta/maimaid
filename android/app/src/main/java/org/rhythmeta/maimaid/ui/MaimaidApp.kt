@@ -129,6 +129,7 @@ import org.rhythmeta.maimaid.ui.settings.SettingsScreen
 import org.rhythmeta.maimaid.ui.theme.LocalEnableFloatingBottomBar
 import org.rhythmeta.maimaid.ui.theme.LocalEnableFloatingBottomBarBlur
 import org.rhythmeta.maimaid.ui.theme.LocalEnableBlur
+import org.rhythmeta.maimaid.ui.theme.LocalEnableTopBarProgressiveBlur
 import org.rhythmeta.maimaid.ui.theme.LocalEnablePredictiveBack
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
@@ -210,6 +211,7 @@ fun MaimaidApp(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val themeSettings by viewModel.themeSettings.collectAsStateWithLifecycle()
     val enableBlur = LocalEnableBlur.current
+    val enableTopBarProgressiveBlur = LocalEnableTopBarProgressiveBlur.current
     val collections by container.songCollectionRepository.collections.collectAsStateWithLifecycle(emptyList())
     val initialCatalogState by viewModel.initialCatalogState.collectAsStateWithLifecycle()
     val showScannerBoundingBoxes by viewModel.showScannerBoundingBoxes.collectAsStateWithLifecycle()
@@ -1058,6 +1060,7 @@ fun MaimaidApp(
             } else detailTitleText,
             pageBackground = pageBackground,
             blurEnabled = enableBlur,
+            progressiveBlurEnabled = enableTopBarProgressiveBlur,
             largeTitle = activeDetail != AppDetail.Song,
             smallTitleVisible = if (activeDetail == AppDetail.Song) routeSong == null || songDetailTitleHidden else null,
             topBarScrollBehavior = detailScrollBehavior,
@@ -1213,6 +1216,7 @@ fun MaimaidApp(
                     onPaletteStyleChange = viewModel::setPaletteStyle,
                     onColorSpecChange = viewModel::setColorSpec,
                     onEnableBlurChange = viewModel::setEnableBlur,
+                    onEnableTopBarProgressiveBlurChange = viewModel::setEnableTopBarProgressiveBlur,
                     onEnableFloatingBottomBarChange = viewModel::setEnableFloatingBottomBar,
                     onEnableFloatingBottomBarBlurChange = viewModel::setEnableFloatingBottomBarBlur,
                     onEnablePredictiveBackChange = viewModel::setEnablePredictiveBack,
@@ -1574,12 +1578,14 @@ private fun RootLayer(
 ) {
     val title = rootTitle(destination)
     val enableBlur = LocalEnableBlur.current
+    val enableTopBarProgressiveBlur = LocalEnableTopBarProgressiveBlur.current
     val scrollBehavior = MiuixScrollBehavior()
     val backgroundColor = MiuixTheme.colorScheme.surface
     AppPageScaffold(
         title = title,
         pageBackground = backgroundColor,
         blurEnabled = enableBlur,
+        progressiveBlurEnabled = enableTopBarProgressiveBlur,
         showTopBar = showTopBar,
         largeTitle = showTopBar,
         topBarScrollBehavior = scrollBehavior,
