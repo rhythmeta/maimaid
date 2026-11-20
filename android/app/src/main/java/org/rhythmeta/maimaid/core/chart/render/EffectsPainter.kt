@@ -21,10 +21,10 @@ import org.rhythmeta.maimaid.core.chart.SlideNote
 import org.rhythmeta.maimaid.core.chart.TapNote
 import org.rhythmeta.maimaid.core.chart.TouchHoldStartNote
 import org.rhythmeta.maimaid.core.chart.TouchNote
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withTranslation
 import androidx.core.graphics.withSave
 import kotlin.math.pow
-import androidx.core.graphics.createBitmap
 import kotlin.math.roundToInt
 
 /**
@@ -38,8 +38,6 @@ class EffectsPainter(
     private val touchPainter: TouchPainter,
 ) : BasePainter(context) {
     private val effectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val blitPaint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private var fireworkScratch: Bitmap? = null
     private val effectStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     // Per-frame geometry is cached by size/radius so drawing a frame allocates nothing here.
@@ -67,8 +65,11 @@ class EffectsPainter(
     private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_OUT)
     }
-    private var scratchCanvas: Canvas? = null
-    private var scratchCanvasBitmap: Bitmap? = null
+    private val maskShaders = arrayOfNulls<RadialGradient>(FIREWORK_MASK_STEPS)
+    private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private var petalSprite: Bitmap? = null
+    private var petalSpriteRadius = 0f
+    private var petalSpriteAlpha = Float.NaN
     private val lastHitByPosition = DoubleArray(9) { Double.NEGATIVE_INFINITY }
 
     // ------------------------------------------------------------------ tap hit effects
@@ -654,46 +655,36 @@ class EffectsPainter(
             val maskAlpha = min(1.0, linearU / 0.2)
             if (totalR <= 0 || maskAlpha <= 0) return
 
-            // Composite the burst offscreen, then punch a growing feathered hole through it with
-            // DST_OUT. Applying the mask as an opacity (as a ring clip would) made the burst
-            // vanish at 0.6 s and fade back in, which read as a replay.
-            val fireworkHalf = (context.radius / 4.5 * FIREWORK_SCALE_PEAK * 1.05).toInt() + 2
-            val sizePx = maxOf(2, fireworkHalf * 2)
-            val scratch = ensureFireworkScratch(sizePx)
-            val scratchCanvas = scratchCanvasFor(scratch)
-            scratchCanvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR)
+            // Composite the burst on a saveLayer, then punch a growing feathered hole through it
+            // with DST_OUT. Applying the mask as an opacity (as a ring clip would) made the burst
+            // vanish at 0.6 s and fade back in, which read as a replay. A saveLayer keeps the
+            // composite on the GPU; the old software bitmap was the size of the whole stage and
+            // had to be cleared, rasterized and uploaded every frame.
+            val fireworkHalf = (context.radius / 4.5 * FIREWORK_SCALE_PEAK * 1.05).toFloat() + 2f
+            val centerX = position.x.toFloat()
+            val centerY = position.y.toFloat()
             val mainCanvas = context.canvas
-            context.canvas = scratchCanvas
+            val layer = mainCanvas.saveLayer(
+                centerX - fireworkHalf,
+                centerY - fireworkHalf,
+                centerX + fireworkHalf,
+                centerY + fireworkHalf,
+                null,
+            )
             try {
-                drawFirework(
-                    ChartPoint(sizePx / 2.0, sizePx / 2.0),
-                    scale,
-                    rotation,
-                    tSec,
-                    1f,
-                )
-            } finally {
-                context.canvas = mainCanvas
-            }
+                drawFirework(position, scale, rotation, tSec, 1f)
 
-            val centerX = sizePx / 2f
-            val centerY = sizePx / 2f
-            maskPaint.shader = RadialGradient(
-                centerX,
-                centerY,
-                totalR.toFloat(),
-                intArrayOf(0xFF000000.toInt(), 0xFF000000.toInt(), 0x00000000),
-                floatArrayOf(0f, (solidR / totalR).toFloat(), 1f),
-                Shader.TileMode.CLAMP,
-            )
-            maskPaint.alpha = (255 * maskAlpha).toInt()
-            scratchCanvas.drawCircle(centerX, centerY, totalR.toFloat(), maskPaint)
-            mainCanvas.drawBitmap(
-                scratch,
-                (position.x - fireworkHalf).toFloat(),
-                (position.y - fireworkHalf).toFloat(),
-                blitPaint,
-            )
+                maskPaint.shader = maskShaderFor((solidR / totalR).toFloat())
+                maskPaint.alpha = (255 * maskAlpha).toInt()
+                // The mask shader is cached at radius 1, so the canvas transform scales it to the
+                // current hole size without allocating a new gradient every frame.
+                mainCanvas.withTranslation(centerX, centerY) {
+                    scale(totalR.toFloat(), totalR.toFloat())
+                    drawCircle(0f, 0f, 1f, maskPaint)
+                }
+            } finally {
+                mainCanvas.restoreToCount(layer)
+            }
         } else {
             drawFirework(position, scale, rotation, tSec, 1f)
         }
@@ -734,25 +725,23 @@ class EffectsPainter(
         petalShaderAlpha = alpha
     }
 
-    /** One Canvas per scratch bitmap; recreated only when the bitmap is. */
-    private fun scratchCanvasFor(bitmap: Bitmap): Canvas {
-        val current = scratchCanvas
-        if (current != null && scratchCanvasBitmap === bitmap) return current
-        return Canvas(bitmap).also {
-            scratchCanvas = it
-            scratchCanvasBitmap = bitmap
-        }
-    }
-
-    private fun ensureFireworkScratch(sizePx: Int): Bitmap {
-        val existing = fireworkScratch
-        if (existing != null && existing.width == sizePx && existing.height == sizePx) {
-            return existing
-        }
-        existing?.recycle()
-        return createBitmap(sizePx, sizePx).also {
-            fireworkScratch = it
-        }
+    /**
+     * Feathered-hole masks cached by the solid/outer radius ratio. The ratio moves smoothly over
+     * the half-second hole phase, so a handful of quantized gradients covers it without allocating
+     * one shader per frame.
+     */
+    private fun maskShaderFor(ratio: Float): RadialGradient {
+        val index = (ratio * FIREWORK_MASK_STEPS).toInt().coerceIn(0, FIREWORK_MASK_STEPS - 1)
+        maskShaders[index]?.let { return it }
+        val stop = ((index + 0.5f) / FIREWORK_MASK_STEPS).coerceIn(0.001f, 0.999f)
+        return RadialGradient(
+            0f,
+            0f,
+            1f,
+            intArrayOf(0xFF000000.toInt(), 0xFF000000.toInt(), 0x00000000),
+            floatArrayOf(0f, stop, 1f),
+            Shader.TileMode.CLAMP,
+        ).also { maskShaders[index] = it }
     }
 
     private fun fireworkTrigger(note: ChartNote): Double = when (note) {
@@ -770,22 +759,69 @@ class EffectsPainter(
         val outerR = context.radius / 4.5 * scale
         if (outerR <= 0) return
         val canvas = context.canvas
+        val sprite = ensurePetalSprite(alpha)
         canvas.withTranslation(position.x.toFloat(), position.y.toFloat()) {
-					rotate(Math.toDegrees(rotation).toFloat())
+            rotate(Math.toDegrees(rotation).toFloat())
 
-					ensurePetalCaches(alpha)
-					// Petal outlines and gradients are cached at radius 1; the canvas scale maps them up, so a
-					// frame no longer builds a dozen paths and shaders.
-					scale(outerR.toFloat(), outerR.toFloat())
+            if (sprite != null) {
+                // The wheel is baked once at peak size; a frame only scales, rotates and draws it.
+                val spriteScale = (outerR / petalSpriteRadius).toFloat()
+                scale(spriteScale, spriteScale)
+                val half = sprite.width / 2f
+                drawBitmap(sprite, -half, -half, spritePaint)
+            } else {
+                // Fallback for alpha variants the sprite cache does not cover.
+                ensurePetalCaches(alpha)
+                scale(outerR.toFloat(), outerR.toFloat())
+                for (index in FIREWORK_PETAL_COLORS.indices) {
+                    effectPaint.shader = petalShaders[index]
+                    effectPaint.alpha = 255
+                    drawPath(petalPaths[index] ?: continue, effectPaint)
+                }
+                effectPaint.shader = null
+            }
+        }
+
+        drawFireworkBalls(position, tSec - 0.1, alpha)
+    }
+
+    /** Builds the petal sprite before the first burst so no mid-song frame pays for it. */
+    fun prewarmPetalSprite() {
+        ensurePetalSprite(1f)
+    }
+
+    /**
+     * Pre-rendered petal wheel at the burst's peak size, rebuilt only when the stage radius or the
+     * burst alpha changes. Baking it once turns a frame's dozen gradient-filled paths into a single
+     * textured quad; the bitmap is uploaded by the renderer once and reused.
+     */
+    private fun ensurePetalSprite(alpha: Float): Bitmap? {
+        if (alpha != 1f) return null
+        val peakRadius = (context.radius / 4.5 * FIREWORK_SCALE_PEAK).toFloat()
+        if (peakRadius <= 0f) return null
+        val cached = petalSprite
+        if (cached != null && petalSpriteRadius == peakRadius && petalSpriteAlpha == alpha) {
+            return cached
+        }
+        cached?.recycle()
+        val size = (peakRadius * 2f).toInt() + 4
+        val sprite = createBitmap(size, size)
+        val spriteCanvas = Canvas(sprite)
+        val center = size / 2f
+        ensurePetalCaches(alpha)
+        spriteCanvas.withTranslation(center, center) {
+					scale(peakRadius, peakRadius)
 					for (index in FIREWORK_PETAL_COLORS.indices) {
 						effectPaint.shader = petalShaders[index]
 						effectPaint.alpha = 255
 						drawPath(petalPaths[index] ?: continue, effectPaint)
 					}
-					effectPaint.shader = null
 				}
-
-        drawFireworkBalls(position, tSec - 0.1, alpha)
+        effectPaint.shader = null
+        petalSprite = sprite
+        petalSpriteRadius = peakRadius
+        petalSpriteAlpha = alpha
+        return sprite
     }
 
     private fun drawFireworkBalls(position: ChartPoint, growT: Double, alpha: Float) {
@@ -1002,6 +1038,7 @@ class EffectsPainter(
         private const val FIREWORK_SCALE_PEAK = 5.0
         private const val FIREWORK_HOLE_START_SEC = 0.6
         private const val FIREWORK_END_SEC = 1.1
+        private const val FIREWORK_MASK_STEPS = 96
 
         private val FIREWORK_PETAL_COLORS = intArrayOf(
             0xFFFFB3BA.toInt(), 0xFFFFD0A8.toInt(), 0xFFFFFAB8.toInt(), 0xFFD8F0A8.toInt(),

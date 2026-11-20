@@ -103,6 +103,10 @@ class ChartRenderer {
         context.radius = sizePx * 0.45f
 
         val prepared = prepare(chart)
+        if (config.showFireworks && prepared.fireworkTouches.isNotEmpty()) {
+            // Bake the petal wheel on the first frame of a stage size instead of mid-song.
+            effectsPainter.prewarmPetalSprite()
+        }
         val timing = timelineFor(chart)
         val currentTimeMs = timing.msFromBeat(currentBeats)
         val currentBpm = timing.bpmAtBeat(currentBeats)
