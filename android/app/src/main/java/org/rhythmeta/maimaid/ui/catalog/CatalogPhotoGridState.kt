@@ -97,8 +97,13 @@ class CatalogPhotoGridState internal constructor(index: Int = 0, offset: Int = 0
 
     internal fun scrollBy(delta: Float): Float {
         val previous = scrollOffset
-        scrollOffset = (previous - delta).coerceIn(0f, maxScroll)
-        return previous - scrollOffset
+        val target = previous - delta
+        val clamped = target.coerceIn(0f, maxScroll)
+        scrollOffset = clamped
+        // Subtracting from a large offset loses float precision, and the resulting epsilon of
+        // "unconsumed" scroll makes MIUIX treat the frame as a pull-down and expand the large title
+        // in the middle of the grid. Report the exact delta whenever nothing was clamped.
+        return if (clamped == target) delta else previous - clamped
     }
 
     internal fun anchorAt(point: Offset, centerOnCover: Boolean = false): PhotoGridAnchor? {
