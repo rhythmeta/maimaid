@@ -107,11 +107,8 @@ struct RecommendationListView: View {
         .background(Color(.systemGroupedBackground))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("rec.title", selection: $selectedPage) {
-                        Text("rec.section.new").tag(RecommendationPage.new)
-                        Text("rec.section.old").tag(RecommendationPage.old)
-                    }
+                Button {
+                    selectedPage = selectedPage == .new ? .old : .new
                 } label: {
                     Label(selectedPageTitle, systemImage: "rectangle.2.swap")
                         .labelStyle(.titleAndIcon)

@@ -55,11 +55,8 @@ struct CommunityAliasVotingBoardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("community.alias.board.mode", selection: $mode) {
-                        Text("community.alias.board.mode.candidates").tag(BoardMode.candidates)
-                        Text("community.alias.board.mode.approved").tag(BoardMode.approved)
-                    }
+                Button {
+                    mode = mode == .candidates ? .approved : .candidates
                 } label: {
                     Label(modeTitle, systemImage: "rectangle.2.swap")
                         .labelStyle(.titleAndIcon)

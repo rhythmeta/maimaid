@@ -82,11 +82,8 @@ struct DanDetailView: View {
         .toolbar {
             if hasTruePage {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Picker("dan.detail.page.selection", selection: $selectedPage) {
-                            Text("dan.detail.page.regular").tag(DanPage.regular)
-                            Text("dan.detail.page.true").tag(DanPage.trueDan)
-                        }
+                    Button {
+                        selectedPage = selectedPage == .regular ? .trueDan : .regular
                     } label: {
                         Label(selectedPageTitle, systemImage: "rectangle.2.swap")
                             .labelStyle(.titleAndIcon)
