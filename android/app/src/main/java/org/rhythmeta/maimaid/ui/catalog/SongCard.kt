@@ -59,9 +59,16 @@ internal fun SongCard(
     onLongClick: (() -> Unit)? = null,
     chartType: String? = null,
     actualSheet: SheetEntity? = null,
+    showAllDifficultyProgressDots: Boolean = false,
 ) {
     val darkTheme = SongVisualUtils.isDarkTheme(MiuixTheme.colorScheme.background)
-    val prioritizedSheets = remember(sheets) { CatalogQuery.prioritizedSheets(sheets) }
+    val prioritizedSheets = remember(sheets, actualSheet, showAllDifficultyProgressDots) {
+        if (actualSheet != null && !showAllDifficultyProgressDots) {
+            listOf(actualSheet)
+        } else {
+            CatalogQuery.prioritizedSheets(sheets)
+        }
+    }
     val highestSheet = remember(prioritizedSheets) {
         prioritizedSheets.maxByOrNull { SongVisualUtils.difficultyOrder(it.difficulty) }
     }

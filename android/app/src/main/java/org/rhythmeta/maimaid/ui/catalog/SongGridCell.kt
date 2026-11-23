@@ -65,6 +65,7 @@ internal fun SongGridCell(
     onLongClick: (() -> Unit)? = null,
     showActualDifficultyIndicator: Boolean = true,
     actualSheet: SheetEntity? = null,
+    showAllDifficultyProgressDots: Boolean = false,
     imageSize: Int? = null,
     animateCoverChanges: Boolean = false,
     progressScale: (() -> Float)? = null,
@@ -80,8 +81,12 @@ internal fun SongGridCell(
             .data(cachedCover ?: StaticAssetUrls.coverUrl(song.imageName))
             .build()
     }
-    val prioritizedSheets = remember(sheets, actualSheet) {
-        actualSheet?.let { listOf(it) } ?: CatalogQuery.prioritizedSheets(sheets)
+    val prioritizedSheets = remember(sheets, actualSheet, showAllDifficultyProgressDots) {
+        if (actualSheet != null && !showAllDifficultyProgressDots) {
+            listOf(actualSheet)
+        } else {
+            CatalogQuery.prioritizedSheets(sheets)
+        }
     }
     val isUtage = sheets.any { it.type.contains("utage", ignoreCase = true) } ||
         song.category.contains("utage", ignoreCase = true) ||

@@ -72,7 +72,7 @@ struct SongRowView: View {
 
                     // Difficulty dots - use cached scores for better performance
                     HStack(spacing: 3) {
-                        let prioritizedSheets = actualSheet.map { [$0] } ?? song.progressDotSheets
+                        let prioritizedSheets = song.progressDotSheets
 
                         ForEach(prioritizedSheets) { sheet in
                             if scoreCache.isEmpty {

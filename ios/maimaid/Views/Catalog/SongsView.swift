@@ -623,7 +623,7 @@ struct SongGridCell: View {
 
             if showDots {
                 let isUtage = song.songId > 100000
-                let prioritizedSheets = actualSheet.map { [$0] } ?? song.progressDotSheets
+                let prioritizedSheets = song.progressDotSheets
 
                 HStack(spacing: 2) {
                     if isUtage {

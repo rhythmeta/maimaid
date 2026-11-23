@@ -42,6 +42,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.StaticManifest
 import org.rhythmeta.maimaid.core.data.CatalogSyncStatus
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
+import org.rhythmeta.maimaid.core.database.ScoreEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.CatalogDownloadProgressContent
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
@@ -198,6 +199,7 @@ internal fun DetailScreen(
             container = container,
             songs = state.songs,
             sheets = state.sheets,
+            scores = state.scores,
             gameVersions = state.gameVersions,
             server = state.activeProfile?.server ?: "jp",
             coverImageStore = container.coverImageStore,
@@ -236,6 +238,7 @@ internal fun DetailScreen(
             container = container,
             songs = state.songs,
             sheets = state.sheets,
+            scores = state.scores,
             gameVersions = state.gameVersions,
             server = state.activeProfile?.server ?: "jp",
             coverImageStore = container.coverImageStore,

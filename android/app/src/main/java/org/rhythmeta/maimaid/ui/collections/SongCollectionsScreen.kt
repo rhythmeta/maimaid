@@ -57,6 +57,7 @@ import org.rhythmeta.maimaid.core.database.SongCollectionEntity
 import org.rhythmeta.maimaid.core.database.SongCollectionItemEntity
 import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.core.database.GameVersionEntity
+import org.rhythmeta.maimaid.core.database.ScoreEntity
 import org.rhythmeta.maimaid.ui.catalog.SongCard
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.catalog.SongGridCell
@@ -92,6 +93,7 @@ fun SongCollectionsScreen(
     container: AppContainer,
     songs: List<SongEntity>,
     sheets: List<SheetEntity>,
+    scores: List<ScoreEntity>,
     gameVersions: List<GameVersionEntity> = emptyList(),
     server: String = "jp",
     coverImageStore: CoverImageStore,
@@ -177,11 +179,15 @@ fun SongCollectionsScreen(
                 collections.firstOrNull { it.id == id }?.let { activeCollection ->
                     val entries = items.filter { it.collectionId == activeCollection.id && it.deletedAt == null }
                         .sortedBy(SongCollectionItemEntity::position)
+                    val sheetsBySong = remember(sheets) { sheets.groupBy(SheetEntity::songIdentifier) }
+                    val scoresBySheetKey = remember(scores) { scores.associateBy(ScoreEntity::sheetKey) }
                     key(id) {
                         CollectionDetail(
                             entries = entries,
                             songs = songs,
                             sheets = sheets,
+                            sheetsBySong = sheetsBySong,
+                            scoresBySheetKey = scoresBySheetKey,
                             coverImageStore = coverImageStore,
                             contentTopPadding = contentTopPadding,
                             gameVersions = gameVersions,
@@ -605,6 +611,8 @@ private fun CollectionDetail(
     entries: List<SongCollectionItemEntity>,
     songs: List<SongEntity>,
     sheets: List<SheetEntity>,
+    sheetsBySong: Map<String, List<SheetEntity>>,
+    scoresBySheetKey: Map<String, ScoreEntity>,
     coverImageStore: CoverImageStore,
     contentTopPadding: androidx.compose.ui.unit.Dp,
     gameVersions: List<GameVersionEntity>,
@@ -632,6 +640,8 @@ private fun CollectionDetail(
     if (displayMode == CatalogDisplayMode.Grid) {
         CollectionChartGrid(
             cards = cards,
+            sheetsBySong = sheetsBySong,
+            scoresBySheetKey = scoresBySheetKey,
             state = gridState,
             contentTopPadding = contentTopPadding,
             coverImageStore = coverImageStore,
@@ -641,7 +651,15 @@ private fun CollectionDetail(
     } else {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, top = contentTopPadding + 8.dp, end = 16.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             columnItems(cards, key = { it.item.id }) { card ->
-                CollectionListCard(card, gameVersions, coverImageStore, onOpenSong, onDelete)
+                CollectionListCard(
+                    card = card,
+                    allSongSheets = sheetsBySong[card.song?.songIdentifier].orEmpty(),
+                    scoresBySheetKey = scoresBySheetKey,
+                    gameVersions = gameVersions,
+                    coverImageStore = coverImageStore,
+                    onOpenSong = onOpenSong,
+                    onDelete = onDelete,
+                )
             }
         }
     }
@@ -650,6 +668,8 @@ private fun CollectionDetail(
 @Composable
 private fun CollectionListCard(
     card: CollectionCard,
+    allSongSheets: List<SheetEntity>,
+    scoresBySheetKey: Map<String, ScoreEntity>,
     gameVersions: List<GameVersionEntity>,
     coverImageStore: CoverImageStore,
     onOpenSong: (String) -> Unit,
@@ -660,11 +680,12 @@ private fun CollectionListCard(
     Box(Modifier.fillMaxWidth()) {
         SongCard(
             song = card.song,
-            sheets = listOf(card.sheet),
-            scoresBySheetKey = emptyMap(),
+            sheets = allSongSheets,
+            scoresBySheetKey = scoresBySheetKey,
             versions = gameVersions,
             coverImageStore = coverImageStore,
             actualSheet = card.sheet,
+            showAllDifficultyProgressDots = true,
             onClick = { onOpenSong(card.song.songIdentifier) },
             onLongClick = { menuExpanded = true },
         )
@@ -679,6 +700,8 @@ private fun CollectionListCard(
 @Composable
 private fun CollectionChartGrid(
     cards: List<CollectionCard>,
+    sheetsBySong: Map<String, List<SheetEntity>>,
+    scoresBySheetKey: Map<String, ScoreEntity>,
     state: org.rhythmeta.maimaid.ui.catalog.CatalogPhotoGridState,
     contentTopPadding: androidx.compose.ui.unit.Dp,
     coverImageStore: CoverImageStore,
@@ -701,6 +724,8 @@ private fun CollectionChartGrid(
     ) { card, columns, imageSize, filler ->
         CollectionGridCard(
             card = card,
+            allSongSheets = sheetsBySong[card.song?.songIdentifier].orEmpty(),
+            scoresBySheetKey = scoresBySheetKey,
             coverImageStore = coverImageStore,
             columns = columns,
             imageSize = imageSize,
@@ -716,6 +741,8 @@ private fun CollectionChartGrid(
 @Composable
 private fun CollectionGridCard(
     card: CollectionCard,
+    allSongSheets: List<SheetEntity>,
+    scoresBySheetKey: Map<String, ScoreEntity>,
     coverImageStore: CoverImageStore,
     columns: Int,
     imageSize: Int,
@@ -730,13 +757,14 @@ private fun CollectionGridCard(
     Box(Modifier.fillMaxWidth()) {
         SongGridCell(
             song = card.song,
-            sheets = listOf(card.sheet),
-            scoresBySheetKey = emptyMap(),
+            sheets = allSongSheets,
+            scoresBySheetKey = scoresBySheetKey,
             coverImageStore = coverImageStore,
             columnCount = columns,
             cornerRadius = if (columns == 3) 10.dp else 6.dp,
             showDots = true,
             actualSheet = card.sheet,
+            showAllDifficultyProgressDots = true,
             showActualDifficultyIndicator = false,
             imageSize = imageSize,
             animateCoverChanges = animateCoverChanges,
