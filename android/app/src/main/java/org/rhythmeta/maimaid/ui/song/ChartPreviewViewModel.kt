@@ -294,10 +294,11 @@ class ChartPreviewViewModel(
 
     /**
      * Builds the shareable chart package — `maidata.txt`, `track.mp3` and `bg.png` — in the cache
-     * directory and returns the zip. The audio is downloaded first when it is not cached yet, so a
-     * share right after opening the page still produces the complete package.
+     * directory and returns it. [format] only selects the file suffix; the zip payload is identical.
+     * The audio is downloaded first when it is not cached yet, so a share right after opening the
+     * page still produces the complete package.
      */
-    suspend fun buildChartZip(): File {
+    suspend fun buildChartZip(format: ChartPackageFormat): File {
         val ready = mutableState.value as? ChartPreviewUiState.Ready
             ?: error("Chart is not ready")
         val option = ready.selected
@@ -319,7 +320,7 @@ class ChartPreviewViewModel(
             directory.listFiles()?.forEach { it.delete() }
             val destination = File(
                 directory,
-                chartPackageFileName(ready.song?.title, option.sheet.difficulty),
+                chartPackageFileName(ready.song?.title, option.sheet.difficulty, format),
             )
             destination.outputStream().use { output ->
                 ZipOutputStream(BufferedOutputStream(output)).use { zip ->
@@ -351,13 +352,17 @@ class ChartPreviewViewModel(
     }
 
     /** File name handed to the share sheet; strips characters file systems reject. */
-    private fun chartPackageFileName(title: String?, difficulty: String?): String {
+    private fun chartPackageFileName(
+        title: String?,
+        difficulty: String?,
+        format: ChartPackageFormat,
+    ): String {
         val base = listOfNotNull(
             title?.trim()?.takeIf { it.isNotEmpty() },
             difficulty?.trim()?.takeIf { it.isNotEmpty() },
         ).joinToString(" - ").ifEmpty { "chart" }
         val sanitized = base.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
-        return "${sanitized.take(120)}.zip"
+        return "${sanitized.take(120)}.${format.fileSuffix}"
     }
 
     private fun writePngEntry(zip: ZipOutputStream, name: String, bytes: ByteArray) {

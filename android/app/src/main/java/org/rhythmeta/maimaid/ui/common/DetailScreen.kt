@@ -45,6 +45,7 @@ import org.rhythmeta.maimaid.core.database.GameVersionEntity
 import org.rhythmeta.maimaid.ui.MainUiState
 import org.rhythmeta.maimaid.ui.components.CatalogDownloadProgressContent
 import org.rhythmeta.maimaid.ui.navigation.AppDetail
+import org.rhythmeta.maimaid.ui.song.ChartPackageFormat
 import org.rhythmeta.maimaid.ui.song.ChartPreviewScreen
 import org.rhythmeta.maimaid.ui.song.SongDetailScreen
 import kotlinx.coroutines.launch
@@ -111,7 +112,7 @@ internal fun DetailScreen(
     bestTableExportRequested: Boolean,
     bestTableFilterRequested: Boolean = false,
     bestTableSelectedPage: Int = 0,
-    chartPreviewShareRequested: Boolean = false,
+    chartPreviewShareFormat: ChartPackageFormat? = null,
     communityAliasSelectedPage: Int = 0,
     randomSongFilterRequested: Boolean,
     randomSongSessionState: RandomSongSessionState,
@@ -190,7 +191,7 @@ internal fun DetailScreen(
             sheetKey = selectedChartSheetKey,
             container = container,
             contentTopPadding = songContentTopPadding,
-            shareRequested = chartPreviewShareRequested,
+            shareFormat = chartPreviewShareFormat,
             onShareRequestHandled = onChartPreviewShareHandled,
         )
         AppDetail.Collections -> SongCollectionsScreen(

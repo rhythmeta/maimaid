@@ -18,6 +18,8 @@
 	<string name="chart_preview_title">譜面プレビュー</string>
 	<string name="chart_preview_share">譜面を共有</string>
 	<string name="chart_preview_share_chooser">譜面を共有</string>
+	<string name="chart_preview_share_zip">.zip で共有</string>
+	<string name="chart_preview_share_adx">.adx で共有</string>
 	<string name="chart_preview_share_failed">譜面を共有できませんでした</string>
 	<string name="chart_preview_parse_failed">譜面を解析できません</string>
 	<string name="chart_preview_play">音楽を再生</string>

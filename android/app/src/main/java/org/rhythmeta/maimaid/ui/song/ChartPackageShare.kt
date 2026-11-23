@@ -10,10 +10,15 @@ import java.io.File
  * Hands the cached chart package to the system share sheet. The activity does the destination
  * picking, so the preview no longer asks for a storage location up front.
  */
-internal fun shareChartPackage(context: Context, file: File, chooserTitle: String) {
+internal fun shareChartPackage(
+    context: Context,
+    file: File,
+    format: ChartPackageFormat,
+    chooserTitle: String,
+) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "application/zip"
+        type = format.mimeType
         putExtra(Intent.EXTRA_STREAM, uri)
         // Clip data (not just EXTRA_STREAM) grants the read permission to every chooser target.
         clipData = ClipData.newRawUri(file.name, uri)

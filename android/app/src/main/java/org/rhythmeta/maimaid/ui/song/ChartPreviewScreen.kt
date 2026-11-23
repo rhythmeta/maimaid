@@ -101,7 +101,7 @@ internal fun ChartPreviewScreen(
     sheetKey: String?,
     container: AppContainer,
     contentTopPadding: Dp,
-    shareRequested: Boolean = false,
+    shareFormat: ChartPackageFormat? = null,
     onShareRequestHandled: () -> Unit = {},
 ) {
     // Keep the display awake while the preview page is open, otherwise the screen timeout cuts the
@@ -127,18 +127,18 @@ internal fun ChartPreviewScreen(
     val context = LocalContext.current
     val shareFailedMessage = stringResource(R.string.chart_preview_share_failed)
     val shareChooserTitle = stringResource(R.string.chart_preview_share_chooser)
-    // Building the package can include a track download, so a second tap while it runs is ignored
-    // instead of starting a duplicate build that would overwrite the package being shared.
+    // Building the package can include a track download, so a format picked while a build runs is
+    // ignored instead of starting a duplicate build that would overwrite the package being shared.
     var sharing by remember { mutableStateOf(false) }
-    LaunchedEffect(shareRequested) {
-        if (!shareRequested) return@LaunchedEffect
+    LaunchedEffect(shareFormat) {
+        val format = shareFormat ?: return@LaunchedEffect
         onShareRequestHandled()
         if (sharing) return@LaunchedEffect
         sharing = true
         coroutineScope.launch {
             try {
-                val packageFile = viewModel.buildChartZip()
-                shareChartPackage(context, packageFile, shareChooserTitle)
+                val packageFile = viewModel.buildChartZip(format)
+                shareChartPackage(context, packageFile, format, shareChooserTitle)
                 sharing = false
             } catch (error: CancellationException) {
                 throw error

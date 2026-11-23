@@ -118,6 +118,7 @@ import org.rhythmeta.maimaid.ui.navigation.danCategoryTitle
 import org.rhythmeta.maimaid.ui.navigation.songId
 import org.rhythmeta.maimaid.ui.navigation.toRoute
 import org.rhythmeta.maimaid.ui.onboarding.InitialCatalogGate
+import org.rhythmeta.maimaid.ui.song.ChartPackageFormat
 import org.rhythmeta.maimaid.ui.profile.ProfileEditorSheet
 import org.rhythmeta.maimaid.ui.random.RandomSongSessionState
 import org.rhythmeta.maimaid.ui.recommendation.RecommendationNewPage
@@ -281,7 +282,10 @@ fun MaimaidApp(
         mutableIntStateOf(CommunityAliasCandidatesPage)
     }
     var communityAliasSwitcherVisible by rememberSaveable { mutableStateOf(true) }
-    var chartPreviewShareRequested by rememberSaveable { mutableStateOf(false) }
+    // Null means no share is pending; the value carries the suffix the user picked in the dropdown.
+    var chartPreviewShareFormat by rememberSaveable {
+        mutableStateOf<ChartPackageFormat?>(null)
+    }
     var randomSongFilterRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsCreateRequested by rememberSaveable { mutableStateOf(false) }
     var collectionsImportRequested by rememberSaveable { mutableStateOf(false) }
@@ -846,7 +850,7 @@ fun MaimaidApp(
                 selectedCollectionId = null
                 collectionsRenameRequested = false
             }
-            if (detail == AppDetail.ChartPreview) chartPreviewShareRequested = false
+            if (detail == AppDetail.ChartPreview) chartPreviewShareFormat = null
             navBackStack.removeLastOrNull()
         }
     }
@@ -968,11 +972,43 @@ fun MaimaidApp(
                         }
                     }
                     AppDetail.ChartPreview -> {
-                        IconButton(onClick = { chartPreviewShareRequested = true }) {
-                            Icon(
-                                imageVector = Icons.Rounded.IosShare,
-                                contentDescription = stringResource(R.string.chart_preview_share),
-                            )
+                        var shareMenuExpanded by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { shareMenuExpanded = true }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.IosShare,
+                                    contentDescription = stringResource(R.string.chart_preview_share),
+                                )
+                            }
+                            WindowListPopup(
+                                show = shareMenuExpanded,
+                                alignment = PopupPositionProvider.Align.End,
+                                enableWindowDim = true,
+                                onDismissRequest = { shareMenuExpanded = false },
+                            ) {
+                                ListPopupColumn {
+                                    DropdownImpl(
+                                        text = stringResource(R.string.chart_preview_share_zip),
+                                        optionSize = 2,
+                                        isSelected = false,
+                                        index = 0,
+                                        onSelectedIndexChange = {
+                                            shareMenuExpanded = false
+                                            chartPreviewShareFormat = ChartPackageFormat.Zip
+                                        },
+                                    )
+                                    DropdownImpl(
+                                        text = stringResource(R.string.chart_preview_share_adx),
+                                        optionSize = 2,
+                                        isSelected = false,
+                                        index = 1,
+                                        onSelectedIndexChange = {
+                                            shareMenuExpanded = false
+                                            chartPreviewShareFormat = ChartPackageFormat.Adx
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                     AppDetail.BestTable -> {
@@ -1169,7 +1205,7 @@ fun MaimaidApp(
                     bestTableExportRequested = bestTableExportRequested,
                     bestTableFilterRequested = bestTableFilterRequested,
                     bestTableSelectedPage = bestTableSelectedPage,
-                    chartPreviewShareRequested = chartPreviewShareRequested,
+                    chartPreviewShareFormat = chartPreviewShareFormat,
                     communityAliasSelectedPage = communityAliasSelectedPage,
                     randomSongFilterRequested = randomSongFilterRequested,
                     randomSongSessionState = randomSongSessionState,
@@ -1177,7 +1213,7 @@ fun MaimaidApp(
                     onBestTableExportRequestHandled = { bestTableExportRequested = false },
                     onBestTableFilterRequestHandled = { bestTableFilterRequested = false },
                     onBestTableFilterActiveChanged = { bestTableFilterActive = it },
-                    onChartPreviewShareHandled = { chartPreviewShareRequested = false },
+                    onChartPreviewShareHandled = { chartPreviewShareFormat = null },
                     onRandomSongFilterRequestHandled = { randomSongFilterRequested = false },
                     onRandomSongFilterActiveChanged = { randomSongFilterActive = it },
                     onDismissScoreQueryFilter = { showScoreQueryFilter = false },

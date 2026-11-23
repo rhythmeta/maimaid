@@ -18,6 +18,8 @@
 	<string name="chart_preview_title">Chart preview</string>
 	<string name="chart_preview_share">Share chart</string>
 	<string name="chart_preview_share_chooser">Share chart</string>
+	<string name="chart_preview_share_zip">Share .zip</string>
+	<string name="chart_preview_share_adx">Share .adx</string>
 	<string name="chart_preview_share_failed">Unable to share the chart</string>
 	<string name="chart_preview_parse_failed">Could not parse chart</string>
 	<string name="chart_preview_play">Play audio</string>
