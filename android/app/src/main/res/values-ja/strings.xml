@@ -787,7 +787,7 @@
     <string name="astrodx_title">AstroDX からインポート</string>
     <string name="astrodx_settings_summary">Shizuku で AstroDX のスコアを取り込む</string>
     <string name="astrodx_requires_shizuku">Shizuku が必要です</string>
-    <string name="astrodx_shizuku_description">許可すると、Shizuku 経由で AstroDX を読み取れます。</string>
+    <string name="astrodx_shizuku_description">許可後、maimaid は Shizuku を通じて AstroDX のセーブデータを読み取ります。</string>
     <string name="astrodx_setup">先に Shizuku をインストールして起動してください。インポートを押し、権限ダイアログで maimaid を許可します。プレイ後は AstroDX の選曲画面に戻り、キャッシュを保存してください。</string>
     <string name="astrodx_shizuku_guide">Shizuku の使い方</string>
     <string name="astrodx_target_profile">インポート先：%1$s</string>

@@ -814,7 +814,7 @@
     <string name="astrodx_title">Import from AstroDX</string>
     <string name="astrodx_settings_summary">Import AstroDX scores with Shizuku</string>
     <string name="astrodx_requires_shizuku">Shizuku required</string>
-    <string name="astrodx_shizuku_description">Shizuku lets maimaid access AstroDX after you allow it.</string>
+    <string name="astrodx_shizuku_description">After authorization, maimaid uses Shizuku to read the AstroDX save.</string>
     <string name="astrodx_setup">Install and start Shizuku first. Then tap Import and allow maimaid in the permission prompt. Return to the AstroDX song list after playing so its cache is saved.</string>
     <string name="astrodx_shizuku_guide">Shizuku setup guide</string>
     <string name="astrodx_target_profile">Import into: %1$s</string>
