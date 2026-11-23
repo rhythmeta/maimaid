@@ -8,12 +8,6 @@ struct LxnsImportSections: View {
   let exchange: () -> Void
 
   var body: some View {
-    Section {
-      LxnsImportSummary(isConnected: model.isConnected)
-    }
-    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-    .listSectionSeparator(.hidden)
-
     if model.isConnected {
       Section("import.lxns.bound.header") {
         HStack {

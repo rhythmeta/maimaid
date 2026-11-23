@@ -71,6 +71,7 @@
 "settings.data.importDivingFish" = "从 Diving Fish 导入成绩";
 "settings.data.importLxns" = "从 LXNS 导入成绩";
 "settings.data.importOtogame" = "从 Otogame 导入成绩";
+"settings.data.importAstroDx" = "从 AstroDX 导入成绩";
 "settings.data.bound" = "已绑定";
 "settings.sync.header" = "成绩同步";
 "settings.sync.footer" = "DF/LXNS 成绩导入适用于所有服务器档案；成绩上送仅在当前激活档案为国服时生效。";
@@ -234,7 +235,9 @@
 // Otogame
 "import.otogame.title" = "从 Otogame 导入";
 "import.otogame.description" = "同步前四页游玩记录。DX Pass Rating 数据可用时也会更新当前最佳成绩。";
-"import.otogame.activeProfile %@" = "当前档案：%@";
+"import.otogame.summary.title" = "从 Otogame 导入";
+"import.otogame.summary.description" = "导入近期 Otogame 游玩记录。";
+"import.profile.header" = "你正在操作：";
 "import.otogame.session.ready" = "Otogame 登录状态已就绪";
 "import.otogame.session.required" = "请先登录 Otogame";
 "import.otogame.action.openLogin" = "打开 Otogame 登录页";
@@ -254,6 +257,8 @@
 
 // Diving Fish
 "import.df.title" = "从 Diving Fish 导入";
+"import.df.summary.title" = "从 Diving Fish 导入";
+"import.df.summary.description" = "授权 Diving Fish 导入成绩。";
 "import.df.action.quickSync" = "一键快速同步成绩";
 "import.df.status.connecting" = "正在连接到 Diving Fish...";
 "import.df.oauth.title" = "连接水鱼查分器";
@@ -276,6 +281,8 @@
 
 // LXNS
 "import.lxns.title" = "从 LXNS 导入";
+"import.lxns.summary.title" = "从 LXNS 导入";
+"import.lxns.summary.description" = "授权 LXNS 导入成绩。";
 "import.lxns.bound.header" = "已绑定 LXNS";
 "import.lxns.status" = "授权状态";
 "import.lxns.status.connected" = "已连接";
@@ -298,6 +305,24 @@
 "import.lxns.status.failed.expired" = "授权已过期，请重新登录。";
 "import.lxns.status.fetching" = "正在连接到 LXNS 拉取成绩数据...";
 "import.lxns.summary.footer" = "用于从 LXNS 拉取并导入成绩。";
+"import.astrodx.title" = "从 AstroDX 导入";
+"import.astrodx.summary.title" = "AstroDX 存档导入";
+"import.astrodx.summary.description" = "选择 AstroDX cache 文件并导入最佳成绩。";
+"import.astrodx.step1" = "步骤一：选择存档";
+"import.astrodx.choose" = "选择 AstroDX 存档";
+"import.astrodx.ios.note" = "从文件中选择 AstroDX cache。";
+"import.astrodx.step2" = "步骤二：导入";
+"import.astrodx.action" = "导入 AstroDX 成绩";
+"import.astrodx.importing" = "正在导入…";
+"import.astrodx.empty" = "没有找到已玩成绩";
+"import.astrodx.complete" = "导入完成";
+"import.astrodx.counts %lld %lld %lld %lld" = "读取 %1$lld 条 · 匹配 %2$lld 条 · 更新 %3$lld 条 · 跳过 %4$lld 条";
+"import.astrodx.result.note" = "仅导入能唯一匹配且 note 数有效的官方谱面，并保留已有更好成绩。";
+"import.astrodx.error.size" = "此存档过大。";
+"import.astrodx.error.version" = "不支持此 AstroDX 存档版本。";
+"import.astrodx.error.invalid" = "无法读取 AstroDX 存档。";
+"import.astrodx.error.profile" = "当前档案已切换，请重试。";
+"import.astrodx.error.catalog" = "请先在设置中下载曲库。";
 
 // Static Data Update
 "update.title" = "静态数据更新";
@@ -734,7 +759,7 @@
 "settings.cloud.snapshots.title" = "云备份";
 
 // Direct score imports
-"import.local.description" = "直接从查分器导入当前档案，保留各项更优成绩。";
+"import.local.description" = "直接从查分器导入成绩，保留各项更优成绩。";
 "import.local.profileChanged" = "当前档案已切换，请重新开始导入。";
 "import.local.result %lld %lld %lld" = "获取 %lld 条 · 更新 %lld 条 · 未匹配或无效 %lld 条";
 

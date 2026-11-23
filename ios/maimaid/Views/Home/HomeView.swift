@@ -368,95 +368,9 @@ struct HomeView: View {
     }
     // MARK: - Rating Badge
 
-    private var ratingBadge: some View {
-        Text("\(displayRating)")
-            .font(.system(size: 10, weight: .black, design: .rounded))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(ThemeUtils.ratingColor(displayRating), in: Capsule())
-            .overlay(Capsule().stroke(Color.white, lineWidth: 1))
-            .offset(x: 4, y: 4)
-    }
-
-    // MARK: - Avatar View
-
-    private var avatarImage: some View {
-        AvatarImageView(
-            imageData: activeProfile?.avatarData,
-            avatarURL: activeProfile?.avatarUrl,
-            size: 60,
-            placeholderSystemName: "person.circle.fill",
-            placeholderTint: .blue.opacity(0.6),
-            placeholderBackground: Color.blue.opacity(0.08)
-        )
-    }
-
     private var profileHeader: some View {
-        Button {
+        ProfileCardView(profile: activeProfile, rating: displayRating) {
             profileEditMode = activeProfile.map { .edit($0.id) } ?? .create
-        } label: {
-            HStack(spacing: 16) {
-                // Avatar
-                ZStack {
-                    avatarImage
-
-                    // Rating badge
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            ratingBadge
-                        }
-                    }
-                }
-                .frame(width: 60, height: 60)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(activeProfile?.name ?? String(localized: "home.profile.unbound"))
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.primary)
-
-                        // Server badge
-                        if let profile = activeProfile, let server = GameServer(rawValue: profile.server) {
-                            ScoreTintBadge(text: server.displayName, tint: serverColor(server))
-                        }
-                    }
-
-                    if let plate = activeProfile?.plate, !plate.isEmpty {
-                        Text(plate)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("home.profile.editHint")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.secondary.opacity(0.3))
-            }
-            .padding(16)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.02), radius: 8, x: 0, y: 4)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func serverColor(_ server: GameServer) -> Color {
-        switch server {
-        case .jp:   return .red
-        case .intl: return .blue
-        case .cn:   return .orange
         }
     }
 

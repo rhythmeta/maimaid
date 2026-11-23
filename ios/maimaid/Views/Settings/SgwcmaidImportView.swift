@@ -12,7 +12,15 @@ struct SgwcmaidImportView: View {
 
   var body: some View {
     List {
-      SgwcmaidImportSummarySection()
+      Section {
+        ImportPageHeader(
+          symbol: "qrcode",
+          title: "import.sgwcmaid.summary.title",
+          summary: "import.sgwcmaid.summary.description")
+      }
+      .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+      .listSectionSeparator(.hidden)
+      ImportProfilePreview(profile: profiles.first)
       if model.binding != nil {
         SgwcmaidBoundPlayerSection(
           model: model, isEnabled: !profiles.isEmpty, quickImport: quickImport, unbind: unbind)

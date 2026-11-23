@@ -74,6 +74,14 @@ struct SettingsView: View {
                         settingsRowLabel(icon: "snowflake", iconColor: .cyan, title: "settings.data.importLxns")
                     }
 
+                    NavigationLink {
+                        AstroDxImportView()
+                    } label: {
+                        settingsRowLabel(
+                            icon: "externaldrive.fill", iconColor: .teal,
+                            title: "settings.data.importAstroDx")
+                    }
+
                     if activeProfile?.server == GameServer.cn.rawValue {
                         NavigationLink {
                             SgwcmaidImportView()

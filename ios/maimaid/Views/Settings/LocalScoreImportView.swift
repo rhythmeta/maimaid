@@ -13,6 +13,15 @@ struct LocalScoreImportView: View {
 
   var body: some View {
     List {
+      Section {
+        ImportPageHeader(
+          symbol: model.provider == .lxns ? "snowflake" : "fish.fill",
+          title: model.provider == .lxns ? "import.lxns.summary.title" : "import.df.summary.title",
+          summary: model.provider == .lxns ? "import.lxns.summary.description" : "import.df.summary.description")
+      }
+      .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+      .listSectionSeparator(.hidden)
+      ImportProfilePreview(profile: profiles.first)
       if model.provider == .divingFish {
         DivingFishImportSections(
           model: model, authorize: authorize, quickImport: quickImport, disconnect: disconnect

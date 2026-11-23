@@ -13,12 +13,21 @@ struct OtogameImportView: View {
     var body: some View {
         List {
             Section {
+                ImportPageHeader(
+                    symbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",
+                    title: "import.otogame.summary.title",
+                    summary: "import.otogame.summary.description"
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+            .listSectionSeparator(.hidden)
+
+            ImportProfilePreview(profile: activeProfile)
+
+            Section {
                 OtogameSessionStatusRow(
-                    profile: activeProfile,
                     hasSession: viewModel.hasSession
                 )
-            } footer: {
-                Text("import.otogame.description")
             }
 
             Section {
@@ -60,20 +69,12 @@ struct OtogameImportView: View {
 }
 
 private struct OtogameSessionStatusRow: View {
-    let profile: UserProfile?
     let hasSession: Bool
 
     var body: some View {
         HStack {
             Label {
-                VStack(alignment: .leading) {
-                    Text(hasSession ? "import.otogame.session.ready" : "import.otogame.session.required")
-                    if let profile {
-                        Text("import.otogame.activeProfile \(profile.name)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text(hasSession ? "import.otogame.session.ready" : "import.otogame.session.required")
             } icon: {
                 Image(systemName: hasSession ? "checkmark.circle.fill" : "person.crop.circle.badge.exclamationmark")
                     .foregroundStyle(hasSession ? .green : .secondary)

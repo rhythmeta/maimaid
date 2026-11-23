@@ -71,6 +71,7 @@
 "settings.data.importDivingFish" = "Import from Diving Fish";
 "settings.data.importLxns" = "Import from LXNS";
 "settings.data.importOtogame" = "Import from Otogame";
+"settings.data.importAstroDx" = "Import from AstroDX";
 "settings.data.bound" = "Bound";
 "settings.sync.header" = "Score Sync";
 "settings.sync.footer" = "DF/LXNS score import works with every server profile. Score uploads run only while the active profile uses the CN server.";
@@ -238,7 +239,9 @@
 // Otogame
 "import.otogame.title" = "Import from Otogame";
 "import.otogame.description" = "Sync the first four pages of play history. DX Pass rating data also updates current best scores when available.";
-"import.otogame.activeProfile %@" = "Active profile: %@";
+"import.otogame.summary.title" = "Import from Otogame";
+"import.otogame.summary.description" = "Import recent Otogame play history.";
+"import.profile.header" = "You are working with:";
 "import.otogame.session.ready" = "Otogame session ready";
 "import.otogame.session.required" = "Sign in to Otogame first";
 "import.otogame.action.openLogin" = "Open Otogame Login";
@@ -258,6 +261,8 @@
 
 // Diving Fish
 "import.df.title" = "Import from Diving Fish";
+"import.df.summary.title" = "Import from Diving Fish";
+"import.df.summary.description" = "Authorize Diving Fish to import scores.";
 "import.df.action.quickSync" = "Quick Sync Scores";
 "import.df.status.connecting" = "Connecting...";
 "import.df.oauth.title" = "Connect Diving Fish";
@@ -280,6 +285,8 @@
 
 // LXNS
 "import.lxns.title" = "Import from LXNS";
+"import.lxns.summary.title" = "Import from LXNS";
+"import.lxns.summary.description" = "Authorize LXNS to import scores.";
 "import.lxns.bound.header" = "Bound LXNS";
 "import.lxns.status" = "Auth Status";
 "import.lxns.status.connected" = "Connected";
@@ -302,6 +309,24 @@
 "import.lxns.status.failed.expired" = "Auth expired, relogin.";
 "import.lxns.status.fetching" = "Connecting...";
 "import.lxns.summary.footer" = "This page imports scores from LXNS.";
+"import.astrodx.title" = "Import from AstroDX";
+"import.astrodx.summary.title" = "AstroDX save import";
+"import.astrodx.summary.description" = "Choose an AstroDX cache file and import its best scores.";
+"import.astrodx.step1" = "Step 1: Choose cache";
+"import.astrodx.choose" = "Choose AstroDX cache";
+"import.astrodx.ios.note" = "Select the AstroDX cache from Files.";
+"import.astrodx.step2" = "Step 2: Import";
+"import.astrodx.action" = "Import AstroDX scores";
+"import.astrodx.importing" = "Importing…";
+"import.astrodx.empty" = "No played scores found";
+"import.astrodx.complete" = "Import complete";
+"import.astrodx.counts %lld %lld %lld %lld" = "Read %1$lld · Matched %2$lld · Updated %3$lld · Skipped %4$lld";
+"import.astrodx.result.note" = "Only unique official charts with valid note counts are imported. Existing better scores are preserved.";
+"import.astrodx.error.size" = "This cache is too large.";
+"import.astrodx.error.version" = "This AstroDX cache version is not supported.";
+"import.astrodx.error.invalid" = "The AstroDX cache could not be read.";
+"import.astrodx.error.profile" = "The active profile changed. Try again.";
+"import.astrodx.error.catalog" = "Download the song catalog in Settings first.";
 
 // Static Data Update
 "update.title" = "Static Data Update";
@@ -738,7 +763,7 @@
 "settings.cloud.snapshots.title" = "Cloud backups";
 
 // Direct score imports
-"import.local.description" = "Import scores directly from the score tracker into the current profile. Better local scores are preserved.";
+"import.local.description" = "Import scores directly from the score tracker. Better local scores are preserved.";
 "import.local.profileChanged" = "The active profile changed. Please start the import again.";
 "import.local.result %lld %lld %lld" = "Fetched %lld · Updated %lld · Unmatched or invalid %lld";
 

@@ -71,6 +71,7 @@
 "settings.data.importDivingFish" = "Diving Fish からインポート";
 "settings.data.importLxns" = "LXNS からインポート";
 "settings.data.importOtogame" = "Otogame からインポート";
+"settings.data.importAstroDx" = "AstroDX からインポート";
 "settings.data.bound" = "連携済み";
 "settings.sync.header" = "スコアの同期";
 "settings.sync.footer" = "DF/LXNS からのスコア取り込みはすべてのサーバープロフィールで利用できます。スコア送信は有効なプロフィールが中国版サーバーの場合のみ動作します。";
@@ -237,7 +238,9 @@
 // Otogame
 "import.otogame.title" = "Otogame からインポート";
 "import.otogame.description" = "プレイ履歴の先頭4ページを同期します。DX Passのレーティングデータを利用できる場合は、現在のベストスコアも更新します。";
-"import.otogame.activeProfile %@" = "現在のプロフィール：%@";
+"import.otogame.summary.title" = "Otogame からインポート";
+"import.otogame.summary.description" = "最近の Otogame プレイ履歴を取り込みます。";
+"import.profile.header" = "操作対象：";
 "import.otogame.session.ready" = "Otogame セッション準備完了";
 "import.otogame.session.required" = "Otogame にログインしてください";
 "import.otogame.action.openLogin" = "Otogame ログインを開く";
@@ -257,6 +260,8 @@
 
 // Diving Fish
 "import.df.title" = "Diving Fish からインポート";
+"import.df.summary.title" = "Diving Fish からインポート";
+"import.df.summary.description" = "Diving Fish を認証してスコアを取り込みます。";
 "import.df.action.quickSync" = "クイック同期スコア";
 "import.df.status.connecting" = "接続中...";
 "import.df.oauth.title" = "Diving Fish に接続";
@@ -279,6 +284,8 @@
 
 // LXNS
 "import.lxns.title" = "LXNS からインポート";
+"import.lxns.summary.title" = "LXNS からインポート";
+"import.lxns.summary.description" = "LXNS を認証してスコアを取り込みます。";
 "import.lxns.bound.header" = "LXNS 連携済み";
 "import.lxns.status" = "認証ステータス";
 "import.lxns.status.connected" = "接続済み";
@@ -301,6 +308,24 @@
 "import.lxns.status.failed.expired" = "認証の有効期限が切れました。再ログインしてください。";
 "import.lxns.status.fetching" = "接続中...";
 "import.lxns.summary.footer" = "このページは LXNS からスコアを取り込みます。";
+"import.astrodx.title" = "AstroDX からインポート";
+"import.astrodx.summary.title" = "AstroDX セーブデータのインポート";
+"import.astrodx.summary.description" = "AstroDX の cache ファイルを選び、ベストスコアを取り込みます。";
+"import.astrodx.step1" = "手順1：セーブデータを選択";
+"import.astrodx.choose" = "AstroDX セーブデータを選択";
+"import.astrodx.ios.note" = "ファイルから AstroDX cache を選択してください。";
+"import.astrodx.step2" = "手順2：インポート";
+"import.astrodx.action" = "AstroDX スコアをインポート";
+"import.astrodx.importing" = "インポート中…";
+"import.astrodx.empty" = "プレイ済みスコアがありません";
+"import.astrodx.complete" = "インポート完了";
+"import.astrodx.counts %lld %lld %lld %lld" = "読込 %1$lld · 一致 %2$lld · 更新 %3$lld · スキップ %4$lld";
+"import.astrodx.result.note" = "有効なノート数で一意に一致する公式譜面だけを取り込み、既存の高いスコアを保持します。";
+"import.astrodx.error.size" = "セーブデータが大きすぎます。";
+"import.astrodx.error.version" = "この AstroDX セーブデータのバージョンには対応していません。";
+"import.astrodx.error.invalid" = "AstroDX セーブデータを読み取れませんでした。";
+"import.astrodx.error.profile" = "プロフィールが変更されました。もう一度お試しください。";
+"import.astrodx.error.catalog" = "先に設定から曲データをダウンロードしてください。";
 
 // Static Data Update
 "update.title" = "静的データの更新";
@@ -738,7 +763,7 @@
 "settings.cloud.snapshots.title" = "クラウドバックアップ";
 
 // Direct score imports
-"import.local.description" = "スコアトラッカーから現在のプロフィールへ直接インポートします。各項目のより良いスコアを保持します。";
+"import.local.description" = "スコアトラッカーからスコアを直接インポートします。より良いスコアを保持します。";
 "import.local.profileChanged" = "プロフィールが変更されました。インポートをやり直してください。";
 "import.local.result %lld %lld %lld" = "取得 %lld 件 · 更新 %lld 件 · 未一致または無効 %lld 件";
 
