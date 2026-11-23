@@ -43,3 +43,4 @@ ios/build-codex/
 *.keystore
 
 .workbuddy-ai
+datasets/

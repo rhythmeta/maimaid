@@ -784,4 +784,56 @@
 	<string name="chart_rhythm_label">譜面リズム</string>
 	<string name="chart_previous_measure">前の小節</string>
 	<string name="chart_next_measure">次の小節</string>
+    <string name="astrodx_title">AstroDX からインポート</string>
+    <string name="astrodx_settings_summary">Shizuku で AstroDX のスコアを取り込む</string>
+    <string name="astrodx_requires_shizuku">Shizuku が必要です</string>
+    <string name="astrodx_shizuku_description">許可すると、Shizuku 経由で AstroDX を読み取れます。</string>
+    <string name="astrodx_setup">先に Shizuku をインストールして起動してください。インポートを押し、権限ダイアログで maimaid を許可します。プレイ後は AstroDX の選曲画面に戻り、キャッシュを保存してください。</string>
+    <string name="astrodx_shizuku_guide">Shizuku の使い方</string>
+    <string name="astrodx_target_profile">インポート先：%1$s</string>
+    <string name="astrodx_no_profile">先にプロフィールを作成または選択してください。</string>
+    <string name="astrodx_import_description">AstroDX に保存されたスコアをこのプロフィールに取り込みます。</string>
+    <string name="astrodx_import_action">端末の AstroDX セーブをインポート</string>
+    <string name="astrodx_importing">インポート中…</string>
+    <string name="astrodx_complete">インポート完了</string>
+    <string name="astrodx_no_scores">このキャッシュにプレイ済みスコアはありません。</string>
+    <string name="astrodx_result_counts">読込 %1$d 件 · 一致 %2$d 件 · 更新 %3$d 譜面 · スキップ %4$d 件</string>
+    <string name="astrodx_skipped_description">未対応の難易度、不正なスコア、未収録・一意に照合できない譜面はスキップします。創作譜面は公式曲データと一致しない場合があります。</string>
+    <string name="astrodx_error_shizuku">Shizuku が利用できません。インストールまたは更新し、サービスを起動して再試行してください。</string>
+    <string name="astrodx_error_denied">権限が拒否されました。Shizuku のアプリ管理で maimaid を許可し、再試行してください。</string>
+    <string name="astrodx_error_timeout">権限確認または接続がタイムアウトしました。Shizuku を確認して再試行してください。</string>
+    <string name="astrodx_error_missing">AstroDX キャッシュがありません。同じ Android ユーザーで AstroDX を起動し、スコアを保存してください。</string>
+    <string name="astrodx_error_read">キャッシュを読み取れません。Shizuku と AstroDX ファイルへのアクセス権を確認してください。</string>
+    <string name="astrodx_error_size">キャッシュが対応サイズを超えています。</string>
+    <string name="astrodx_error_version">未対応の AstroDX キャッシュです。v3・v4 に対応しています。</string>
+    <string name="astrodx_error_profile">プロフィールが変更されたため書き込みませんでした。目的のプロフィールで再試行してください。</string>
+    <string name="astrodx_error_catalog">先に設定から曲データをダウンロードしてください。</string>
+    <string name="astrodx_error_invalid">キャッシュの読込・解析に失敗しました。AstroDX の選曲画面に戻って保存し、Shizuku を確認して再試行してください。</string>
+    <string name="astrodx_authorize_section">Shizuku の権限を許可</string>
+    <string name="astrodx_authorize_description">Shizuku の確認画面で maimaid を許可してください。</string>
+    <string name="astrodx_authorize_action">maimaid を許可</string>
+    <string name="astrodx_authorizing">Shizuku の許可を待っています…</string>
+    <string name="astrodx_authorized">Shizuku の許可済み</string>
+
+    <string name="astrodx_summary_title">AstroDX からインポート</string>
+
+    <string name="astrodx_summary_description">端末内の AstroDX スコアを現在のプロフィールに取り込みます。</string>
+
+    <string name="astrodx_step_authorize">手順 1 · 許可</string>
+
+    <string name="astrodx_step_import">手順 2 · インポート</string>
+
+    <string name="astrodx_shizuku_what_is">Shizuku とは？</string>
+
+    <string name="otogame_summary_title">Otogame からインポート</string>
+
+    <string name="otogame_summary_description">Otogame の最近のプレイ履歴を現在のプロフィールに取り込みます。</string>
+
+    <string name="otogame_account_section">Otogame アカウント</string>
+
+    <string name="otogame_step_authorize">手順 1 · サインイン</string>
+
+    <string name="otogame_step_import">手順 2 · インポート</string>
+    <string name="import_operating_profile">操作対象：</string>
+    <string name="astrodx_manual_import_action">AstroDX の cache を手動選択</string>
 </resources>

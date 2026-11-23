@@ -41,3 +41,6 @@
 # missing classes cannot fail the release build; drop this once MIUIX ships a release built against
 # material-color-utilities 6.x (upstream main already migrated).
 -dontwarn com.materialkolor.scheme.DynamicScheme**
+
+# Shizuku instantiates this Binder service by name in a privileged process.
+-keep class org.rhythmeta.maimaid.core.astrodx.AstroDxUserService { *; }

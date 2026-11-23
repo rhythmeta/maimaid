@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.core.data.OtogameImportPolicy
 import org.rhythmeta.maimaid.core.data.OtogameProfileUnavailableException
 import org.rhythmeta.maimaid.core.data.OtogameUnauthorizedException
@@ -29,6 +30,8 @@ enum class OtogameImportOutcome {
 }
 
 data class OtogameImportUiState(
+    val profile: UserProfileEntity? = null,
+    val best50Rating: Int = 0,
     val profileName: String? = null,
     val isEligibleProfile: Boolean = false,
     val hasSession: Boolean = false,
@@ -53,6 +56,11 @@ class OtogameImportViewModel(
 
     init {
         viewModelScope.launch {
+            container.best50Repository.observeBest50(b35CountOverride = 35, b15CountOverride = 15).collect { best50 ->
+                mutableState.update { it.copy(best50Rating = best50.total) }
+            }
+        }
+        viewModelScope.launch {
             sessionStore.authorizationHeader.collectLatest { header ->
                 mutableState.update { current ->
                     current.copy(
@@ -72,6 +80,7 @@ class OtogameImportViewModel(
                 previousProfileId = profile?.id
                 mutableState.update { current ->
                     current.copy(
+                        profile = profile,
                         profileName = profile?.name,
                         isEligibleProfile = OtogameImportPolicy.isEligibleServer(profile?.server),
                         outcome = current.outcome.takeUnless { profileChanged },

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -53,6 +54,7 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -73,6 +75,14 @@ fun OtogameImportScreen(
             bottom = 96.dp,
         ),
     ) {
+        item {
+            ImportSummaryCard(
+                icon = Icons.Rounded.AccountCircle,
+                title = stringResource(R.string.otogame_summary_title),
+                summary = stringResource(R.string.otogame_summary_description),
+            )
+        }
+        item { ImportProfileSection(state.profile, state.best50Rating, container.presetAvatarRepository) }
         item {
             OtogameControlPanel(
                 state = state,
@@ -157,14 +167,19 @@ private fun OtogameControlPanel(
     onOpenLogin: () -> Unit,
     onSynchronize: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 16.dp,
-        insideMargin = PaddingValues(16.dp),
-        colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SmallTitle(
+            text = stringResource(R.string.otogame_step_authorize),
+            insideMargin = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            cornerRadius = 16.dp,
+            insideMargin = PaddingValues(16.dp),
+            colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = when {
                         !state.isEligibleProfile -> Icons.Rounded.ErrorOutline
@@ -190,52 +205,59 @@ private fun OtogameControlPanel(
                             },
                         ),
                     )
-                    Text(
-                        text = state.profileName?.let {
-                            stringResource(R.string.otogame_active_profile, it)
-                        } ?: stringResource(R.string.otogame_no_active_profile),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
                 }
-            }
-            Text(
-                text = stringResource(R.string.otogame_import_description),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-            Button(
+                }
+                Button(
                 onClick = onOpenLogin,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = state.isEligibleProfile && !state.isBusy,
-            ) {
-                Icon(
+                ) {
+                    Icon(
                     imageVector = Icons.AutoMirrored.Rounded.Login,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.otogame_open_login))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.otogame_open_login))
+                }
             }
-            Button(
+        }
+        SmallTitle(
+            text = stringResource(R.string.otogame_step_import),
+            insideMargin = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            cornerRadius = 16.dp,
+            insideMargin = PaddingValues(16.dp),
+            colors = CardDefaults.defaultColors(color = MiuixTheme.colorScheme.surfaceContainer),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
                 onClick = onSynchronize,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = state.isEligibleProfile && state.hasSession && !state.isBusy,
                 colors = ButtonDefaults.buttonColorsPrimary(),
-            ) {
-                if (state.isBusy) {
+                ) {
+                    if (state.isBusy) {
                     CircularProgressIndicator(size = 18.dp, strokeWidth = 2.dp)
                 } else {
                     Icon(Icons.Rounded.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(
+                    Spacer(Modifier.width(8.dp))
+                    Text(
                     stringResource(
-                        if (state.isBusy) R.string.otogame_syncing else R.string.otogame_sync_action,
+                        when {
+                            state.isBusy && state.totalPages > 0 -> R.string.otogame_page_progress
+                            state.isBusy -> R.string.otogame_syncing
+                            else -> R.string.otogame_sync_action
+                        },
+                        state.currentPage,
+                        state.totalPages,
                     ),
                 )
-            }
-            if (state.isBusy && state.totalPages > 0) {
+                }
+                if (state.isBusy && state.totalPages > 0) {
                 LinearProgressIndicator(
                     progress = (state.currentPage.toFloat() / state.totalPages.toFloat()).coerceIn(0f, 1f),
                     modifier = Modifier.fillMaxWidth(),
@@ -253,9 +275,16 @@ private fun OtogameControlPanel(
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
+                }
+                OtogameResult(state)
             }
-            OtogameResult(state)
         }
+        Text(
+            text = stringResource(R.string.otogame_import_description),
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
     }
 }
 

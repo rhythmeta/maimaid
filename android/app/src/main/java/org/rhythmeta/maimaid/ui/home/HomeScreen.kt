@@ -87,7 +87,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            ProfileCard(
+            HomeProfileCard(
                 profile = profile,
                 isLoading = !state.isActiveProfileReady,
                 displayRating = displayRating,
@@ -115,12 +115,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun ProfileCard(
+fun HomeProfileCard(
     profile: UserProfileEntity?,
     isLoading: Boolean,
     displayRating: Int,
     presetAvatarRepository: PresetAvatarRepository,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
 ) {
     val surfaceColor = MiuixTheme.colorScheme.surfaceContainer
     Card(

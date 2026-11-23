@@ -118,6 +118,12 @@ fun SettingsScreen(
                         onClick = { onOpenDetail(AppDetail.SgwcmaidImport) },
                     )
                 }
+                SettingsRow(
+                    icon = Icons.Rounded.Download,
+                    title = stringResource(R.string.astrodx_title),
+                    summary = stringResource(R.string.astrodx_settings_summary),
+                    onClick = { onOpenDetail(AppDetail.AstroDxImport) },
+                )
                 if (canImportOtogame) {
                     SettingsRow(
                         icon = Icons.Rounded.History,

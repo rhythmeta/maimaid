@@ -783,4 +783,56 @@
 	<string name="chart_rhythm_label">谱面节奏</string>
 	<string name="chart_previous_measure">上一小节</string>
 	<string name="chart_next_measure">下一小节</string>
+    <string name="astrodx_title">从 AstroDX 导入</string>
+    <string name="astrodx_settings_summary">通过 Shizuku 导入 AstroDX 成绩</string>
+    <string name="astrodx_requires_shizuku">需要 Shizuku</string>
+    <string name="astrodx_shizuku_description">允许后，Shizuku 会让 maimaid 读取 AstroDX。</string>
+    <string name="astrodx_setup">请先安装并启动 Shizuku。点击导入后，在权限弹窗中允许 maimaid。建议游玩后先返回 AstroDX 选曲页面，确保缓存已保存。</string>
+    <string name="astrodx_shizuku_guide">Shizuku 使用指南</string>
+    <string name="astrodx_target_profile">导入到档案：%1$s</string>
+    <string name="astrodx_no_profile">请先创建或选择档案。</string>
+    <string name="astrodx_import_description">将 AstroDX 已保存的成绩导入当前档案。</string>
+    <string name="astrodx_import_action">导入本机 AstroDX 存档</string>
+    <string name="astrodx_importing">正在导入…</string>
+    <string name="astrodx_complete">导入完成</string>
+    <string name="astrodx_no_scores">此缓存中没有已玩成绩。</string>
+    <string name="astrodx_result_counts">读取 %1$d 条 · 匹配 %2$d 条 · 更新 %3$d 张谱面 · 跳过 %4$d 条</string>
+    <string name="astrodx_skipped_description">不支持的难度、无效成绩、曲库中不存在或无法唯一匹配的谱面会跳过。自制谱可能无法对应官方曲库。</string>
+    <string name="astrodx_error_shizuku">Shizuku 未运行或版本过旧。请安装或更新并启动服务后重试。</string>
+    <string name="astrodx_error_denied">未获得 Shizuku 权限。请在 Shizuku 的应用授权管理中允许 maimaid 后重试。</string>
+    <string name="astrodx_error_timeout">授权或服务连接超时，请检查 Shizuku 后重试。</string>
+    <string name="astrodx_error_missing">未找到 AstroDX 缓存。请确认当前 Android 用户已安装并运行 AstroDX，且已保存成绩。</string>
+    <string name="astrodx_error_read">无法读取缓存，请检查 Shizuku 状态及 AstroDX 文件访问权限。</string>
+    <string name="astrodx_error_size">缓存大小超出支持范围。</string>
+    <string name="astrodx_error_version">暂不支持此 AstroDX 缓存版本，目前支持 v3 和 v4。</string>
+    <string name="astrodx_error_profile">当前档案已切换，本次未写入成绩。请在目标档案中重新导入。</string>
+    <string name="astrodx_error_catalog">请先在设置中下载曲库数据。</string>
+    <string name="astrodx_error_invalid">无法读取或解析缓存。请返回 AstroDX 选曲页面保存缓存，检查 Shizuku 后重试。</string>
+    <string name="astrodx_authorize_section">授权 Shizuku</string>
+    <string name="astrodx_authorize_description">请在 Shizuku 弹窗中允许 maimaid。</string>
+    <string name="astrodx_authorize_action">授权 maimaid</string>
+    <string name="astrodx_authorizing">等待 Shizuku 授权…</string>
+    <string name="astrodx_authorized">Shizuku 已授权</string>
+
+    <string name="astrodx_summary_title">从 AstroDX 导入</string>
+
+    <string name="astrodx_summary_description">将本机 AstroDX 成绩导入当前档案。</string>
+
+    <string name="astrodx_step_authorize">步骤 1 · 授权</string>
+
+    <string name="astrodx_step_import">步骤 2 · 导入</string>
+
+    <string name="astrodx_shizuku_what_is">什么是 Shizuku？</string>
+
+    <string name="otogame_summary_title">从 Otogame 导入</string>
+
+    <string name="otogame_summary_description">将 Otogame 的近期游玩记录导入当前档案。</string>
+
+    <string name="otogame_account_section">Otogame 账号</string>
+
+    <string name="otogame_step_authorize">步骤 1 · 授权</string>
+
+    <string name="otogame_step_import">步骤 2 · 导入</string>
+    <string name="import_operating_profile">你正在操作：</string>
+    <string name="astrodx_manual_import_action">手动选择 AstroDX 存档 cache</string>
 </resources>

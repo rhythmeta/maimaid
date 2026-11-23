@@ -34,6 +34,7 @@ enum class ScoreImportResult {
 
 data class ScoreImportUiState(
     val profile: UserProfileEntity? = null,
+    val best50Rating: Int = 0,
     val divingFishConnected: Boolean = false,
     val divingFishCanWrite: Boolean = false,
     val userCode: String = "",
@@ -71,6 +72,11 @@ class ScoreImportViewModel(private val container: AppContainer) : ViewModel() {
     private var generation = 0
 
     init {
+        viewModelScope.launch {
+            container.best50Repository.observeBest50(b35CountOverride = 35, b15CountOverride = 15).collect { best50 ->
+                mutableState.update { it.copy(best50Rating = best50.total) }
+            }
+        }
         viewModelScope.launch {
             container.profileRepository.activeProfile.collect { profile ->
                 if (profile?.id != mutableState.value.profile?.id) {

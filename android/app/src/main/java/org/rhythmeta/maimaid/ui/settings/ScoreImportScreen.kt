@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,8 +31,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -39,8 +45,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.PresetAvatarRepository
+import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.common.openInAppBrowser
 import org.rhythmeta.maimaid.ui.components.appTextFieldColors
+import org.rhythmeta.maimaid.ui.components.SquircleExtension
+import org.rhythmeta.maimaid.ui.components.rememberProfileAvatarModel
+import org.rhythmeta.maimaid.ui.home.HomeProfileCard
+import coil.compose.AsyncImage
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -51,6 +63,8 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.squircle.squircleBorder
+import top.yukonga.miuix.kmp.squircle.squircleSurface
 import top.yukonga.miuix.kmp.preference.WindowDropdownPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -80,6 +94,7 @@ fun SgwcmaidImportScreen(
                 summary = stringResource(R.string.import_sgwcmaid_summary_description),
             )
         }
+        item { ImportProfileSection(state.profile, state.best50Rating, container.presetAvatarRepository) }
         state.sgwcmaidBinding?.let { binding ->
             item {
                 Column {
@@ -217,13 +232,9 @@ fun DivingFishImportScreen(
                 ),
             )
         }
+        item { ImportProfileSection(state.profile, state.best50Rating, container.presetAvatarRepository) }
         item {
             ImportSection(stringResource(R.string.import_df_oauth_section)) {
-                Text(
-                    text = stringResource(R.string.import_df_oauth_description),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
                 if (state.userCode.isNotBlank()) {
                     Text(state.userCode, style = MiuixTheme.textStyles.title3)
                 }
@@ -272,6 +283,14 @@ fun DivingFishImportScreen(
                 }
             }
         }
+        item {
+            Text(
+                text = stringResource(R.string.import_df_oauth_description),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
         importStatusItem(state)
     }
 }
@@ -302,6 +321,7 @@ fun LxnsImportScreen(
                 ),
             )
         }
+        item { ImportProfileSection(state.profile, state.best50Rating, container.presetAvatarRepository) }
         if (state.hasLxnsAccount) {
             item {
                 ImportSection(stringResource(R.string.import_lxns_account_section)) {
@@ -344,12 +364,15 @@ fun LxnsImportScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.import_lxns_open_browser))
                     }
-                    Text(
-                        text = stringResource(R.string.import_lxns_authorize_description),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
                 }
+            }
+            item {
+                Text(
+                    text = stringResource(R.string.import_lxns_authorize_description),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
             item {
                 ImportSection(stringResource(R.string.import_lxns_code_section)) {
@@ -397,7 +420,23 @@ private fun ScoreImportPage(
 }
 
 @Composable
-private fun ImportSummaryCard(
+fun ImportProfileSection(profile: UserProfileEntity?, best50Rating: Int, presetAvatarRepository: PresetAvatarRepository) {
+    Column {
+        SmallTitle(
+            text = stringResource(R.string.import_operating_profile),
+            insideMargin = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+        )
+        HomeProfileCard(
+            profile = profile,
+            isLoading = false,
+            displayRating = maxOf(best50Rating, profile?.playerRating ?: 0),
+            presetAvatarRepository = presetAvatarRepository,
+        )
+    }
+}
+
+@Composable
+fun ImportSummaryCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     summary: String,

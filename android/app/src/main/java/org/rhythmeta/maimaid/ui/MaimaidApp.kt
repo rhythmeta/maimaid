@@ -1460,6 +1460,9 @@ fun MaimaidApp(
             entry<AppRoute.SgwcmaidImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.SgwcmaidImport)
             }
+            entry<AppRoute.AstroDxImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
+                DetailEntry(AppDetail.AstroDxImport)
+            }
             entry<AppRoute.OtogameImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.OtogameImport)
             }
@@ -1668,6 +1671,7 @@ private fun detailTitle(detail: AppDetail): String = when (detail) {
     AppDetail.DivingFishImport -> stringResource(R.string.detail_diving_fish)
     AppDetail.LxnsImport -> stringResource(R.string.detail_lxns)
     AppDetail.SgwcmaidImport -> stringResource(R.string.detail_sgwcmaid)
+    AppDetail.AstroDxImport -> stringResource(R.string.astrodx_title)
     AppDetail.OtogameImport -> stringResource(R.string.detail_otogame)
     AppDetail.OtogameLogin -> stringResource(R.string.detail_otogame_login)
     AppDetail.Appearance -> stringResource(R.string.detail_appearance)

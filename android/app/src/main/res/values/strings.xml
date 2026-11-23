@@ -811,4 +811,56 @@
 	<string name="chart_rhythm_label">Chart rhythm</string>
 	<string name="chart_previous_measure">Previous measure</string>
 	<string name="chart_next_measure">Next measure</string>
+    <string name="astrodx_title">Import from AstroDX</string>
+    <string name="astrodx_settings_summary">Import AstroDX scores with Shizuku</string>
+    <string name="astrodx_requires_shizuku">Shizuku required</string>
+    <string name="astrodx_shizuku_description">Shizuku lets maimaid access AstroDX after you allow it.</string>
+    <string name="astrodx_setup">Install and start Shizuku first. Then tap Import and allow maimaid in the permission prompt. Return to the AstroDX song list after playing so its cache is saved.</string>
+    <string name="astrodx_shizuku_guide">Shizuku setup guide</string>
+    <string name="astrodx_target_profile">Import into: %1$s</string>
+    <string name="astrodx_no_profile">Create or select a profile first.</string>
+    <string name="astrodx_import_description">Import saved AstroDX scores into this profile.</string>
+    <string name="astrodx_import_action">Import local AstroDX save</string>
+    <string name="astrodx_importing">Importing…</string>
+    <string name="astrodx_complete">Import complete</string>
+    <string name="astrodx_no_scores">No played scores in this cache.</string>
+    <string name="astrodx_result_counts">Read %1$d · Matched %2$d · Updated %3$d · Skipped %4$d</string>
+    <string name="astrodx_skipped_description">Unsupported difficulties, invalid scores, missing charts and ambiguous matches are skipped. Custom charts may not match the official catalog.</string>
+    <string name="astrodx_error_shizuku">Shizuku is unavailable. Install or update it, start its service, then try again.</string>
+    <string name="astrodx_error_denied">Permission denied. Allow maimaid in Shizuku authorized apps, then try again.</string>
+    <string name="astrodx_error_timeout">Authorization or service connection timed out. Check Shizuku and try again.</string>
+    <string name="astrodx_error_missing">AstroDX cache not found. Open AstroDX on this Android user and save a play first.</string>
+    <string name="astrodx_error_read">Cannot read the cache. Check Shizuku and the AstroDX file access.</string>
+    <string name="astrodx_error_size">Cache exceeds the supported size.</string>
+    <string name="astrodx_error_version">Unsupported AstroDX cache version. Supports v3 and v4.</string>
+    <string name="astrodx_error_profile">Active profile changed. Nothing was imported. Try again in the desired profile.</string>
+    <string name="astrodx_error_catalog">Download the song catalog in Settings first.</string>
+    <string name="astrodx_error_invalid">Could not read or decode the cache. Return to the AstroDX song list to save it, check Shizuku, then retry.</string>
+    <string name="astrodx_authorize_section">Authorize Shizuku access</string>
+    <string name="astrodx_authorize_description">Allow maimaid in the Shizuku prompt.</string>
+    <string name="astrodx_authorize_action">Authorize maimaid</string>
+    <string name="astrodx_authorizing">Waiting for Shizuku…</string>
+    <string name="astrodx_authorized">Shizuku authorized</string>
+
+    <string name="astrodx_summary_title">Import from AstroDX</string>
+
+    <string name="astrodx_summary_description">Import local AstroDX scores into the active profile.</string>
+
+    <string name="astrodx_step_authorize">Step 1 · Authorize</string>
+
+    <string name="astrodx_step_import">Step 2 · Import</string>
+
+    <string name="astrodx_shizuku_what_is">What is Shizuku?</string>
+
+    <string name="otogame_summary_title">Import from Otogame</string>
+
+    <string name="otogame_summary_description">Import recent Otogame play history into the active profile.</string>
+
+    <string name="otogame_account_section">Otogame account</string>
+
+    <string name="otogame_step_authorize">Step 1 · Authorize</string>
+
+    <string name="otogame_step_import">Step 2 · Import</string>
+    <string name="import_operating_profile">You are operating on</string>
+    <string name="astrodx_manual_import_action">Choose AstroDX cache manually</string>
 </resources>
