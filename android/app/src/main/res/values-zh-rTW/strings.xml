@@ -528,6 +528,11 @@
 	<string name="community_alias_cancel_support">取消支持 %1$d</string>
 	<string name="community_alias_cancel_oppose">取消反對 %1$d</string>
 	<string name="community_alias_vote_updated">投票已更新</string>
+	<string name="community_alias_confirm_approval">直接通過這個別名？</string>
+	<string name="community_alias_confirm_rejection">直接拒絕這個別名？</string>
+	<string name="community_alias_set_approved">設為通過</string>
+	<string name="community_alias_set_rejected">設為拒絕</string>
+	<string name="community_alias_moderation_failed">候選狀態更新失敗</string>
 	<string name="community_alias_vote_failed">投票更新失敗</string>
 	<string name="community_alias_daily_quota">今日已投稿：%1$d/%2$d</string>
 	<string name="community_alias_submit_placeholder">輸入新別名</string>

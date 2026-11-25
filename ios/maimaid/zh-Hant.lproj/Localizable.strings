@@ -665,6 +665,10 @@
 "community.alias.vote.cancelOppose %lld" = "取消反對 %lld";
 "community.alias.board.tip.loginRequired" = "請先登入再投票";
 "community.alias.board.tip.voteFailedFallback" = "投票失敗，請稍後重試";
+"community.alias.board.confirmApproval" = "直接通過這個別名？";
+"community.alias.board.confirmRejection" = "直接拒絕這個別名？";
+"community.alias.board.setApproved" = "設為通過";
+"community.alias.board.setRejected" = "設為拒絕";
 "community.alias.board.tip.voteUpdated" = "投票已更新";
 "community.alias.service.vote.sessionInvalid" = "登入狀態無效，請重新登入後再投票。";
 "song.detail.tolerance.limit" = "上限";

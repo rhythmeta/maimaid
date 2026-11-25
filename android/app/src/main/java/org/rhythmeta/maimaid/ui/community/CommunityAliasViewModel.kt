@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.CommunityAliasModeration
 import org.rhythmeta.maimaid.core.data.CommunityAliasApprovedItem
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 
@@ -24,6 +25,7 @@ data class CommunityAliasBoardUiState(
     val isApprovedLoading: Boolean = true,
     val inFlightCandidateId: String? = null,
     val message: String? = null,
+    val moderationError: String? = null,
 )
 
 class CommunityAliasBoardViewModel(
@@ -36,6 +38,8 @@ class CommunityAliasBoardViewModel(
         ),
     )
     val state = mutableState.asStateFlow()
+
+    private var boardRevision = 0
 
     init {
         refresh()
@@ -88,9 +92,10 @@ class CommunityAliasBoardViewModel(
                 mutableState.update { it.copy(isLoading = false, items = emptyList()) }
                 return@launch
             }
+            val revision = boardRevision
             runCatching { service.fetchVotingBoard() }
                 .onSuccess { items ->
-                    mutableState.update { it.copy(isLoading = false, items = items) }
+                    mutableState.update { it.copy(isLoading = false, items = if (revision == boardRevision) items else it.items) }
                 }
                 .onFailure { error ->
                     mutableState.update {
@@ -139,8 +144,31 @@ class CommunityAliasBoardViewModel(
         }
     }
 
+    fun moderate(candidateId: String, decision: CommunityAliasModeration) {
+        if (container.backendSessionManager.state.value.user?.isAdmin != true ||
+            mutableState.value.inFlightCandidateId != null
+        ) return
+        viewModelScope.launch {
+            mutableState.update { it.copy(inFlightCandidateId = candidateId, moderationError = null) }
+            try {
+                container.communityAliasService.moderate(candidateId, decision)
+                boardRevision++
+                mutableState.update { current ->
+                    current.copy(items = current.items.filterNot { it.candidateId == candidateId })
+                }
+                refresh(force = true)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                mutableState.update { it.copy(moderationError = error.localizedMessage.orEmpty()) }
+            } finally {
+                mutableState.update { it.copy(inFlightCandidateId = null) }
+            }
+        }
+    }
+
     fun consumeMessage() {
-        mutableState.update { it.copy(message = null) }
+        mutableState.update { it.copy(message = null, moderationError = null) }
     }
 
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {

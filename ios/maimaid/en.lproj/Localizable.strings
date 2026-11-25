@@ -665,6 +665,10 @@
 "community.alias.vote.cancelOppose %lld" = "Unvote oppose %lld";
 "community.alias.board.tip.loginRequired" = "Please sign in before voting.";
 "community.alias.board.tip.voteFailedFallback" = "Vote failed. Please try again later.";
+"community.alias.board.confirmApproval" = "Approve this alias directly?";
+"community.alias.board.confirmRejection" = "Reject this alias directly?";
+"community.alias.board.setApproved" = "Mark as approved";
+"community.alias.board.setRejected" = "Mark as rejected";
 "community.alias.board.tip.voteUpdated" = "Vote updated.";
 "community.alias.service.vote.sessionInvalid" = "Login session is invalid. Please sign in again before voting.";
 "song.detail.tolerance.limit" = "Max";

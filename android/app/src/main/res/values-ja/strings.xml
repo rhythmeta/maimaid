@@ -529,6 +529,11 @@
 	<string name="community_alias_cancel_support">賛成を取り消す %1$d</string>
 	<string name="community_alias_cancel_oppose">反対を取り消す %1$d</string>
 	<string name="community_alias_vote_updated">投票を更新しました</string>
+	<string name="community_alias_confirm_approval">この別名を直接承認しますか？</string>
+	<string name="community_alias_confirm_rejection">この別名を直接却下しますか？</string>
+	<string name="community_alias_set_approved">承認する</string>
+	<string name="community_alias_set_rejected">却下する</string>
+	<string name="community_alias_moderation_failed">候補の状態を更新できませんでした</string>
 	<string name="community_alias_vote_failed">投票を更新できませんでした</string>
 	<string name="community_alias_daily_quota">本日の投稿：%1$d/%2$d</string>
 	<string name="community_alias_submit_placeholder">新しい別名を入力</string>

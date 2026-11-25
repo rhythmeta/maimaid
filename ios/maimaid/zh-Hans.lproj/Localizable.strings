@@ -661,6 +661,10 @@
 "community.alias.vote.cancelOppose %lld" = "取消反对 %lld";
 "community.alias.board.tip.loginRequired" = "请先登录再投票";
 "community.alias.board.tip.voteFailedFallback" = "投票失败，请稍后重试";
+"community.alias.board.confirmApproval" = "直接通过这个别名？";
+"community.alias.board.confirmRejection" = "直接拒绝这个别名？";
+"community.alias.board.setApproved" = "设为通过";
+"community.alias.board.setRejected" = "设为拒绝";
 "community.alias.board.tip.voteUpdated" = "投票已更新";
 "community.alias.service.vote.sessionInvalid" = "登录状态无效，请重新登录后再投票。";
 "song.detail.tolerance.limit" = "上限";

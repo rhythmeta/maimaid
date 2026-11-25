@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// One candidate on the voting board: its alias, the vote deadline and the two vote buttons.
 struct CommunityAliasCandidateRow: View {
     let item: CommunityAliasVotingBoardItem
-    let isVoting: Bool
+    let isUpdating: Bool
+    let isAdmin: Bool
+    let onModerate: (CommunityAliasModeration) -> Void
     let onVote: (Bool) -> Void
 
     private struct VotePresentation {
@@ -31,18 +32,20 @@ struct CommunityAliasCandidateRow: View {
                 voteButton(support: false)
                 Spacer()
             }
+
         }
         .padding(.vertical, 6)
     }
 
+    @ViewBuilder
     private func voteButton(support: Bool) -> some View {
         let presentation = votePresentation(support: support)
 
-        return Button {
+        let button = Button {
             onVote(support)
         } label: {
             HStack(spacing: 6) {
-                if isVoting {
+                if isUpdating {
                     ProgressView()
                         .controlSize(.mini)
                 }
@@ -62,8 +65,17 @@ struct CommunityAliasCandidateRow: View {
                     .strokeBorder(presentation.accentColor.opacity(0.35), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
-        .disabled(isVoting)
+        if isAdmin {
+            button
+                .buttonStyle(CommunityAliasReviewButtonStyle(
+                    decision: support ? .approved : .rejected,
+                    alias: item.aliasText,
+                    onModerate: onModerate
+                ))
+                .disabled(isUpdating)
+        } else {
+            button.buttonStyle(.plain).disabled(isUpdating)
+        }
     }
 
     private func votePresentation(support: Bool) -> VotePresentation {

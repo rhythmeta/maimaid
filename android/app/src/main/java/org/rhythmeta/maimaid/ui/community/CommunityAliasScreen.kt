@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +50,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import org.rhythmeta.maimaid.R
 import org.rhythmeta.maimaid.core.AppContainer
+import org.rhythmeta.maimaid.core.data.CommunityAliasModeration
 import org.rhythmeta.maimaid.core.data.CommunityAliasApprovedItem
 import org.rhythmeta.maimaid.core.data.CommunityAliasVotingBoardItem
 import org.rhythmeta.maimaid.core.database.SongEntity
@@ -70,6 +73,7 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.squircle.squircleSurface
+import top.yukonga.miuix.kmp.window.WindowDialog
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -85,6 +89,7 @@ internal fun CommunityAliasScreen(
         factory = CommunityAliasBoardViewModel.Factory(container),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val session by container.backendSessionManager.state.collectAsStateWithLifecycle()
     val songsById = remember(songs) { songs.associateBy(SongEntity::songIdentifier) }
     val candidateGroups = remember(state.items, songsById) {
         state.items
@@ -126,13 +131,16 @@ internal fun CommunityAliasScreen(
     }
     val voteUpdated = stringResource(R.string.community_alias_vote_updated)
     val voteFailed = stringResource(R.string.community_alias_vote_failed)
-    val snackbar = state.message
+    val moderationFailed = stringResource(R.string.community_alias_moderation_failed)
+    val snackbar = state.moderationError?.let { detail ->
+        if (detail.isBlank()) moderationFailed else "$moderationFailed: $detail"
+    } ?: state.message?.let { if (it.isBlank()) voteUpdated else "$voteFailed: $it" }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(snackbar) {
         if (snackbar != null) {
             snackbarHostState.showSnackbar(
-                message = if (snackbar.isBlank()) voteUpdated else "$voteFailed: $snackbar",
+                message = snackbar,
                 duration = SnackbarDuration.Short,
             )
             viewModel.consumeMessage()
@@ -180,6 +188,8 @@ internal fun CommunityAliasScreen(
                             onOpenSong = onOpenSong,
                             onCheckSession = viewModel::checkSession,
                             onVote = viewModel::vote,
+                            isAdmin = session.user?.isAdmin == true,
+                            onModerate = viewModel::moderate,
                         )
                     }
                 }
@@ -238,6 +248,8 @@ private fun LazyListScope.candidateBoard(
     onOpenSong: (String) -> Unit,
     onCheckSession: () -> Unit,
     onVote: (String, Boolean) -> Unit,
+    isAdmin: Boolean,
+    onModerate: (String, CommunityAliasModeration) -> Unit,
 ) {
     when {
         !state.isConfigured -> item("unconfigured") {
@@ -280,7 +292,10 @@ private fun LazyListScope.candidateBoard(
             ) { item ->
                 CommunityAliasCandidateCard(
                     item = item,
-                    isVoting = state.inFlightCandidateId == item.candidateId,
+                    isUpdating = state.inFlightCandidateId == item.candidateId,
+                    enabled = state.inFlightCandidateId == null,
+                    isAdmin = isAdmin,
+                    onModerate = { decision -> onModerate(item.candidateId, decision) },
                     onVote = { support -> onVote(item.candidateId, support) },
                 )
             }
@@ -471,11 +486,18 @@ private fun CommunityAliasSongHeader(
 }
 
 @Composable
-private fun CommunityAliasCandidateCard(
+internal fun CommunityAliasCandidateCard(
     item: CommunityAliasVotingBoardItem,
-    isVoting: Boolean,
+    isUpdating: Boolean,
+    enabled: Boolean,
+    isAdmin: Boolean,
+    onModerate: (CommunityAliasModeration) -> Unit,
     onVote: (Boolean) -> Unit,
 ) {
+    var pending by remember(item.candidateId, isAdmin, enabled) {
+        mutableStateOf<CommunityAliasModeration?>(null)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = 14.dp,
@@ -501,17 +523,47 @@ private fun CommunityAliasCandidateCard(
                     support = true,
                     count = item.supportCount,
                     selected = item.myVote == 1,
-                    enabled = !isVoting,
+                    enabled = enabled,
                     onClick = { onVote(true) },
+                    onLongPress = if (isAdmin) ({ pending = CommunityAliasModeration.Approved }) else null,
                 )
                 CommunityVoteButton(
                     support = false,
                     count = item.opposeCount,
                     selected = item.myVote == -1,
-                    enabled = !isVoting,
+                    enabled = enabled,
                     onClick = { onVote(false) },
+                    onLongPress = if (isAdmin) ({ pending = CommunityAliasModeration.Rejected }) else null,
                 )
-                if (isVoting) CircularProgressIndicator(size = 24.dp, strokeWidth = 2.dp)
+                if (isUpdating) CircularProgressIndicator(size = 24.dp, strokeWidth = 2.dp)
+            }
+        }
+    }
+
+    pending?.let { decision ->
+        val approve = decision == CommunityAliasModeration.Approved
+        WindowDialog(
+            show = true,
+            title = stringResource(
+                if (approve) R.string.community_alias_confirm_approval else R.string.community_alias_confirm_rejection,
+            ),
+            summary = item.aliasText,
+            onDismissRequest = { pending = null },
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = { pending = null }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+                Button(
+                    onClick = {
+                        pending = null
+                        onModerate(decision)
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColorsPrimary(),
+                ) {
+                    Text(stringResource(if (approve) R.string.community_alias_set_approved else R.string.community_alias_set_rejected))
+                }
             }
         }
     }
@@ -524,33 +576,48 @@ private fun CommunityVoteButton(
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
+    onLongPress: (() -> Unit)?,
 ) {
     val accent = if (support) Color(0xFF36A65C) else Color(0xFFD65C5C)
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            color = if (selected) accent else accent.copy(alpha = 0.12f),
-            contentColor = if (selected) Color.White else accent,
+    val colors = ButtonDefaults.buttonColors(
+        color = if (selected) accent else accent.copy(alpha = 0.12f),
+        contentColor = if (selected) Color.White else accent,
+    )
+    Card(
+        onClick = onClick.takeIf { enabled },
+        onLongPress = onLongPress.takeIf { enabled },
+        cornerRadius = ButtonDefaults.CornerRadius,
+        colors = CardDefaults.defaultColors(
+            color = if (enabled) colors.color else colors.disabledColor,
+            contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
         ),
-        insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        showIndication = true,
+        insideMargin = PaddingValues(0.dp),
     ) {
-        Icon(
-            imageVector = if (support) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbDown,
-            contentDescription = null,
-            modifier = Modifier.size(17.dp),
-        )
-        Spacer(Modifier.width(5.dp))
-        Text(
-            stringResource(
-                if (selected) {
-                    if (support) R.string.community_alias_cancel_support else R.string.community_alias_cancel_oppose
-                } else {
-                    if (support) R.string.community_alias_support else R.string.community_alias_oppose
-                },
-                count,
-            ),
-        )
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minWidth = ButtonDefaults.MinWidth, minHeight = ButtonDefaults.MinHeight)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = if (support) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbDown,
+                contentDescription = null,
+                modifier = Modifier.size(17.dp),
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                stringResource(
+                    if (selected) {
+                        if (support) R.string.community_alias_cancel_support else R.string.community_alias_cancel_oppose
+                    } else {
+                        if (support) R.string.community_alias_support else R.string.community_alias_oppose
+                    },
+                    count,
+                ),
+            )
+        }
     }
 }
 

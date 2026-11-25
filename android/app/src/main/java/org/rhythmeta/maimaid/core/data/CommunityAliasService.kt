@@ -150,6 +150,16 @@ class CommunityAliasService(
         }
     }
 
+    suspend fun moderate(candidateId: String, decision: CommunityAliasModeration) {
+        check(sessionManager.state.value.user?.isAdmin == true)
+        val encodedId = URLEncoder.encode(candidateId, Charsets.UTF_8.name())
+        sessionManager.authorizedRequest(
+            path = "maimaid/v1/admin/candidates/$encodedId:setStatus",
+            method = "POST",
+            body = buildJsonObject { put("status", decision.status) },
+        )
+    }
+
     suspend fun vote(candidateId: String, support: Boolean): CommunityAliasVoteResult {
         val encodedId = withContext(Dispatchers.IO) {
 					URLEncoder.encode(candidateId, Charsets.UTF_8.name())

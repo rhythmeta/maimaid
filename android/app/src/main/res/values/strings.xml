@@ -549,6 +549,11 @@
 	<string name="community_alias_cancel_support">Cancel support %1$d</string>
 	<string name="community_alias_cancel_oppose">Cancel oppose %1$d</string>
 	<string name="community_alias_vote_updated">Vote updated</string>
+	<string name="community_alias_confirm_approval">Approve this alias directly?</string>
+	<string name="community_alias_confirm_rejection">Reject this alias directly?</string>
+	<string name="community_alias_set_approved">Mark as approved</string>
+	<string name="community_alias_set_rejected">Mark as rejected</string>
+	<string name="community_alias_moderation_failed">Unable to update candidate status</string>
 	<string name="community_alias_vote_failed">Unable to update vote</string>
 	<string name="community_alias_daily_quota">Submitted today: %1$d/%2$d</string>
 	<string name="community_alias_submit_placeholder">Enter a new alias</string>

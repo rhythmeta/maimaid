@@ -665,6 +665,10 @@
 "community.alias.vote.cancelOppose %lld" = "反対を取り消す %lld";
 "community.alias.board.tip.loginRequired" = "投票するには先にログインしてください";
 "community.alias.board.tip.voteFailedFallback" = "投票に失敗しました。しばらくして再試行してください。";
+"community.alias.board.confirmApproval" = "この別名を直接承認しますか？";
+"community.alias.board.confirmRejection" = "この別名を直接却下しますか？";
+"community.alias.board.setApproved" = "承認する";
+"community.alias.board.setRejected" = "却下する";
 "community.alias.board.tip.voteUpdated" = "投票を更新しました";
 "community.alias.service.vote.sessionInvalid" = "ログイン状態が無効です。再ログインしてから投票してください。";
 "song.detail.tolerance.limit" = "上限";

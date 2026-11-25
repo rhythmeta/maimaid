@@ -7,6 +7,7 @@ struct CommunityAliasVotingBoardView: View {
         case approved
     }
 
+    @Environment(\.modelContext) private var modelContext
     @Query private var songs: [Song]
 
     private let service = CommunityAliasService.shared
@@ -17,7 +18,8 @@ struct CommunityAliasVotingBoardView: View {
     @State private var myCandidateIds: Set<String> = []
     @State private var isLoading = false
     @State private var isApprovedLoading = false
-    @State private var inFlightVoteCandidateId: String?
+    @State private var updatingCandidateIds: Set<String> = []
+    @State private var boardRevision = 0
     @State private var tipMessage: String?
     @State private var tipDismissTask: Task<Void, Never>?
 
@@ -155,7 +157,11 @@ struct CommunityAliasVotingBoardView: View {
                     ForEach(group.items) { item in
                         CommunityAliasCandidateRow(
                             item: item,
-                            isVoting: inFlightVoteCandidateId == item.id
+                            isUpdating: updatingCandidateIds.contains(item.id),
+                            isAdmin: backendSessionManager.currentUser?.isAdmin == true,
+                            onModerate: { status in
+                                Task { await moderate(candidateId: item.id, status: status) }
+                            }
                         ) { support in
                             Task {
                                 await submitVote(candidateId: item.id, support: support)
@@ -292,7 +298,9 @@ struct CommunityAliasVotingBoardView: View {
         }
 
         isLoading = true
-        items = await service.fetchVotingBoard(limit: 150)
+        let revision = boardRevision
+        let rows = await service.fetchVotingBoard(limit: 150)
+        if revision == boardRevision { items = rows }
         isLoading = false
     }
 
@@ -302,8 +310,8 @@ struct CommunityAliasVotingBoardView: View {
             return
         }
 
-        inFlightVoteCandidateId = candidateId
-        defer { inFlightVoteCandidateId = nil }
+        guard updatingCandidateIds.insert(candidateId).inserted else { return }
+        defer { updatingCandidateIds.remove(candidateId) }
 
         guard let result = await service.vote(candidateId: candidateId, support: support) else {
             showTip(service.lastVoteErrorMessage ?? String(localized: "community.alias.board.tip.voteFailedFallback"))
@@ -327,6 +335,21 @@ struct CommunityAliasVotingBoardView: View {
         }
 
         showTip(String(localized: "community.alias.board.tip.voteUpdated"))
+    }
+
+    private func moderate(candidateId: String, status: CommunityAliasModeration) async {
+        guard updatingCandidateIds.insert(candidateId).inserted else { return }
+        defer { updatingCandidateIds.remove(candidateId) }
+        do {
+            try await service.moderate(candidateId: candidateId, status: status)
+            boardRevision += 1
+            items.removeAll { $0.id == candidateId }
+            if mode == .approved { await reloadApproved() }
+            await service.syncApprovedAliasesIntoSongs(modelContext: modelContext)
+            await service.syncMyAliases()
+        } catch {
+            showTip(error.localizedDescription)
+        }
     }
 
     private func showTip(_ message: String) {

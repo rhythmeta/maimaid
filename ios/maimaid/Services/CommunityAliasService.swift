@@ -330,6 +330,25 @@ final class CommunityAliasService {
         }
     }
 
+    func moderate(candidateId: String, status: CommunityAliasModeration) async throws {
+        guard isAuthenticated, BackendSessionManager.shared.currentUser?.isAdmin == true else {
+            throw BackendAPIError.unauthorized
+        }
+
+        let id = Self.encodedCandidateId(candidateId)
+        struct Response: Decodable {
+            let candidate: CommunityAliasSubmitCandidate
+        }
+        let response: Response = try await BackendAPIClient.request(
+            path: "maimaid/v1/admin/candidates/\(id):setStatus",
+            body: ["status": status],
+            authentication: .required
+        )
+        guard response.candidate.id == id, response.candidate.status == status.rawValue else {
+            throw BackendAPIError.badResponse
+        }
+    }
+
     /// Candidate IDs are opaque server text: UUIDs for new submissions, legacy numeric IDs otherwise.
     /// The backend stores new UUIDs lowercase, so preserve that form when building the vote route.
     private static func encodedCandidateId(_ candidateId: String) -> String {

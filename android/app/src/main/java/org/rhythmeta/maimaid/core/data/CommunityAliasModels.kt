@@ -4,6 +4,11 @@ import java.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+enum class CommunityAliasModeration(val status: String) {
+    Approved("approved"),
+    Rejected("rejected"),
+}
+
 @Serializable
 enum class CommunityAliasSubmitStatus {
     @SerialName("created")
