@@ -18,11 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import org.rhythmeta.maimaid.core.data.ScoreRules
 import org.rhythmeta.maimaid.ui.catalog.SongJacket
 import org.rhythmeta.maimaid.ui.catalog.SongCardTransitionContent
 import org.rhythmeta.maimaid.ui.catalog.CoverGridPage
+import org.rhythmeta.maimaid.ui.catalog.CatalogPhotoGridState
 import org.rhythmeta.maimaid.ui.catalog.rememberCatalogPhotoGridState
 import org.rhythmeta.maimaid.ui.catalog.rememberSongCoverNavigation
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
@@ -77,28 +81,52 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 internal fun ScoreQueryScreen(
     container: AppContainer,
     viewModel: ScoreQueryViewModel,
+    searchExpanded: Boolean,
     contentTopPadding: Dp,
     showFilterDialog: Boolean,
     onDismissFilter: () -> Unit,
     onOpenSong: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val gridState = rememberCatalogPhotoGridState(CoverGridPage.ScoreQuery)
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val browsingGridState = rememberCatalogPhotoGridState(CoverGridPage.ScoreQuery)
+    val searchGridState = rememberSaveable(saver = CatalogPhotoGridState.Saver) { CatalogPhotoGridState() }
+    val browsingListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
+    val gridState = if (searchExpanded) searchGridState else browsingGridState
+    val listState = if (searchExpanded) searchListState else browsingListState
+    val entries = if (searchExpanded) state.entries else state.browsingEntries
+    LaunchedEffect(searchExpanded) {
+        if (searchExpanded) searchGridState.zoom = browsingGridState.zoom
+    }
+    LaunchedEffect(searchExpanded, state.searchText) {
+        if (searchExpanded) {
+            searchListState.requestScrollToItem(0)
+            searchGridState.requestScrollToItem(0)
+        }
+    }
+
+    // Only display the current query's results, never the unfiltered or previous result.
+    if (searchExpanded && (query.isBlank() || state.searchText != query)) return
 
     when {
         state.isLoading -> ScoreQueryLoading(contentTopPadding)
         state.displayMode == ScoreQueryDisplayMode.Grid -> ScoreQueryGrid(
-            entries = state.entries,
+            entries = entries,
             stats = state.stats,
             container = container,
             gridState = gridState,
+            listState = listState,
+            showStats = !searchExpanded,
             contentTopPadding = contentTopPadding,
             onOpenSong = onOpenSong,
         )
         else -> ScoreQueryList(
-            entries = state.entries,
+            entries = entries,
             stats = state.stats,
             container = container,
+            listState = listState,
+            showStats = !searchExpanded,
             contentTopPadding = contentTopPadding,
             onOpenSong = onOpenSong,
         )
@@ -117,12 +145,14 @@ private fun ScoreQueryGrid(
     entries: List<ScoreQueryEntry>,
     stats: ScoreQueryStats,
     container: AppContainer,
-    gridState: org.rhythmeta.maimaid.ui.catalog.CatalogPhotoGridState,
+    gridState: CatalogPhotoGridState,
+    listState: LazyListState,
+    showStats: Boolean,
     contentTopPadding: Dp,
     onOpenSong: (String) -> Unit,
 ) {
     if (entries.isEmpty()) {
-        ScoreQueryList(entries, stats, container, contentTopPadding, onOpenSong)
+        ScoreQueryList(entries, stats, container, listState, showStats, contentTopPadding, onOpenSong)
         return
     }
     val badgeScale = remember(gridState) {
@@ -138,7 +168,7 @@ private fun ScoreQueryGrid(
         items = entries,
         state = gridState,
         itemKey = ScoreQueryEntry::sheetKey,
-        header = {
+        header = if (showStats) ({
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -147,7 +177,7 @@ private fun ScoreQueryGrid(
             ) {
                 ScoreQueryStatsHeader(stats = stats)
             }
-        },
+        }) else null,
     ) { entry, columns, imageSize, filler ->
         ScoreQueryGridCell(
             entry = entry,
@@ -167,10 +197,11 @@ private fun ScoreQueryList(
     entries: List<ScoreQueryEntry>,
     stats: ScoreQueryStats,
     container: AppContainer,
+    listState: LazyListState,
+    showStats: Boolean,
     contentTopPadding: Dp,
     onOpenSong: (String) -> Unit,
 ) {
-    val listState = rememberLazyListState()
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
@@ -183,8 +214,10 @@ private fun ScoreQueryList(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item(key = "stats") {
-                ScoreQueryStatsHeader(stats = stats)
+            if (showStats) {
+                item(key = "stats") {
+                    ScoreQueryStatsHeader(stats = stats)
+                }
             }
             if (entries.isEmpty()) {
                 item(key = "empty") { ScoreQueryEmpty() }

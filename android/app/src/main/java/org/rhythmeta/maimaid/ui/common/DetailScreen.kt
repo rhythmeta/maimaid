@@ -107,6 +107,7 @@ internal fun DetailScreen(
     danSelectedPage: Int,
     onTrueDanAvailabilityChanged: (Boolean) -> Unit = {},
     scoreQueryViewModel: ScoreQueryViewModel?,
+    scoreQuerySearchExpanded: Boolean,
     showScoreQueryFilter: Boolean,
     showConstantTableFilter: Boolean = false,
     profileCreateRequested: Boolean,
@@ -300,6 +301,7 @@ internal fun DetailScreen(
             ScoreQueryScreen(
                 container = container,
                 viewModel = viewModel,
+                searchExpanded = scoreQuerySearchExpanded,
                 contentTopPadding = songContentTopPadding,
                 showFilterDialog = showScoreQueryFilter,
                 onDismissFilter = onDismissScoreQueryFilter,

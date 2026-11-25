@@ -90,6 +90,8 @@ fun AppPageScaffold(
     showTopBar: Boolean = true,
     largeTitle: Boolean = true,
     smallTitleVisible: Boolean? = null,
+    titleBarVisible: Boolean? = null,
+    contentScrolled: Boolean? = null,
     topBarScrollBehavior: ScrollBehavior = MiuixScrollBehavior(),
     modifier: Modifier = Modifier,
     navigationIcon: @Composable () -> Unit = {},
@@ -103,7 +105,7 @@ fun AppPageScaffold(
         drawContent()
     }
     val scrollState = topBarScrollBehavior.state
-    val contentScrolled by remember(scrollState) {
+    val scrollStateContentScrolled by remember(scrollState) {
         derivedStateOf { scrollState.contentOffset < -1f || scrollState.overscrollOffset < -1f }
     }
     val flatTopBarModifier = Modifier
@@ -123,7 +125,7 @@ fun AppPageScaffold(
         else -> flatTopBarModifier
     }
     val bandProgress = animateFloatAsState(
-        targetValue = if (contentScrolled) 1f else 0f,
+        targetValue = if (contentScrolled ?: scrollStateContentScrolled) 1f else 0f,
         animationSpec = tween(durationMillis = TopBarBandFadeMillis, easing = LinearEasing),
         label = "top-bar-band",
     )
@@ -151,7 +153,19 @@ fun AppPageScaffold(
                     colors = bandColors,
                     measurements = measurements,
                 ) {
-                    if (largeTitle) {
+                    if (titleBarVisible != null) {
+                        CollapsibleTitleTopAppBar(
+                            title = title,
+                            titleVisible = titleBarVisible,
+                            modifier = topBarModifier,
+                            navigationIcon = navigationIcon,
+                            actions = actions,
+                            scrollBehavior = topBarScrollBehavior,
+                            bottomContent = {
+                                MeasuredBottomContent(measurements) { bottomContent() }
+                            },
+                        )
+                    } else if (largeTitle) {
                         TopAppBar(
                             title = title,
                             largeTitle = title,
@@ -270,7 +284,11 @@ private fun TopBarSlot(
     ) { measurables, constraints ->
         // The bar is measured first: its bottom content height sizes the band.
         val barPlaceable = measurables[1].measure(constraints)
-        val coveredPx = statusBarPx + collapsedPx + measurements.bottomContentHeight
+        // Searching removes the title row. Never size its blur using the hidden collapsed title.
+        val coveredPx = minOf(
+            barPlaceable.height.toFloat(),
+            statusBarPx + collapsedPx + measurements.bottomContentHeight,
+        )
         val bandHeightPx = ((coveredPx + extraPx) * TopBarBandScale).roundToInt()
         val bandPlaceable = measurables[0].measure(
             Constraints.fixed(barPlaceable.width, bandHeightPx),

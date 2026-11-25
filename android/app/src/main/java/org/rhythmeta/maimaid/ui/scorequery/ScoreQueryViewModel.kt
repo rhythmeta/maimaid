@@ -3,11 +3,9 @@ package org.rhythmeta.maimaid.ui.scorequery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -20,11 +18,12 @@ import org.rhythmeta.maimaid.core.data.ScoreQueryFilterSettings
 import org.rhythmeta.maimaid.core.data.ScoreQueryResponse
 import org.rhythmeta.maimaid.core.data.ScoreQuerySortMode
 import org.rhythmeta.maimaid.core.data.ScoreQueryStats
-import kotlin.time.Duration.Companion.milliseconds
 
 data class ScoreQueryUiState(
     val isLoading: Boolean = true,
     val entries: List<ScoreQueryEntry> = emptyList(),
+    val browsingEntries: List<ScoreQueryEntry> = emptyList(),
+    val searchText: String = "",
     val stats: ScoreQueryStats = ScoreQueryStats(),
     val filterSettings: ScoreQueryFilterSettings = ScoreQueryFilterSettings(),
     val displayMode: ScoreQueryDisplayMode = ScoreQueryDisplayMode.Grid,
@@ -46,7 +45,6 @@ private data class ScoreQueryCriteria(
     val preferences: ScoreQueryPreferences,
 )
 
-@OptIn(FlowPreview::class)
 class ScoreQueryViewModel(
     private val container: AppContainer,
 ) : ViewModel() {
@@ -63,7 +61,7 @@ class ScoreQueryViewModel(
     }
 
     private val criteria = combine(
-        query.debounce(SEARCH_DEBOUNCE_MILLIS.milliseconds),
+        query,
         filterSettings,
         preferences,
     ) { query, filterSettings, preferences ->
@@ -85,15 +83,18 @@ class ScoreQueryViewModel(
                 sortAscending = criteria.preferences.sortAscending,
             )
         } else {
+            val browsingEntries = ScoreQueryCalculator.filterAndSort(
+                entries = response.entries,
+                searchText = "",
+                settings = criteria.filterSettings,
+                sortMode = criteria.preferences.sortMode,
+                ascending = criteria.preferences.sortAscending,
+            )
             ScoreQueryUiState(
                 isLoading = false,
-                entries = ScoreQueryCalculator.filterAndSort(
-                    entries = response.entries,
-                    searchText = criteria.query,
-                    settings = criteria.filterSettings,
-                    sortMode = criteria.preferences.sortMode,
-                    ascending = criteria.preferences.sortAscending,
-                ),
+                entries = ScoreQueryCalculator.search(browsingEntries, criteria.query),
+                browsingEntries = browsingEntries,
+                searchText = criteria.query,
                 stats = response.stats,
                 filterSettings = criteria.filterSettings,
                 displayMode = criteria.preferences.displayMode,
@@ -152,7 +153,4 @@ class ScoreQueryViewModel(
         }
     }
 
-    private companion object {
-        const val SEARCH_DEBOUNCE_MILLIS = 300L
-    }
 }

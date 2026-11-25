@@ -103,6 +103,7 @@ import org.rhythmeta.maimaid.ui.common.DetailScreen
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTab
 import org.rhythmeta.maimaid.ui.components.LiquidGlassTabBar
 import org.rhythmeta.maimaid.ui.components.AppPageScaffold
+import org.rhythmeta.maimaid.ui.components.rememberSearchScrollState
 import org.rhythmeta.maimaid.ui.home.HomeScreen
 import org.rhythmeta.maimaid.ui.dan.DanPageSwitcher
 import org.rhythmeta.maimaid.ui.dan.DanRegularPage
@@ -346,6 +347,14 @@ fun MaimaidApp(
     val scoreQuerySearchFocused by scoreQuerySearchInteractionSource.collectIsFocusedAsState()
     val focusManager = LocalFocusManager.current
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
+    val cancelCatalogSearch: () -> Unit = {
+        restoreCatalogSearchFocus = false
+        catalogSearchExpanded = false
+        catalogQuery = ""
+        catalogSearchVisible = true
+        focusManager.clearFocus(force = true)
+        softwareKeyboardController?.hide()
+    }
     val density = LocalDensity.current
     val catalogSearchShowThreshold = with(density) { 56.dp.toPx() }
     val catalogSearchHideThreshold = with(density) { 36.dp.toPx() }
@@ -804,6 +813,7 @@ fun MaimaidApp(
                 sortAscending = catalogSortAscending,
                 filterSettings = catalogFilterSettings,
                 query = catalogQuery,
+                searchExpanded = catalogSearchExpanded,
                 songAliases = uiState.songAliases,
                 server = uiState.activeProfile?.server ?: "jp",
                 contentTopPadding = contentTopPadding,
@@ -1076,6 +1086,21 @@ fun MaimaidApp(
         }
         val scoreQueryState = scoreQueryViewModel?.state?.collectAsStateWithLifecycle()?.value
         val scoreQueryText = scoreQueryViewModel?.query?.collectAsStateWithLifecycle()?.value.orEmpty()
+        val scoreQuerySearching = activeDetail == AppDetail.ScoreQuery && scoreQuerySearchExpanded
+        val searchScrollState = rememberSearchScrollState(scoreQuerySearching, scoreQueryText)
+        val cancelScoreQuerySearch: () -> Unit = {
+            restoreScoreQuerySearchFocus = false
+            scoreQuerySearchExpanded = false
+            scoreQuerySearchVisible = true
+            scoreQueryViewModel?.setQuery("")
+            focusManager.clearFocus(force = true)
+            softwareKeyboardController?.hide()
+        }
+        BackHandler(
+            enabled = !LocalEnablePredictiveBack.current &&
+                detail == AppDetail.ScoreQuery && scoreQuerySearching,
+            onBack = cancelScoreQuerySearch,
+        )
         val pageBackground = if (activeDetail == AppDetail.Song) {
             songDetailBackground?.takeIf { it.first == routeSongId }?.second ?: backgroundColor
         } else {
@@ -1099,6 +1124,8 @@ fun MaimaidApp(
             progressiveBlurEnabled = enableTopBarProgressiveBlur,
             largeTitle = activeDetail != AppDetail.Song,
             smallTitleVisible = if (activeDetail == AppDetail.Song) routeSong == null || songDetailTitleHidden else null,
+            titleBarVisible = (!scoreQuerySearching).takeIf { activeDetail == AppDetail.ScoreQuery },
+            contentScrolled = searchScrollState.contentScrolled.takeIf { scoreQuerySearching },
             topBarScrollBehavior = detailScrollBehavior,
             modifier = Modifier.fillMaxSize(),
             navigationIcon = detailNavigationIcon,
@@ -1149,12 +1176,20 @@ fun MaimaidApp(
                             query = scoreQueryText,
                             onQueryChange = scoreQueryViewModel::setQuery,
                             expanded = scoreQuerySearchExpanded,
-                            onExpandedChange = { scoreQuerySearchExpanded = it },
-                            visible = scoreQuerySearchVisible || scoreQuerySearchFocused || restoreScoreQuerySearchFocus,
+                            onExpandedChange = { expanded ->
+                                if (expanded) {
+                                    scoreQuerySearchExpanded = true
+                                    scoreQuerySearchVisible = true
+                                } else {
+                                    cancelScoreQuerySearch()
+                                }
+                            },
+                            visible = scoreQuerySearchVisible || scoreQuerySearchExpanded || restoreScoreQuerySearchFocus,
                             focusRequestToken = scoreQuerySearchFocusRequestToken,
-                            backEnabled = detail == AppDetail.ScoreQuery && scoreQuerySearchFocused,
+                            backEnabled = detail == AppDetail.ScoreQuery,
                             interactionSource = scoreQuerySearchInteractionSource,
                             labelResource = R.string.score_query_search_hint,
+                            onCancelSearch = cancelScoreQuerySearch,
                         )
                     }
                     else -> Unit
@@ -1163,16 +1198,17 @@ fun MaimaidApp(
         ) { paddingValues, topBarScrollConnection ->
             Box(
                 modifier = Modifier.fillMaxSize()
-                    .nestedScroll(topBarScrollConnection)
                     .then(
-                    when (activeDetail) {
+                    if (scoreQuerySearching) {
+                        Modifier.nestedScroll(searchScrollState.nestedScrollConnection)
+                    } else Modifier.nestedScroll(topBarScrollConnection).then(when (activeDetail) {
                         AppDetail.Recommendations -> Modifier.nestedScroll(recommendationSwitcherScrollConnection)
                         AppDetail.DanDetail -> Modifier.nestedScroll(danSwitcherScrollConnection)
                         AppDetail.BestTable -> Modifier.nestedScroll(bestTableSwitcherScrollConnection)
                         AppDetail.CommunityAliases -> Modifier.nestedScroll(communityAliasSwitcherScrollConnection)
                         AppDetail.ScoreQuery -> Modifier.nestedScroll(scoreQuerySearchScrollConnection)
                         else -> Modifier
-                    },
+                    }),
                 ).then(
                     when (activeDetail) {
                         AppDetail.StaticData -> Modifier.padding(paddingValues)
@@ -1199,6 +1235,7 @@ fun MaimaidApp(
                         if (!hasTruePage) danSelectedPage = DanRegularPage
                     },
                     scoreQueryViewModel = scoreQueryViewModel,
+                    scoreQuerySearchExpanded = scoreQuerySearchExpanded,
                     showScoreQueryFilter = showScoreQueryFilter,
                     showConstantTableFilter = showConstantTableFilter,
                     profileCreateRequested = profileCreateRequested,
@@ -1294,13 +1331,20 @@ fun MaimaidApp(
                 query = catalogQuery,
                 onQueryChange = { catalogQuery = it },
                 expanded = catalogSearchExpanded,
-                onExpandedChange = { catalogSearchExpanded = it },
-                visible = catalogSearchVisible || catalogSearchFocused || restoreCatalogSearchFocus,
+                onExpandedChange = { expanded ->
+                    if (expanded) {
+                        catalogSearchExpanded = true
+                        catalogSearchVisible = true
+                    } else {
+                        cancelCatalogSearch()
+                    }
+                },
+                visible = catalogSearchVisible || catalogSearchExpanded || restoreCatalogSearchFocus,
                 focusRequestToken = catalogSearchFocusRequestToken,
                 backEnabled = destination == RootDestination.Catalog &&
-                    detail == null &&
-                    catalogSearchFocused,
+                    detail == null,
                 interactionSource = catalogSearchInteractionSource,
+                onCancelSearch = cancelCatalogSearch,
             )
         }
     }
@@ -1314,7 +1358,10 @@ fun MaimaidApp(
         drawContent()
     }
     val predictiveBackEnabled = LocalEnablePredictiveBack.current
-    val rootBackEnabled = navBackStack.size == 1 && detail == null && destination != RootDestination.Home
+    val catalogSearchBackEnabled = destination == RootDestination.Catalog &&
+        detail == null && catalogSearchExpanded
+    val rootBackEnabled = navBackStack.size == 1 && detail == null &&
+        destination != RootDestination.Home && !catalogSearchBackEnabled
     fun returnToHomeWithoutSecondTransition() {
         animateRootTransition = false
         destination = RootDestination.Home
@@ -1344,9 +1391,11 @@ fun MaimaidApp(
             }
         }
     } else {
-        BackHandler(enabled = navBackStack.size > 1 || rootBackEnabled) {
+        BackHandler(enabled = navBackStack.size > 1 || rootBackEnabled || catalogSearchBackEnabled) {
             if (navBackStack.size > 1) {
                 closeDetail()
+            } else if (catalogSearchBackEnabled) {
+                cancelCatalogSearch()
             } else {
                 destination = RootDestination.Home
             }
@@ -1371,6 +1420,8 @@ fun MaimaidApp(
             onBack = {
                 if (navBackStack.size > 1) {
                     closeDetail()
+                } else if (catalogSearchBackEnabled) {
+                    cancelCatalogSearch()
                 } else if (destination != RootDestination.Home) {
                     animateRootTransition = true
                     destination = RootDestination.Home
@@ -1422,6 +1473,8 @@ fun MaimaidApp(
                             destination = activeDestination,
                             modifier = Modifier.fillMaxSize(),
                             showTopBar = activeDestination != RootDestination.Scanner,
+                            searchExpanded = activeDestination == RootDestination.Catalog && catalogSearchExpanded,
+                            searchQuery = catalogQuery,
                             actions = { rootActions(activeDestination) },
                             bottomContent = { rootBottomContent(activeDestination) },
                             scrollObserver = catalogSearchScrollConnection.takeIf {
@@ -1435,6 +1488,9 @@ fun MaimaidApp(
                         backdrop = navigationBackdrop,
                         onDestinationSelected = { nextDestination ->
                             if (nextDestination != destination) {
+                                if (destination == RootDestination.Catalog && catalogSearchExpanded) {
+                                    cancelCatalogSearch()
+                                }
                                 animateRootTransition = true
                                 destination = nextDestination
                             }
@@ -1460,7 +1516,7 @@ fun MaimaidApp(
             entry<AppRoute.Recommendations>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.Recommendations)
             }
-            entry<AppRoute.ScoreQuery>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
+            entry<AppRoute.ScoreQuery>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled && !scoreQuerySearchExpanded) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.ScoreQuery)
             }
             entry<AppRoute.ConstantTable>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
@@ -1610,6 +1666,8 @@ private fun RootLayer(
     destination: RootDestination,
     modifier: Modifier = Modifier,
     showTopBar: Boolean = true,
+    searchExpanded: Boolean = false,
+    searchQuery: String = "",
     actions: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable () -> Unit = {},
     scrollObserver: NestedScrollConnection? = null,
@@ -1619,6 +1677,7 @@ private fun RootLayer(
     val enableBlur = LocalEnableBlur.current
     val enableTopBarProgressiveBlur = LocalEnableTopBarProgressiveBlur.current
     val scrollBehavior = MiuixScrollBehavior()
+    val searchScrollState = rememberSearchScrollState(searchExpanded, searchQuery)
     val backgroundColor = MiuixTheme.colorScheme.surface
     AppPageScaffold(
         title = title,
@@ -1627,6 +1686,8 @@ private fun RootLayer(
         progressiveBlurEnabled = enableTopBarProgressiveBlur,
         showTopBar = showTopBar,
         largeTitle = showTopBar,
+        titleBarVisible = (!searchExpanded).takeIf { destination == RootDestination.Catalog },
+        contentScrolled = searchScrollState.contentScrolled.takeIf { searchExpanded },
         topBarScrollBehavior = scrollBehavior,
         modifier = modifier,
         actions = actions,
@@ -1635,8 +1696,11 @@ private fun RootLayer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .nestedScroll(topBarConnection)
-                    .then(scrollObserver?.let(Modifier::nestedScroll) ?: Modifier)
+                    .then(
+                        if (searchExpanded) Modifier.nestedScroll(searchScrollState.nestedScrollConnection) else Modifier
+                            .nestedScroll(topBarConnection)
+                            .then(scrollObserver?.let(Modifier::nestedScroll) ?: Modifier),
+                    )
                     .background(backgroundColor),
             ) {
                 content(destination, paddingValues.calculateTopPadding())

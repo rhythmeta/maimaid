@@ -6,27 +6,26 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import org.rhythmeta.maimaid.R
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.SearchBar
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CatalogSearchBar(
     query: String,
@@ -37,21 +36,11 @@ internal fun CatalogSearchBar(
     focusRequestToken: Int,
     backEnabled: Boolean,
     interactionSource: MutableInteractionSource,
+    onCancelSearch: () -> Unit,
     labelResource: Int = R.string.catalog_search_hint,
 ) {
-    val imeVisible = WindowInsets.isImeVisible
-    var imeShownSinceFocus by remember { mutableStateOf(false) }
-
-    LaunchedEffect(imeVisible, backEnabled, expanded, query) {
-        when {
-            !backEnabled || !expanded -> imeShownSinceFocus = false
-            imeVisible -> imeShownSinceFocus = true
-            query.isEmpty() && imeShownSinceFocus -> {
-                imeShownSinceFocus = false
-                onExpandedChange(false)
-            }
-        }
-    }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     AnimatedVisibility(
         visible = visible,
@@ -64,7 +53,10 @@ internal fun CatalogSearchBar(
                     InputField(
                         query = query,
                         onQueryChange = onQueryChange,
-                        onSearch = {},
+                        onSearch = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
                         expanded = expanded,
                         onExpandedChange = onExpandedChange,
                         interactionSource = interactionSource,
@@ -76,6 +68,20 @@ internal fun CatalogSearchBar(
             onExpandedChange = onExpandedChange,
             insideMargin = DpSize(width = 16.dp, height = 10.dp),
             expanded = expanded && backEnabled,
+            outsideEndAction = {
+                TextButton(
+                    text = stringResource(R.string.action_cancel),
+                    onClick = onCancelSearch,
+                    modifier = Modifier.padding(end = 16.dp),
+                    minWidth = 0.dp,
+                    minHeight = 48.dp,
+                    insideMargin = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.textButtonColors(
+                        color = Color.Transparent,
+                        textColor = MiuixTheme.colorScheme.primary,
+                    ),
+                )
+            },
             content = {},
         )
     }

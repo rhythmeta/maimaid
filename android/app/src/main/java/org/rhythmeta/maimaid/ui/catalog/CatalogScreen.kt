@@ -10,7 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items as columnItems
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -44,6 +46,7 @@ fun CatalogScreen(
     sortAscending: Boolean,
     filterSettings: CatalogFilterSettings,
     query: String,
+    searchExpanded: Boolean,
     songAliases: List<SongAliasEntity>,
     server: String,
     contentTopPadding: Dp,
@@ -97,7 +100,25 @@ fun CatalogScreen(
                     .thenByDescending { it },
             )
     }
-    val gridState = rememberCatalogPhotoGridState(CoverGridPage.Catalog)
+    val catalogGridState = rememberCatalogPhotoGridState(CoverGridPage.Catalog)
+    val searchGridState = rememberSaveable(saver = CatalogPhotoGridState.Saver) { CatalogPhotoGridState() }
+    val catalogListState = rememberLazyListState()
+    val searchListState = rememberLazyListState()
+    val gridState = if (searchExpanded) searchGridState else catalogGridState
+    val listState = if (searchExpanded) searchListState else catalogListState
+    LaunchedEffect(searchExpanded) {
+        if (searchExpanded) searchGridState.zoom = catalogGridState.zoom
+    }
+    LaunchedEffect(searchExpanded, query) {
+        // Searching owns its scroll position; cancelling resumes the untouched browsing state.
+        if (searchExpanded) {
+            searchListState.requestScrollToItem(0)
+            searchGridState.requestScrollToItem(0)
+        }
+    }
+
+    // An empty search session is a blank canvas, not the unfiltered catalog or an empty result.
+    if (searchExpanded && query.isBlank()) return
 
     if (displayedSongs.isEmpty()) {
         Column(
@@ -123,7 +144,6 @@ fun CatalogScreen(
             onOpenSong = onOpenSong,
         )
     } else {
-        val listState = rememberLazyListState()
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,

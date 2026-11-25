@@ -124,11 +124,9 @@ object ScoreQueryCalculator {
         sortMode: ScoreQuerySortMode,
         ascending: Boolean,
     ): List<ScoreQueryEntry> {
-        val query = searchText.normalizedSearchText()
-        val filtered = entries.filter { entry ->
-            (query.isEmpty() || entry.matches(query)) &&
-                (settings.selectedDifficulties.isEmpty() ||
-                    entry.difficulty.lowercase(Locale.ROOT) in settings.selectedDifficulties) &&
+        val filtered = search(entries, searchText).filter { entry ->
+            (settings.selectedDifficulties.isEmpty() ||
+                entry.difficulty.lowercase(Locale.ROOT) in settings.selectedDifficulties) &&
                 (settings.selectedRanks.isEmpty() || entry.rank in settings.selectedRanks) &&
                 (settings.selectedFc.isEmpty() || ScoreRules.displayFc(entry.fc) in settings.selectedFc) &&
                 (settings.selectedFs.isEmpty() || ScoreRules.displayFs(entry.fs) in settings.selectedFs)
@@ -144,6 +142,12 @@ object ScoreQueryCalculator {
                 .thenBy { it.songTitle.normalizedSearchText() }
                 .thenBy(ScoreQueryEntry::sheetKey),
         )
+    }
+
+    /** Filters an already ordered browsing result without changing its order or contents. */
+    fun search(entries: List<ScoreQueryEntry>, searchText: String): List<ScoreQueryEntry> {
+        val query = searchText.normalizedSearchText()
+        return if (query.isEmpty()) entries else entries.filter { it.matches(query) }
     }
 
     private fun calculateStats(entries: List<ScoreQueryEntry>): ScoreQueryStats {

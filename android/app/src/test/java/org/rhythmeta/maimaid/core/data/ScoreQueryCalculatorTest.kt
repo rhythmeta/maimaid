@@ -79,6 +79,22 @@ class ScoreQueryCalculatorTest {
     }
 
     @Test
+    fun `search preserves browsing order and leaves the browsing result intact`() {
+        val entries = listOf(
+            entry(sheetKey = "first", title = "World's end", rating = 100),
+            entry(sheetKey = "other", title = "Other", rating = 300),
+            entry(sheetKey = "last", title = "World of music", rating = 200),
+        )
+
+        assertEquals(
+            listOf("first", "last"),
+            ScoreQueryCalculator.search(entries, "  ＷＯＲＬＤ  ").map(ScoreQueryEntry::sheetKey),
+        )
+        assertEquals(listOf("first", "other", "last"), entries.map(ScoreQueryEntry::sheetKey))
+        assertEquals(entries, ScoreQueryCalculator.search(entries, "  "))
+    }
+
+    @Test
     fun `combined filters require every selected category`() {
         val first = entry(rank = "SSS+", difficulty = "master", fc = "app", fs = "fsdp")
         val second = entry(rank = "SSS", difficulty = "expert", fc = "fc", fs = "fs")
