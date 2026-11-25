@@ -625,6 +625,23 @@ internal fun BestTableSettingsSheet(
                     }
                 }
                 item {
+                    BestTableSettingSection(title = stringResource(R.string.best50_stats_stars)) {
+                        BestTableFilterChipGroup(
+                            values = BestTableDxStarOptions,
+                            selectedValues = filterSettings.selectedDxStars,
+                            displayValue = { "${it}★" },
+                            colorForValue = { ScoreStatusColors.DxStar },
+                            onToggle = { stars ->
+                                onFilterSettingsChange(
+                                    filterSettings.copy(
+                                        selectedDxStars = filterSettings.selectedDxStars.toggled(stars),
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+                item {
                     BestTableSettingSection(title = stringResource(R.string.score_query_filter_fc)) {
                         BestTableFilterChipGroup(
                             values = BestTableFcOptions,
@@ -793,12 +810,12 @@ private fun BestTableCapacityAmount(value: Int) {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun BestTableFilterChipGroup(
-    values: List<String>,
-    selectedValues: Set<String>,
-    colorForValue: @Composable (String) -> Color,
-    onToggle: (String) -> Unit,
-    displayValue: (String) -> String = { it },
+private fun <T> BestTableFilterChipGroup(
+    values: List<T>,
+    selectedValues: Set<T>,
+    colorForValue: @Composable (T) -> Color,
+    onToggle: (T) -> Unit,
+    displayValue: (T) -> String = { it.toString() },
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -861,7 +878,7 @@ private fun BestTableFilterChip(
     }
 }
 
-private fun Set<String>.toggled(value: String): Set<String> =
+private fun <T> Set<T>.toggled(value: T): Set<T> =
     if (value in this) this - value else this + value
 
 private data class BestTableDifficultyOption(
@@ -887,6 +904,7 @@ private val BestTableChartTypes = listOf("dx", "std")
 private val BestTableRankOptions = listOf(
     "SSS+", "SSS", "SS+", "SS", "S+", "S", "AAA", "AA", "A", "BBB", "BB", "B", "C", "D",
 )
+private val BestTableDxStarOptions = (0..5).toList()
 private val BestTableFcOptions = listOf("AP+", "AP", "FC+", "FC")
 private val BestTableFsOptions = listOf("FDX+", "FDX", "FS+", "FS")
 

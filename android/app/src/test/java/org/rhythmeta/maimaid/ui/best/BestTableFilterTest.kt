@@ -1,5 +1,6 @@
 package org.rhythmeta.maimaid.ui.best
 
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -72,10 +73,74 @@ class BestTableFilterTest {
     }
 
     @Test
+    fun `DX star filters match exact star counts`() {
+        val entries = listOf(0, 84, 85, 89, 90, 92, 93, 94, 95, 96, 97, 100).map { percent ->
+            entry("$percent", dxScore = percent * 30)
+        }
+        val expected = listOf(
+            listOf("0", "84"),
+            listOf("85", "89"),
+            listOf("90", "92"),
+            listOf("93", "94"),
+            listOf("95", "96"),
+            listOf("97", "100"),
+        )
+
+        expected.forEachIndexed { index, keys ->
+            val filtered = entries.filteredBy(Best50FilterSettings(selectedDxStars = setOf(index)))
+
+            assertEquals(keys, filtered.map(RatingUtils.Entry::sheetKey))
+        }
+    }
+
+    @Test
+    fun `multiple DX stars exclude unselected stars and missing DX scores`() {
+        val entries = listOf(
+            entry("one", dxScore = 2550),
+            entry("three", dxScore = 2790),
+            entry("five", dxScore = 2910),
+            entry("zero", dxScore = 0),
+            entry("unknown-maximum", maxDxScore = 0),
+        )
+
+        val filtered = entries.filteredBy(Best50FilterSettings(selectedDxStars = setOf(1, 5)))
+
+        assertEquals(listOf("one", "five"), filtered.map(RatingUtils.Entry::sheetKey))
+    }
+
+    @Test
+    fun `zero DX stars include entries without DX score data`() {
+        val entries = listOf(
+            entry("below-one", dxScore = 2549),
+            entry("missing-score", dxScore = 0),
+            entry("unknown-maximum", maxDxScore = 0),
+            entry("one", dxScore = 2550),
+        )
+
+        val filtered = entries.filteredBy(Best50FilterSettings(selectedDxStars = setOf(0)))
+
+        assertEquals(
+            listOf("below-one", "missing-score", "unknown-maximum"),
+            filtered.map(RatingUtils.Entry::sheetKey),
+        )
+    }
+
+    @Test
+    fun `saved filters preserve DX stars and accept settings without stars`() {
+        val legacy = Json.decodeFromString<Best50FilterSettings>("""{"selectedRanks":["SSS+"]}""")
+        assertEquals(Best50FilterSettings(selectedRanks = setOf("SSS+")), legacy)
+
+        val settings = legacy.copy(selectedDxStars = setOf(0, 1, 5))
+        assertEquals(settings, Json.decodeFromString<Best50FilterSettings>(Json.encodeToString(settings)))
+    }
+
+    @Test
     fun `entries keep all selected dimensions`() {
         val entries = listOf(
             entry("match", difficulty = "master", category = "maimai", type = "dx"),
             entry("wrong-category", difficulty = "master", category = "GAME & VARIETY", type = "dx"),
+            entry("wrong-stars", category = "maimai", dxScore = 2550),
+            entry("wrong-rank", category = "maimai", achievement = 99.0),
         )
 
         val filtered = entries.filteredBy(
@@ -84,6 +149,7 @@ class BestTableFilterTest {
                 selectedCategories = setOf("maimai"),
                 selectedTypes = setOf("dx"),
                 selectedRanks = setOf("SSS+"),
+                selectedDxStars = setOf(5),
                 selectedFc = setOf("AP+"),
                 selectedFs = setOf("FDX+"),
             ),
@@ -100,6 +166,8 @@ class BestTableFilterTest {
         achievement: Double = 100.5,
         fc: String? = "app",
         fs: String? = "fsdp",
+        dxScore: Int = 3000,
+        maxDxScore: Int = 3000,
     ) = RatingUtils.Entry(
         sheetKey = sheetKey,
         songIdentifier = sheetKey,
@@ -111,8 +179,8 @@ class BestTableFilterTest {
         level = 15.0,
         difficulty = difficulty,
         type = type,
-        dxScore = 3000,
-        maxDxScore = 3000,
+        dxScore = dxScore,
+        maxDxScore = maxDxScore,
         fc = fc,
         fs = fs,
         isNew = true,

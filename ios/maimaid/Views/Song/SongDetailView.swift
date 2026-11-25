@@ -1402,11 +1402,7 @@ struct SheetCardView: View {
                 Spacer(minLength: 0)
 
                 if score.dxScore > 0 {
-                    Text(maxDxScore > 0 ? "\(score.dxScore) / \(maxDxScore)" : "\(score.dxScore)")
-                        .font(.subheadline)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                    SongDetailDXScore(dxScore: score.dxScore, maxDxScore: maxDxScore)
                 }
             }
             .padding(.horizontal, 16)

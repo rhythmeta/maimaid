@@ -1,6 +1,5 @@
 import SwiftUI
 
-// swiftlint:disable:next type_body_length
 struct BestTableSettingsView: View {
     @Bindable var preferences: BestTablePreferences
 
@@ -230,6 +229,8 @@ struct BestTableSettingsView: View {
                 }
             }
         }
+
+        BestTableDXStarFilterSection(selection: $preferences.filters.selectedDXStars)
 
         Section("scoreQuery.badge.fc") {
             FlowLayout(spacing: 10) {

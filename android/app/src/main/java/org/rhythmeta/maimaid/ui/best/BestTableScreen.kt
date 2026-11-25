@@ -319,6 +319,8 @@ internal fun List<RatingUtils.Entry>.filteredBy(
             (settings.selectedCategories.isEmpty() || entry.category in settings.selectedCategories) &&
             (settings.selectedTypes.isEmpty() || entry.type.normalizedChartType() in settings.selectedTypes) &&
             (settings.selectedRanks.isEmpty() || RatingUtils.rank(entry.achievement) in settings.selectedRanks) &&
+            (settings.selectedDxStars.isEmpty() ||
+                ScoreRules.dxStars(entry.dxScore, entry.maxDxScore) in settings.selectedDxStars) &&
             ScoreRules.displayFc(entry.fc).matchesSelection(settings.selectedFc) &&
             ScoreRules.displayFs(entry.fs).matchesSelection(settings.selectedFs)
     }

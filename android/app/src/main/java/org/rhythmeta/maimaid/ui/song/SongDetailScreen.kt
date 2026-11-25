@@ -264,6 +264,7 @@ internal fun SongDetailScreen(
     container: AppContainer,
     contentTopPadding: Dp,
     onBackgroundChanged: (Color?) -> Unit,
+    onJacketColorChanged: (Color?) -> Unit,
     onTitleChanged: (String) -> Unit,
     onOpenCommunityAliases: () -> Unit,
     coverTransition: CatalogCoverTransition? = null,
@@ -336,7 +337,10 @@ internal fun SongDetailScreen(
     var retainedEntryChart by remember { mutableStateOf<SheetScoreUiState?>(null) }
     var collectionPickerSheet by remember { mutableStateOf<SheetEntity?>(null) }
     var selectedCollectionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var jacketColor by remember(song.songIdentifier) { mutableStateOf<Color?>(null) }
+    var jacketColor by remember(song.songIdentifier, song.imageName) { mutableStateOf<Color?>(null) }
+    LaunchedEffect(song.songIdentifier, jacketColor) {
+        onJacketColorChanged(jacketColor)
+    }
     val darkTheme = SongVisualUtils.isDarkTheme(MiuixTheme.colorScheme.background)
     val detailColors = jacketColor?.let { SongVisualUtils.detailColors(it, darkTheme) }
     val surfaceColor = detailColors?.surface ?: MiuixTheme.colorScheme.surfaceContainer
@@ -2088,10 +2092,7 @@ private fun BestScoreRow(score: ScoreEntity?, sheet: SheetEntity) {
             )
         }
         if (score.dxScore > 0) {
-            Text(
-                text = if (maxDxScore > 0) "${score.dxScore} / $maxDxScore" else score.dxScore.toString(),
-                style = MiuixTheme.textStyles.body2,
-            )
+            SongDetailDxScore(dxScore = score.dxScore, maxDxScore = maxDxScore)
         }
     }
 }

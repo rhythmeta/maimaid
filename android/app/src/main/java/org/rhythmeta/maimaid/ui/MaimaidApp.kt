@@ -133,6 +133,7 @@ import org.rhythmeta.maimaid.ui.theme.LocalEnableFloatingBottomBarBlur
 import org.rhythmeta.maimaid.ui.theme.LocalEnableBlur
 import org.rhythmeta.maimaid.ui.theme.LocalEnableTopBarProgressiveBlur
 import org.rhythmeta.maimaid.ui.theme.LocalEnablePredictiveBack
+import org.rhythmeta.maimaid.ui.theme.SongJacketTheme
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.DropdownImpl
@@ -1068,6 +1069,7 @@ fun MaimaidApp(
     ) {
         val backgroundColor = MiuixTheme.colorScheme.surface
         val routeSongId = routeSongIdOverride ?: selectedSongId
+        var routeJacketColor by remember(routeSongId) { mutableStateOf<Color?>(null) }
         val routeChartSheetKey = routeChartSheetKeyOverride ?: selectedChartSheetKey
         val routeDanCategoryId = routeDanCategoryIdOverride ?: selectedDanCategoryId
         val routeCollectionId = routeCollectionIdOverride ?: selectedCollectionId
@@ -1101,8 +1103,9 @@ fun MaimaidApp(
                 detail == AppDetail.ScoreQuery && scoreQuerySearching,
             onBack = cancelScoreQuerySearch,
         )
+        SongJacketTheme(seedColor = routeJacketColor, enabled = activeDetail == AppDetail.Song) {
         val pageBackground = if (activeDetail == AppDetail.Song) {
-            songDetailBackground?.takeIf { it.first == routeSongId }?.second ?: backgroundColor
+            songDetailBackground?.takeIf { it.first == routeSongId }?.second ?: MiuixTheme.colorScheme.background
         } else {
             backgroundColor
         }
@@ -1273,6 +1276,7 @@ fun MaimaidApp(
                             songDetailBackground = color?.let { routeSongId to it }
                         }
                     },
+                    onSongDetailJacketColorChanged = { routeJacketColor = it },
                     onSongDetailTitleChanged = { title ->
                         if (activeDetail == AppDetail.Song && routeSongId != null) {
                             songDetailTitle = routeSongId to title
@@ -1308,6 +1312,7 @@ fun MaimaidApp(
                     coverTransition = catalogCoverTransition.takeIf { activeDetail == AppDetail.Song },
                 )
             }
+        }
         }
         }
     }

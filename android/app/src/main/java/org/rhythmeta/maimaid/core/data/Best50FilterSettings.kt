@@ -12,6 +12,7 @@ data class Best50FilterSettings(
     val selectedCategories: Set<String> = emptySet(),
     val selectedTypes: Set<String> = emptySet(),
     val selectedRanks: Set<String> = emptySet(),
+    val selectedDxStars: Set<Int> = emptySet(),
     val selectedFc: Set<String> = emptySet(),
     val selectedFs: Set<String> = emptySet(),
 ) {
@@ -20,6 +21,7 @@ data class Best50FilterSettings(
             selectedCategories.isEmpty() &&
             selectedTypes.isEmpty() &&
             selectedRanks.isEmpty() &&
+            selectedDxStars.isEmpty() &&
             selectedFc.isEmpty() &&
             selectedFs.isEmpty()
 }

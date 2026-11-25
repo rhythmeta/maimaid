@@ -17,19 +17,33 @@ enum class ScoreValidationError {
 }
 
 object ScoreRules {
+    private val dxStarPercentages = intArrayOf(0, 85, 90, 93, 95, 97)
+
     fun dxStars(dxScore: Int, maxDxScore: Int): Int {
         if (maxDxScore <= 0) return 0
         val percentage = dxScore.toLong() * 100
         val maximum = maxDxScore.toLong()
-        return when {
-            percentage >= maximum * 97 -> 5
-            percentage >= maximum * 95 -> 4
-            percentage >= maximum * 93 -> 3
-            percentage >= maximum * 90 -> 2
-            percentage >= maximum * 85 -> 1
-            else -> 0
-        }
+        return dxStarPercentages.indexOfLast { percentage >= maximum * it }.coerceAtLeast(0)
     }
+
+    fun dxStarProgress(dxScore: Int, maxDxScore: Int): DxStarProgress? {
+        if (dxScore < 0 || maxDxScore <= 0) return null
+        val stars = dxStars(dxScore, maxDxScore)
+        val minimum = minimumDxScoreForStars(stars, maxDxScore)
+        val nextMinimum = if (stars < dxStarPercentages.lastIndex) {
+            minimumDxScoreForStars(stars + 1, maxDxScore)
+        } else {
+            null
+        }
+        return DxStarProgress(
+            stars = stars,
+            pointsAboveMinimum = dxScore - minimum,
+            pointsToNextStar = nextMinimum?.minus(dxScore),
+        )
+    }
+
+    private fun minimumDxScoreForStars(stars: Int, maxDxScore: Int): Int =
+        ((maxDxScore.toLong() * dxStarPercentages[stars] + 99) / 100).toInt()
 
     /** The same DX star thresholds, for an already-averaged achievement rate. */
     fun dxStarsForRate(rate: Double): Int = when {

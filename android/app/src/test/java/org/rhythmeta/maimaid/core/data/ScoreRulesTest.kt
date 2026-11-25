@@ -8,6 +8,44 @@ import org.rhythmeta.maimaid.core.database.ScoreEntity
 
 class ScoreRulesTest {
     @Test
+    fun `DX star progress reports the margin above and gap below thresholds`() {
+        assertEquals(DxStarProgress(2, 50, 10), ScoreRules.dxStarProgress(1850, 2000))
+        assertEquals(DxStarProgress(0, 1000, 700), ScoreRules.dxStarProgress(1000, 2000))
+        assertEquals(DxStarProgress(5, 60, null), ScoreRules.dxStarProgress(2000, 2000))
+    }
+
+    @Test
+    fun `DX star thresholds round up to whole scores`() {
+        val minimums = listOf(0, 1701, 1801, 1861, 1901, 1941)
+        minimums.forEachIndexed { stars, minimum ->
+            assertEquals(
+                DxStarProgress(stars, 0, minimums.getOrNull(stars + 1)?.minus(minimum)),
+                ScoreRules.dxStarProgress(minimum, 2001),
+            )
+            if (stars > 0) {
+                val below = ScoreRules.dxStarProgress(minimum - 1, 2001)
+                assertEquals(stars - 1, below?.stars)
+                assertEquals(1, below?.pointsToNextStar)
+            }
+        }
+    }
+
+    @Test
+    fun `DX star progress needs a valid maximum and nonnegative score`() {
+        assertNull(ScoreRules.dxStarProgress(1000, 0))
+        assertNull(ScoreRules.dxStarProgress(1000, -1))
+        assertNull(ScoreRules.dxStarProgress(-1, 2000))
+    }
+
+    @Test
+    fun `DX star threshold arithmetic does not overflow`() {
+        assertEquals(
+            DxStarProgress(5, 64_424_509, null),
+            ScoreRules.dxStarProgress(Int.MAX_VALUE, Int.MAX_VALUE),
+        )
+    }
+
+    @Test
     fun `sync display values normalize to storage codes`() {
         assertEquals("sync", ScoreRules.canonicalFs("S"))
         assertEquals("fsp", ScoreRules.canonicalFs("FS+"))
