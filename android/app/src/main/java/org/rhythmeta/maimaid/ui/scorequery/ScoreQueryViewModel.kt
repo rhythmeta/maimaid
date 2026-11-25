@@ -3,9 +3,11 @@ package org.rhythmeta.maimaid.ui.scorequery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -45,6 +47,7 @@ private data class ScoreQueryCriteria(
     val preferences: ScoreQueryPreferences,
 )
 
+@OptIn(FlowPreview::class)
 class ScoreQueryViewModel(
     private val container: AppContainer,
 ) : ViewModel() {
@@ -61,7 +64,7 @@ class ScoreQueryViewModel(
     }
 
     private val criteria = combine(
-        query,
+        query.debounce { if (it.isBlank()) 0L else 50L },
         filterSettings,
         preferences,
     ) { query, filterSettings, preferences ->

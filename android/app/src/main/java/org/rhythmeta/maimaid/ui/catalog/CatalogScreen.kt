@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items as columnItems
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import org.rhythmeta.maimaid.core.database.SongEntity
 import org.rhythmeta.maimaid.ui.util.SongVisualUtils
 import org.rhythmeta.maimaid.ui.components.SongListScrollBar
 import org.rhythmeta.maimaid.ui.components.ZoomableCoverGrid
+import org.rhythmeta.maimaid.ui.components.rememberDebouncedSearch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -55,6 +57,8 @@ fun CatalogScreen(
     onDismissFilter: () -> Unit,
     onOpenSong: (String) -> Unit,
 ) {
+    val debouncedQuery by rememberDebouncedSearch(query)
+    val appliedQuery = if (searchExpanded) debouncedQuery else ""
     val sheetsBySong = remember(sheets) { sheets.groupBy(SheetEntity::songIdentifier) }
     val aliasesBySong = remember(songAliases) {
         songAliases.groupBy(SongAliasEntity::songIdentifier)
@@ -67,7 +71,7 @@ fun CatalogScreen(
         aliasesBySong,
         gameVersions,
         filterSettings,
-        query,
+        appliedQuery,
         sortOption,
         sortAscending,
         server,
@@ -78,7 +82,7 @@ fun CatalogScreen(
             aliasesBySong = aliasesBySong,
             versions = gameVersions,
             settings = filterSettings,
-            searchText = query,
+            searchText = appliedQuery,
             sortOption = sortOption,
             sortAscending = sortAscending,
             server = server,
@@ -109,7 +113,7 @@ fun CatalogScreen(
     LaunchedEffect(searchExpanded) {
         if (searchExpanded) searchGridState.zoom = catalogGridState.zoom
     }
-    LaunchedEffect(searchExpanded, query) {
+    LaunchedEffect(searchExpanded, appliedQuery) {
         // Searching owns its scroll position; cancelling resumes the untouched browsing state.
         if (searchExpanded) {
             searchListState.requestScrollToItem(0)
@@ -118,7 +122,7 @@ fun CatalogScreen(
     }
 
     // An empty search session is a blank canvas, not the unfiltered catalog or an empty result.
-    if (searchExpanded && query.isBlank()) return
+    if (searchExpanded && (query.isBlank() || appliedQuery != query)) return
 
     if (displayedSongs.isEmpty()) {
         Column(
