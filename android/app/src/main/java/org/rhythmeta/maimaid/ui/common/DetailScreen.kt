@@ -80,6 +80,7 @@ import org.rhythmeta.maimaid.ui.settings.BackendAuthScreen
 import org.rhythmeta.maimaid.ui.settings.DivingFishImportScreen
 import org.rhythmeta.maimaid.ui.settings.LxnsImportScreen
 import org.rhythmeta.maimaid.ui.settings.SgwcmaidImportScreen
+import org.rhythmeta.maimaid.ui.settings.SdgaImportScreen
 import org.rhythmeta.maimaid.ui.settings.AstroDxImportScreen
 import org.rhythmeta.maimaid.ui.settings.OtogameImportScreen
 import org.rhythmeta.maimaid.ui.settings.OtogameLoginScreen
@@ -377,6 +378,10 @@ internal fun DetailScreen(
             contentTopPadding = songContentTopPadding,
             initialCode = sgwcmaidInitialCode,
             onInitialCodeConsumed = onSgwcmaidInitialCodeConsumed,
+        )
+        AppDetail.SdgaImport -> SdgaImportScreen(
+            container = container,
+            contentTopPadding = songContentTopPadding,
         )
         AppDetail.AstroDxImport -> AstroDxImportScreen(container, songContentTopPadding)
         AppDetail.OtogameImport -> OtogameImportScreen(

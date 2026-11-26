@@ -47,6 +47,8 @@ jobs:
           MAIMAID_AUTH_URL: https://dash.rhythmeta.org
           MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
           MAIMAID_KEYCHIPS_GZIP: ${{ secrets.MAIMAID_KEYCHIPS_GZIP }}
+          MAIMAID_SDGA: ${{ secrets.MAIMAID_SDGA }}
+          MAIMAID_SDGA_PLACES_GZIP: ${{ secrets.MAIMAID_SDGA_PLACES_GZIP }}
         run: |
           set -euo pipefail
           mkdir -p build
@@ -70,7 +72,6 @@ jobs:
               exit 1
             fi
             echo "Configuring SGWCMAID import for the IPA archive ($SETTINGS_COUNT settings)."
-            trap 'rm -f "$SGWCMAID_XCCONFIG"' EXIT
           else
             echo "::warning::MAIMAID_SGWCMAID is not set; this IPA will ship without SGWCMAID import endpoints."
           fi
@@ -82,6 +83,32 @@ jobs:
             echo "Configured the SGWCMAID cabinet catalog."
           else
             echo "::warning::MAIMAID_KEYCHIPS_GZIP is not set; this IPA will fall back to the single keychip."
+          fi
+
+          if [ -n "${MAIMAID_SDGA:-}" ]; then
+            if ! python3 scripts/ios-sdga-settings.py --format xcconfig >> "$SGWCMAID_XCCONFIG"; then
+              echo "::error::Could not parse the MAIMAID_SDGA secret."
+              exit 1
+            fi
+            echo "Configured SDGA import for the IPA archive."
+          else
+            echo "::warning::MAIMAID_SDGA is not set; this IPA will ship without the SDGA import."
+          fi
+
+          if [ -n "${MAIMAID_SDGA_PLACES_GZIP:-}" ]; then
+            mkdir -p ios/maimaid/Resources
+            printf '%s' "${MAIMAID_SDGA_PLACES_GZIP}" | base64 --decode | gunzip \
+              > ios/maimaid/Resources/sdga_places.json
+            test -s ios/maimaid/Resources/sdga_places.json
+            echo "Configured the SDGA places database."
+          else
+            echo "::warning::MAIMAID_SDGA_PLACES_GZIP is not set; this IPA will only use the configured cabinet."
+          fi
+
+          # Remove the generated secrets file once the archive is done, whether it came
+          # from SGWCMAID, SDGA or both.
+          if [ -f "$SGWCMAID_XCCONFIG" ]; then
+            trap 'rm -f "$SGWCMAID_XCCONFIG"' EXIT
           fi
 
           if ! xcodebuild \

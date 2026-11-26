@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.rounded.AccountCircle
@@ -48,6 +49,7 @@ import org.rhythmeta.maimaid.core.AppContainer
 import org.rhythmeta.maimaid.core.data.PresetAvatarRepository
 import org.rhythmeta.maimaid.core.database.UserProfileEntity
 import org.rhythmeta.maimaid.ui.common.openInAppBrowser
+import org.rhythmeta.maimaid.ui.components.PreferenceIcon
 import org.rhythmeta.maimaid.ui.components.appTextFieldColors
 import org.rhythmeta.maimaid.ui.components.SquircleExtension
 import org.rhythmeta.maimaid.ui.components.rememberProfileAvatarModel
@@ -165,6 +167,7 @@ fun SgwcmaidImportScreen(
                             stringResource(R.string.import_sgwcmaid_region_auto),
                         ) + provinces.map { it.name }
                         WindowDropdownPreference(
+                            startAction = { PreferenceIcon(Icons.Rounded.Map) },
                             title = stringResource(R.string.import_sgwcmaid_region_title),
                             items = labels,
                             selectedIndex = provinces.indexOfFirst {
@@ -402,7 +405,7 @@ fun LxnsImportScreen(
 }
 
 @Composable
-private fun ScoreImportPage(
+internal fun ScoreImportPage(
     contentTopPadding: Dp,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
 ) {
@@ -468,7 +471,7 @@ fun ImportSummaryCard(
 }
 
 @Composable
-private fun ImportSection(
+internal fun ImportSection(
     title: String,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
@@ -486,7 +489,7 @@ private fun ImportSection(
 }
 
 @Composable
-private fun ImportPrimaryButton(
+internal fun ImportPrimaryButton(
     title: String,
     busy: Boolean,
     enabled: Boolean,

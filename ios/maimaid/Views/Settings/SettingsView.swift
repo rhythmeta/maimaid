@@ -92,6 +92,16 @@ struct SettingsView: View {
                         }
                     }
 
+                    if activeProfile?.server == GameServer.intl.rawValue {
+                        NavigationLink {
+                            SdgaImportView()
+                        } label: {
+                            settingsRowLabel(
+                                icon: "globe.asia.australia.fill", iconColor: .indigo,
+                                title: "settings.data.importSdga")
+                        }
+                    }
+
                     if activeProfile?.server == GameServer.jp.rawValue {
                         NavigationLink {
                             OtogameImportView()

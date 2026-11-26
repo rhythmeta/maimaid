@@ -109,6 +109,27 @@ jobs:
             echo "::warning::MAIMAID_KEYCHIPS_GZIP is not set; this APK will fall back to a single keychip."
           fi
 
+      - name: Prepare SDGA configuration
+        env:
+          MAIMAID_SDGA: ${{ secrets.MAIMAID_SDGA }}
+          MAIMAID_SDGA_PLACES_GZIP: ${{ secrets.MAIMAID_SDGA_PLACES_GZIP }}
+        run: |
+          if [ -n "${MAIMAID_SDGA:-}" ]; then
+            echo "SDGA configuration provided."
+          else
+            echo "::warning::MAIMAID_SDGA is not set; this APK will ship without the SDGA import."
+          fi
+
+          if [ -n "${MAIMAID_SDGA_PLACES_GZIP:-}" ]; then
+            places_path="${RUNNER_TEMP}/sdga_places.json"
+            printf '%s' "${MAIMAID_SDGA_PLACES_GZIP}" | base64 --decode | gunzip > "${places_path}"
+            test -s "${places_path}"
+            echo "MAIMAID_SDGA_PLACES_FILE=${places_path}" >> "${GITHUB_ENV}"
+            echo "Configured the SDGA places database."
+          else
+            echo "::warning::MAIMAID_SDGA_PLACES_GZIP is not set; this APK will only use the configured cabinet."
+          fi
+
       - name: Build release APK
         working-directory: android
         env:
@@ -116,6 +137,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           MAIMAID_SGWCMAID: ${{ secrets.MAIMAID_SGWCMAID }}
+          MAIMAID_SDGA: ${{ secrets.MAIMAID_SDGA }}
         run: >-
           ./gradlew :app:assembleRelease
           -PMAIMAID_SPLIT_RELEASE_APKS=true

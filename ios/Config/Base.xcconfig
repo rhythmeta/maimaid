@@ -34,4 +34,23 @@ SGWCMAID_PLACE_ID = 0
 SGWCMAID_REGION_ID = 0
 SGWCMAID_KEYCHIPS_FILE =
 
+// SDGA (international server) deployment values. Same contract as SGWCMAID_*:
+// supplied through Secrets.xcconfig or the environment, never committed.
+// An unconfigured build reports sdga_not_configured instead of importing.
+SDGA_TITLE_SERVER =
+SDGA_AES_KEY =
+SDGA_AES_IV =
+SDGA_OBFUSCATE_PARAM =
+SDGA_COMMON_KEY =
+SDGA_AIME_HOST =
+SDGA_AIME_PORT = 22345
+SDGA_GAME_VERSION = 1.65
+SDGA_GAME_ID = SDGA
+SDGA_KEYCHIP =
+SDGA_PLACE_ID = 0
+SDGA_REGION_ID = 0
+// Path to the arcade/keychip database; copied into the bundle by
+// scripts/ios-keychips-resource.sh.
+SDGA_PLACES_FILE =
+
 #include? "Secrets.xcconfig"

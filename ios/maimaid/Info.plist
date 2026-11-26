@@ -28,6 +28,30 @@
 	</array>
 	<key>MODEL_ASSETS_URL</key>
 	<string>$(MODEL_ASSETS_URL)</string>
+	<key>SDGA_AES_IV</key>
+	<string>$(SDGA_AES_IV)</string>
+	<key>SDGA_AES_KEY</key>
+	<string>$(SDGA_AES_KEY)</string>
+	<key>SDGA_AIME_HOST</key>
+	<string>$(SDGA_AIME_HOST)</string>
+	<key>SDGA_AIME_PORT</key>
+	<string>$(SDGA_AIME_PORT)</string>
+	<key>SDGA_COMMON_KEY</key>
+	<string>$(SDGA_COMMON_KEY)</string>
+	<key>SDGA_GAME_ID</key>
+	<string>$(SDGA_GAME_ID)</string>
+	<key>SDGA_GAME_VERSION</key>
+	<string>$(SDGA_GAME_VERSION)</string>
+	<key>SDGA_KEYCHIP</key>
+	<string>$(SDGA_KEYCHIP)</string>
+	<key>SDGA_OBFUSCATE_PARAM</key>
+	<string>$(SDGA_OBFUSCATE_PARAM)</string>
+	<key>SDGA_PLACE_ID</key>
+	<string>$(SDGA_PLACE_ID)</string>
+	<key>SDGA_REGION_ID</key>
+	<string>$(SDGA_REGION_ID)</string>
+	<key>SDGA_TITLE_SERVER</key>
+	<string>$(SDGA_TITLE_SERVER)</string>
 	<key>SGWCMAID_AES_IV</key>
 	<string>$(SGWCMAID_AES_IV)</string>
 	<key>SGWCMAID_AES_KEY</key>

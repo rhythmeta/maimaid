@@ -27,6 +27,7 @@ enum class AppDetail {
     DivingFishImport,
     LxnsImport,
     SgwcmaidImport,
+    SdgaImport,
     AstroDxImport,
     OtogameImport,
     OtogameLogin,

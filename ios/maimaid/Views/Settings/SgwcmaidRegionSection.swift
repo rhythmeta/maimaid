@@ -9,13 +9,17 @@ struct SgwcmaidRegionSection: View {
 
   var body: some View {
     Section {
-      Picker("import.sgwcmaid.region.title", selection: selection) {
+      Picker(selection: selection) {
         Text("import.sgwcmaid.region.auto")
           .tag(Int?.none)
         ForEach(model.provinces) { province in
           Text(verbatim: province.name)
             .tag(Optional(province.id))
         }
+      } label: {
+        // Same row style as the SDGA region pickers and the Settings rows.
+        SettingsStyleRowLabel(
+          icon: "map", color: .green, title: "import.sgwcmaid.region.title")
       }
       .pickerStyle(.menu)
     } header: {

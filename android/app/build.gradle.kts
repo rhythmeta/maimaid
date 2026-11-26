@@ -57,6 +57,60 @@ val prepareSgwcmaidAssets = tasks.register("prepareSgwcmaidAssets") {
     }
 }
 
+// International-server (SDGA) import. Same contract as MAIMAID_SGWCMAID: one JSON object
+// with the title-server and AiMeDB deployment values, never baked into the sources. An
+// unset variable leaves the import reporting "sdga_not_configured".
+//   MAIMAID_SDGA='{"titleServerUrl":"https://...","aesKey":"...","aesIv":"...",
+//     "obfuscateParam":"...","commonKey":"...","aimeHost":"aime.example.jp","aimePort":22345,
+//     "gameVersion":"1.65","gameId":"SDGA"}'
+val maimaidSdgaConfig = providers.environmentVariable("MAIMAID_SDGA")
+    .orElse(providers.gradleProperty("MAIMAID_SDGA"))
+// Arcade/keychip database for the SDGA import. Deployment data, never committed: CI writes
+// it from a repository secret, local testers point MAIMAID_SDGA_PLACES_FILE at their copy or
+// drop it at the gitignored local-secrets/sdga_places.json.
+val maimaidSdgaPlacesFile = providers.environmentVariable("MAIMAID_SDGA_PLACES_FILE")
+    .orElse(providers.gradleProperty("MAIMAID_SDGA_PLACES_FILE"))
+val maimaidSdgaPlacesJson = providers.environmentVariable("MAIMAID_SDGA_PLACES")
+    .orElse(providers.gradleProperty("MAIMAID_SDGA_PLACES"))
+val sdgaLocalSecrets = rootProject.file("local-secrets")
+val sdgaLocalConfigFile = sdgaLocalSecrets.resolve("sdga.json")
+val sdgaLocalPlacesFile = sdgaLocalSecrets.resolve("sdga_places.json")
+val emptySdgaJson = "{}"
+val sdgaAssetsDir = layout.buildDirectory.dir("generated/sdga/assets").get().asFile
+val sdgaPlacesAssetFile = sdgaAssetsDir.resolve("sdga_places.json")
+val sdgaConfigAssetFile = sdgaAssetsDir.resolve("sdga_config.json")
+val maimaidSdgaPlacesPath = maimaidSdgaPlacesFile.orNull?.let { project.file(it).absolutePath }
+val maimaidSdgaPlacesInline = maimaidSdgaPlacesJson.orNull
+// Both files are written as assets instead of BuildConfig fields so the generated task
+// actually depends on the local secret files: editing them invalidates the task instead of
+// leaving a stale value in the configuration cache.
+val prepareSdgaAssets = tasks.register("prepareSdgaAssets") {
+    val explicitPlaces = maimaidSdgaPlacesPath
+    val inlinePlaces = maimaidSdgaPlacesInline
+    val configJson = maimaidSdgaConfig.orNull
+    val localConfig = sdgaLocalConfigFile
+    val localPlaces = sdgaLocalPlacesFile
+    val placesTarget = sdgaPlacesAssetFile
+    val configTarget = sdgaConfigAssetFile
+    val fallback = emptySdgaJson
+    inputs.property("placesFile", explicitPlaces.orEmpty())
+    inputs.property("placesJson", inlinePlaces.orEmpty())
+    inputs.property("configJson", configJson.orEmpty())
+    inputs.property("hasLocalConfig", localConfig.isFile)
+    inputs.property("hasLocalPlaces", localPlaces.isFile)
+    explicitPlaces?.let { inputs.file(it) }
+    outputs.files(placesTarget, configTarget)
+    doLast {
+        placesTarget.parentFile.mkdirs()
+        val places = explicitPlaces?.let { File(it).readText() } ?: inlinePlaces
+            ?: localPlaces.takeIf { it.isFile }?.readText()
+        placesTarget.writeText(places?.takeIf { it.isNotBlank() } ?: fallback)
+        val config = configJson?.takeIf { it.isNotBlank() }
+            ?: localConfig.takeIf { it.isFile }?.readText()
+        configTarget.writeText(config?.takeIf { it.isNotBlank() } ?: fallback)
+    }
+}
+
 fun gitBuildValue(vararg arguments: String) = providers.exec {
     workingDir(rootProject.projectDir.parentFile)
     commandLine("git", *arguments)
@@ -67,7 +121,12 @@ val maimaidGitBranch = providers.environmentVariable("GITHUB_REF_NAME")
     .orElse(gitBuildValue("rev-parse", "--abbrev-ref", "HEAD"))
 val maimaidBuildTime = providers.environmentVariable("MAIMAID_BUILD_TIME")
     .orElse(gitBuildValue("show", "-s", "--format=%cI", "HEAD"))
-fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+fun buildConfigString(value: String) = "\"" + value
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+    // A multi-line secret (a pretty-printed JSON file) must stay a single Java literal.
+    .replace("\n", "\\n")
+    .replace("\r", "\\r") + "\""
 val maimaidBuildNumber = providers.environmentVariable("MAIMAID_BUILD_NUMBER")
     .orElse(
         providers.exec {
@@ -181,10 +240,11 @@ android {
     }
     sourceSets {
         getByName("main").assets.directories.add(sgwcmaidAssetsDir.absolutePath)
+        getByName("main").assets.directories.add(sdgaAssetsDir.absolutePath)
     }
 }
 
-tasks.named("preBuild").configure { dependsOn(prepareSgwcmaidAssets) }
+tasks.named("preBuild").configure { dependsOn(prepareSgwcmaidAssets, prepareSdgaAssets) }
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")

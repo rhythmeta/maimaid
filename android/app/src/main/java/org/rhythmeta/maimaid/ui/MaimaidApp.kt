@@ -841,6 +841,8 @@ fun MaimaidApp(
                     ?.equals("cn", ignoreCase = true) == true,
                 activeProfileIsChina = uiState.activeProfile?.server
                     ?.equals("cn", ignoreCase = true) == true,
+                activeProfileIsInternational = uiState.activeProfile?.server
+                    ?.equals("intl", ignoreCase = true) == true,
                 canImportOtogame = uiState.activeProfile?.server
                     ?.equals("jp", ignoreCase = true) == true,
                 onThirdPartyScoreSyncEnabledChange = viewModel::setThirdPartyScoreSyncEnabled,
@@ -1557,6 +1559,9 @@ fun MaimaidApp(
             entry<AppRoute.SgwcmaidImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.SgwcmaidImport)
             }
+            entry<AppRoute.SdgaImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
+                DetailEntry(AppDetail.SdgaImport)
+            }
             entry<AppRoute.AstroDxImport>(transition = SettingsDetailTransition, swipeDismiss = if (predictiveBackEnabled) NavSwipeDirection.LeftToRight else NavSwipeDirection.None) {
                 DetailEntry(AppDetail.AstroDxImport)
             }
@@ -1776,6 +1781,7 @@ private fun detailTitle(detail: AppDetail): String = when (detail) {
     AppDetail.DivingFishImport -> stringResource(R.string.detail_diving_fish)
     AppDetail.LxnsImport -> stringResource(R.string.detail_lxns)
     AppDetail.SgwcmaidImport -> stringResource(R.string.detail_sgwcmaid)
+    AppDetail.SdgaImport -> stringResource(R.string.detail_sdga)
     AppDetail.AstroDxImport -> stringResource(R.string.astrodx_title)
     AppDetail.OtogameImport -> stringResource(R.string.detail_otogame)
     AppDetail.OtogameLogin -> stringResource(R.string.detail_otogame_login)

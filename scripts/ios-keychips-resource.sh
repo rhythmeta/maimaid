@@ -1,5 +1,6 @@
 #!/bin/sh
-# Copies the SGWCMAID cabinet catalog into the app bundle.
+# Copies the deployment catalogs into the app bundle: the SGWCMAID cabinet
+# catalog and the SDGA places database.
 #
 # The catalog is deployment data and must never be committed. CI injects it
 # through MAIMAID_KEYCHIPS_FILE after decoding the MAIMAID_KEYCHIPS_GZIP

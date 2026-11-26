@@ -130,6 +130,25 @@ class AppContainer(context: Context) {
         sgwcmaidBindingStore,
     )
 
+    /**
+     * International-server import. The places catalog is injected at build time; without
+     * it the service still reports its configuration state so the screen can explain why
+     * the feature is unavailable.
+     */
+    /** Reads the public exit address so the import screen can show it. */
+    val egressIpService = org.rhythmeta.maimaid.core.data.EgressIpService(json)
+
+    val sdgaImportService by lazy {
+        org.rhythmeta.maimaid.core.data.SdgaImportService(
+            config = org.rhythmeta.maimaid.core.data.SdgaBuildConfig.load(applicationContext),
+            catalog = org.rhythmeta.maimaid.core.data.SdgaPlacesCatalogLoader.load(applicationContext),
+            store = org.rhythmeta.maimaid.core.data.SdgaPlaceStore(applicationContext),
+            importer = thirdPartyImportService,
+            credentialStore = org.rhythmeta.maimaid.core.data.SdgaCredentialStore(applicationContext, json),
+            json = json,
+        )
+    }
+
     val backendImportService = BackendImportService(
         sessionManager = backendSessionManager,
         json = json,

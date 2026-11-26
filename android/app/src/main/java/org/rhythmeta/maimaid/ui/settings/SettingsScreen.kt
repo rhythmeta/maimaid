@@ -15,6 +15,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.SetMeal
@@ -53,6 +54,7 @@ fun SettingsScreen(
     thirdPartyScoreSyncEnabled: Boolean,
     canSyncThirdPartyScores: Boolean,
     activeProfileIsChina: Boolean,
+    activeProfileIsInternational: Boolean,
     canImportOtogame: Boolean,
     onThirdPartyScoreSyncEnabledChange: (Boolean) -> Unit,
     onOpenDetail: (AppDetail) -> Unit,
@@ -116,6 +118,14 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_sgwcmaid),
                         summary = stringResource(R.string.settings_sgwcmaid_description),
                         onClick = { onOpenDetail(AppDetail.SgwcmaidImport) },
+                    )
+                }
+                if (activeProfileIsInternational) {
+                    SettingsRow(
+                        icon = Icons.Rounded.Language,
+                        title = stringResource(R.string.settings_sdga),
+                        summary = stringResource(R.string.settings_sdga_description),
+                        onClick = { onOpenDetail(AppDetail.SdgaImport) },
                     )
                 }
                 SettingsRow(

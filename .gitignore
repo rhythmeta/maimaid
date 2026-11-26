@@ -35,6 +35,10 @@ ios/build-codex/
 **/keychips.json
 **/keychip-catalog.json
 
+# SDGA deployment data (places database + deployment config): build secrets, never committed
+android/local-secrets/
+**/sdga_places.json
+
 # Android signing keys
 *.jks
 *.jks.old
@@ -44,3 +48,6 @@ ios/build-codex/
 
 .workbuddy-ai
 datasets/
+
+# SDGA places database: deployment data, never committed
+ios/maimaid/Resources/sdga_places.json
