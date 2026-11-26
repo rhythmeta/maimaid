@@ -146,7 +146,7 @@ fun SdgaImportScreen(
         item {
             ImportProfileSection(
                 profile = state.profile,
-                best50Rating = state.profile?.playerRating ?: 0,
+                best50Rating = state.best50Rating,
                 presetAvatarRepository = container.presetAvatarRepository,
             )
         }

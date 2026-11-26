@@ -20,6 +20,8 @@ import org.rhythmeta.maimaid.core.database.UserProfileEntity
 
 data class SdgaImportUiState(
     val profile: UserProfileEntity? = null,
+    /** Rating computed from the profile's scores, like the other import screens. */
+    val best50Rating: Int = 0,
     val credential: String = "",
     val countries: List<String> = emptyList(),
     val country: String? = null,
@@ -68,6 +70,10 @@ class SdgaImportViewModel(private val container: AppContainer) : ViewModel() {
 
     init {
         refreshEgress(force = false)
+        viewModelScope.launch {
+            container.best50Repository.observeBest50(b35CountOverride = 35, b15CountOverride = 15)
+                .collect { best50 -> mutableState.update { it.copy(best50Rating = best50.total) } }
+        }
         viewModelScope.launch {
             container.profileRepository.activeProfile.collect { profile ->
                 if (profile?.id != mutableState.value.profile?.id) {
